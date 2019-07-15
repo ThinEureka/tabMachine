@@ -584,7 +584,6 @@ function context:_stopSelf()
     self.tm = nil
 
     if p and not p._isStopped and p._notifySubStop > 0 then
-        print("xxxxk")
         local msg = {
             eventType = tabMachine.event_context_stop,
             p = p,
