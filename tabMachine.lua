@@ -170,6 +170,8 @@ function context:ctor()
     self._outputVars = nil
     self._outputValues = nil
 
+    self._notifySubStop = 0
+
     self.v = {}
 end
 
@@ -262,6 +264,10 @@ local function joint_event(c, msg)
     if isEmptyTable(c.v._unTriggeredContexts) then
         print("is empty")
         c:stop()
+
+        if c.p and not c.p._isStopped then
+            c.p:decNotifySubStop()
+        end
     end
     -- always return false
     return false
@@ -275,6 +281,8 @@ function context:join(scNames, scName)
     if #scNames == 0 then
         return false
     end
+
+    self:incNotifySubStop()
     
     local subContext = self.tm:_createContext()
     subContext.tm = self.tm
@@ -499,6 +507,14 @@ function context:notify(msg, level)
     return false
 end
 
+function context:incNotifySubStop()
+    self._notifySubStop = self._notifySubStop + 1
+end
+
+function context:decNofitySubStop()
+    self._notifySubStop = self._notifySubStop - 1
+end
+
 function  context:_installTab(tab)
     self._tab = tab
     if tab == nil then
@@ -567,7 +583,8 @@ function context:_stopSelf()
     self.p = nil
     self.tm = nil
 
-    if p and not p._isStopped then
+    if p and not p._isStopped and p._notifySubStop > 0 then
+        print("xxxxk")
         local msg = {
             eventType = tabMachine.event_context_stop,
             p = p,
