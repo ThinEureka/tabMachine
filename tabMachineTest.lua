@@ -36,6 +36,31 @@ test.hello = {
     end
 }
 
+test.notify = {
+    s1_event = function(c, msg)
+        if msg == "end s1" then
+            return  true
+        elseif msg == "end s2" then
+            c:stop("s2")
+            return true
+        elseif msg == "start s2" then
+            c:call(test.tickPrint, "s2", nil, "Hello world")
+        end
+        return false
+    end,
+
+    event = function(c, msg)
+        if msg == "end" then
+            c:stop()
+            return true
+        elseif msg == "end s2" then
+            print("receive end s2 not captured")
+            return false
+        end
+        return false
+    end,
+}
+
 test.final = {
     s1 = function(c)
         c:start("t1")
@@ -82,8 +107,8 @@ test.final = {
         end,
     },
 
-    m1_final = function(c)
-        print("m1 ex final")
+    final = function(c)
+        print("final")
     end,
 }
 
@@ -95,12 +120,13 @@ test.inputs = {
 
 test.outputs = {
     s1 = function(c)
-        c:call(test.tickPrint, "s1", {"o1", "o2"}, "Hello World again")
+        c:call(test.tickPrint, "s1", {"o1", "o2", "o3"}, "Hello World again")
     end,
 
     s2 = function(c)
         print("o1 ", c.v.o1)
         print("o2 ", c.v.o2)
+        print("o3 ", c.v.o3)
     end,
 }
 

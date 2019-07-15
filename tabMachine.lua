@@ -3,12 +3,12 @@
 --created on July 11, 2019 
 
 local tabMachine = class("tabMachine", function (target)
-		if target == nil then
-			target = {}
-		end
+    if target == nil then
+        target = {}
+    end
 
-		return target
-	end)
+    return target
+end)
 
 local context = class("context")
 
@@ -32,8 +32,8 @@ end
 ----------------- tabMachine -------------------------
 
 function tabMachine:ctor()
-	self._isRunning = false
-	self._rootContext = nil
+    self._isRunning = false
+    self._rootContext = nil
     self._outputs = nil
     self._globalTabs = nil
 end
@@ -44,21 +44,25 @@ function tabMachine:installTab(tab)
     subContext.p = nil
     subContext._name = "root"
     subContext._isRoot = true
-	self._rootContext = subContext
-	self._rootContext:_installTab(tab)
+    self._rootContext = subContext
+    self._rootContext:_installTab(tab)
 end
 
 function tabMachine:start(...)
-	self._isRunning = true
-	self._rootContext:_enter(...)
+    self._isRunning = true
+    self._rootContext:_enter(...)
 end
 
 function tabMachine:update(dt)
-	self._rootContext:_update(dt)
+    self._rootContext:_update(dt)
+end
+
+function tabMachine:notify(msg)
+    self._rootContext:notify(msg)
 end
 
 function tabMachine:stop()
-	self._rootContext:stop()
+    self._rootContext:stop()
     -- callback _onStopped is expected to be called
     -- then the variables would be proerly set
 end
@@ -115,30 +119,34 @@ end
 ---------------------- context -------------------------
 
 function context:ctor()
-	self.tm = nil
-	self.p = nil
+    self.tm = nil
+    self.p = nil
 
-	self._tab = nil
-	self._name = nil
+    self._tab = nil
+    self._name = nil
     self._isRoot = false
 
-	if parent == nil then
-		self.rc = self
-	else
-		self.rc = parent.rc
-	end
+    if parent == nil then
+        self.rc = self
+    else
+        self.rc = parent.rc
+    end
 
     self._isStopped = false
 
-	self._headSubContext = nil
+    self._headSubContext = nil
     self._tailSubContext = nil
 
-	self._preContext = nil
-	self._nextContext = nil
+    self._preContext = nil
+    self._nextContext = nil
 
-	self._eventFun = nil
-	self._updateFun = nil
+    self._eventFun = nil
+    self._updateFun = nil
     self._finalFun = nil
+    
+    self._eventFunEx = nil
+    self._updateFunEx = nil
+    self._finalFunEx = nil
 
     self._outputVars = nil
     self._outputValues = nil
@@ -152,7 +160,8 @@ function context:start(scName, ...)
         return false
     end
 
-	local sub = self._tab[scName]
+    --dump(self, "onStart")
+    local sub = self._tab[scName]
     local subUpdateFun = self._tab[scName.."_update"]
     local subEventFun = self._tab[scName.."_event"]
     local subFinalFunEx = self._tab[scName.."_final"]
@@ -173,9 +182,9 @@ function context:start(scName, ...)
         subContext.p = self
         subContext._name = scName
 
-        subContext._updateFun = subUpdateFun
-        subContext._eventFun = subEventFun
-        subContext._finalFun = subFinalFunEx
+        subContext._updateFunEx = subUpdateFun
+        subContext._eventFunEx = subEventFun
+        subContext._finalFunEx = subFinalFunEx
         self:_addSubContext(subContext)
 
         -- to ganrantee that the subcontext is added before execution
@@ -258,12 +267,12 @@ function context:_addSubContext(subContext)
     end
 
     if self._tailSubContext == nil then
-         self._headSubContext = subContext
-         self._tailSubContext = subContext
+        self._headSubContext = subContext
+        self._tailSubContext = subContext
     else
-      subContext._preContext = self._tailSubContext
-      self._tailSubContext._nextContext = subContext
-      self._tailSubContext = subContext
+        subContext._preContext = self._tailSubContext
+        self._tailSubContext._nextContext = subContext
+        self._tailSubContext = subContext
     end
 
     return true
@@ -314,7 +323,9 @@ function context:_checkStop()
         return
     end
 
-    if self._headSubContext == nil then 
+    if self._headSubContext == nil 
+        and self._updateFun == nil
+        and self._eventFun == nil then 
         self:_stopSelf() 
     end
 end
@@ -351,28 +362,78 @@ function context:_startNext(scName)
 end
 
 function context:_update(dt)
+    -- inner update first
     if self._updateFun then 
-        self._updateFun(self.p, dt)
+        self._updateFun(self, dt)
+    end
+
+    if self._isStopped then
+        return
+    end
+
+    if self._updateFunEx then
+        self._updateFunEx(self.p, dt)
     end
 
     local subContext = self._headSubContext
     while subContext ~= nil do
-        if not subContext.p._isStopped then
+        if subContext.p and not subContext.p._isStopped then
             subContext:_update(dt)
         end
         subContext = subContext._nextContext
     end
 end
 
-function context:_notify(msg)
-	-- body
+function context:notify(msg)
+    if self._isStopped then
+        return false
+    end
+
+    local captured = false
+    -- call ex notified first
+    if self._eventFunEx then
+        captured = self._eventFunEx(self.p, msg)
+    end
+
+    if captured then
+        return true
+    end
+
+    if self._isStopped then
+        return false
+    end
+
+    if self._eventFun then
+        captured = self._eventFun(self, msg)
+    end
+
+    if captured then
+        return true
+    end
+
+    if self._isStopped then
+        return false
+    end
+
+    local subContext = self._headSubContext
+    while subContext ~= nil do
+        if subContext.p and not subContext.p._isStopped then
+            captured = subContext:notify(msg)
+            if captured then
+                return true
+            end
+        end
+        subContext = subContext._nextContext
+    end
+
+    return false
 end
 
 function  context:_installTab(tab)
-	self._tab = tab
-    if self._tab.final then
-        self._finalFun = self._tab.final
-    end
+    self._tab = tab
+    self._finalFun = self._tab.final
+    self._updateFun = self._tab.update
+    self._eventFun = self._tab.event
 end
 
 function  context:_enter(...)
@@ -402,8 +463,13 @@ function context:_stopSelf()
     self._headSubContext = nil
     self._tailSubContext = nil
 
+    -- inner final first
     if self._finalFun ~= nil then
         self._finalFun(self.p)
+    end
+
+    if self._finalFunEx ~= nil then
+        self._finalFunEx(self.p)
     end
 
     local p = self.p
