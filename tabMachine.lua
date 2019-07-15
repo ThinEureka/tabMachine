@@ -12,6 +12,9 @@ end)
 
 local context = class("context")
 
+tabMachine.event_context_stop = "context_stop"
+
+
 ----------------- util functions ---------------------
 local function outputValues(env, outputVars, outputValues)
     for i, var in ipairs(outputVars) do
@@ -27,6 +30,14 @@ end
 
 local function isValidGlobalTabName(name)
     return name:len() > 2 and name:sub(1, 2) == "::"
+end
+
+local function isEmptyTable(t)
+    for k, v in pairs(t) do
+        return false
+    end
+
+    return true
 end
 
 ----------------- tabMachine -------------------------
@@ -57,8 +68,8 @@ function tabMachine:update(dt)
     self._rootContext:_update(dt)
 end
 
-function tabMachine:notify(msg)
-    self._rootContext:notify(msg)
+function tabMachine:notify(msg, level)
+    self._rootContext:notify(msg, level)
 end
 
 function tabMachine:stop()
@@ -160,7 +171,6 @@ function context:start(scName, ...)
         return false
     end
 
-    --dump(self, "onStart")
     local sub = self._tab[scName]
     local subUpdateFun = self._tab[scName.."_update"]
     local subEventFun = self._tab[scName.."_event"]
@@ -226,6 +236,50 @@ function  context:call(tabName, scName, outputVars, ...)
     subContext._outputVars = outputVars
     self:_addSubContext(subContext)
     subContext:_enter(...)
+
+    return true
+end
+
+local function joint_event(c, msg)
+    if not c.p or c.p._isStopped then
+        return false
+    end
+
+    if type(msg) == "table" 
+        and msg.eventType == tabMachine.event_context_stop
+        and msg.p == c.p then
+        c.v._unTriggeredContexts[msg.name] = nil
+    end
+
+    if isEmptyTable(c.v._unTriggeredContexts) then
+        print("is empty")
+        c:stop()
+    end
+    -- always return false
+    return false
+end
+
+function context:join(scNames, scName)
+    if self._isStopped then
+        return false
+    end
+
+    if #scNames == 0 then
+        return false
+    end
+    
+    local subContext = self.tm:_createContext()
+    subContext.tm = self.tm
+    subContext.p = self
+    subContext._name = scName
+    subContext._eventFun = joint_event
+    subContext.v._unTriggeredContexts = {}
+
+    for _, name in ipairs(scNames) do
+        subContext.v._unTriggeredContexts[name] = true
+    end
+
+    self:_addSubContext(subContext)
 
     return true
 end
@@ -325,7 +379,7 @@ function context:_checkStop()
 
     if self._headSubContext == nil 
         and self._updateFun == nil
-        and self._eventFun == nil then 
+        and self._eventFun == nil then
         self:_stopSelf() 
     end
 end
@@ -384,7 +438,15 @@ function context:_update(dt)
     end
 end
 
-function context:notify(msg)
+function context:notify(msg, level)
+    if level == nil then
+        level = -1
+    end
+
+    if level == 0 then
+        return false
+    end
+
     if self._isStopped then
         return false
     end
@@ -418,7 +480,7 @@ function context:notify(msg)
     local subContext = self._headSubContext
     while subContext ~= nil do
         if subContext.p and not subContext.p._isStopped then
-            captured = subContext:notify(msg)
+            captured = subContext:notify(msg, level - 1)
             if captured then
                 return true
             end
@@ -486,6 +548,16 @@ function context:_stopSelf()
     tm:_disposeContext(self)
     self.p = nil
     self.tm = nil
+
+    if p and not p._isStopped then
+        local msg = {
+            eventType = tabMachine.event_context_stop,
+            p = p,
+            name = self._name
+        }
+        -- only down to its siblings
+        p:notify(msg, 2)
+    end
 
     if p and not p._isStopped then
         p:_checkNext(self._name)

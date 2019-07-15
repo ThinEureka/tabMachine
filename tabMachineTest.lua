@@ -37,9 +37,14 @@ test.hello = {
 }
 
 test.notify = {
+    s1 = function(c)
+        c:start("s3")
+    end,
+
     s1_event = function(c, msg)
+        print("s1 event ", msg)
         if msg == "end s1" then
-            return  true
+            return  false
         elseif msg == "end s2" then
             c:stop("s2")
             return true
@@ -49,7 +54,12 @@ test.notify = {
         return false
     end,
 
+    s3_event = function(c, msg)
+        print("s3 event ", msg)
+    end,
+
     event = function(c, msg)
+        print("total event ", msg)
         if msg == "end" then
             c:stop()
             return true
@@ -58,6 +68,24 @@ test.notify = {
             return false
         end
         return false
+    end,
+}
+
+test.join = {
+    s1 = function(c)
+        local isSameOrder = math.random(2) == 2
+        if isSameOrder then
+            c:call(test.tickPrint, "t1", nil, "Hello World")
+            c:call(test.tickPrint, "m1", nil, "HaHaHaHaHa HaHaHa")
+        else
+            c:call(test.tickPrint, "t1", nil, "Hello World long long long long long long")
+            c:call(test.tickPrint, "m1", nil, "HaHaHaHaHa HaHaHa")
+        end
+        c:join({"t1", "m1"}, "k1")
+    end,
+
+    k2 = function(c)
+        print("t1 m1 joined")
     end,
 }
 
