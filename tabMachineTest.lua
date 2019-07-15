@@ -21,6 +21,8 @@ function test.testTab(tabName)
 end
 
 ----------------------- tabs  -------------------------
+test.empty = {
+}
 
 test.helloWorld = {
     s1 = function(c)
@@ -47,6 +49,32 @@ test.hello = {
 
     s5 = function(c) 
         print("s5 call all return")
+    end
+}
+
+test.extTrigger = {
+    s1 = function(c)
+        c:call("t1", "t1")
+    end,
+
+    t1 = {
+        s1 = function(c)
+            c:call("m1", "m1")
+        end,
+
+        m1 = {
+            s1 = function(c)
+                print("inner s1")
+                g_head = c
+            end,
+
+            s1_event = function(c)
+            end,
+        },
+    },
+
+    t2 = function(c)
+        c:start("s1")
     end
 }
 
@@ -162,10 +190,10 @@ test.inputs = {
 
 test.outputs = {
     s1 = function(c)
-        c:call(test.tickPrint, "s1", {"o1", "o2", "o3"}, "Hello World again")
+        c:call(test.tickPrint, "s2", {"o1", "o2", "o3"}, "Hello World again")
     end,
 
-    s2 = function(c)
+    s3 = function(c)
         print("o1 ", c.v.o1)
         print("o2 ", c.v.o2)
         print("o3 ", c.v.o3)

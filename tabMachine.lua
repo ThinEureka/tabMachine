@@ -47,6 +47,7 @@ function tabMachine:ctor()
     self._rootContext = nil
     self._outputs = nil
     self._globalTabs = nil
+    self._tab = nil
 end
 
 function tabMachine:installTab(tab)
@@ -56,12 +57,19 @@ function tabMachine:installTab(tab)
     subContext._name = "root"
     subContext._isRoot = true
     self._rootContext = subContext
+    self._tab = tab
     self._rootContext:_installTab(tab)
 end
 
 function tabMachine:start(...)
+    if self._tab == nil then
+        return false
+    end
+
     self._isRunning = true
     self._rootContext:_enter(...)
+
+    return true
 end
 
 function tabMachine:update(dt)
@@ -493,13 +501,23 @@ end
 
 function  context:_installTab(tab)
     self._tab = tab
+    if tab == nil then
+        return false
+    end
+
     self._finalFun = self._tab.final
     self._updateFun = self._tab.update
     self._eventFun = self._tab.event
+
+    return true
 end
 
 function  context:_enter(...)
-    self:start("s1", ...)
+    if self:start("s1", ...) then
+        return
+    end
+
+    self:_checkStop()
 end
 
 function context:_stopSub(scName)
