@@ -116,6 +116,7 @@ test.notify = {
 test.join = {
     s1 = function(c)
         local isSameOrder = math.random(2) == 2
+        
         if isSameOrder then
             c:call(test.tickPrint, "t1", nil, "Hello World")
             c:call(test.tickPrint, "m1", nil, "HaHaHaHaHa HaHaHa")
