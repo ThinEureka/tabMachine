@@ -15,10 +15,24 @@ function test.testTab(tabName)
     g_tabMachine = require("app.common.tabMachine.cocosTabMachine").new()
     g_tabMachine:installTab(test[tabName])
     g_tabMachine:start()
-    g_tabMachine:startUpdate(true)
+    if g_tabMachine:isRunning() then
+        g_tabMachine:startUpdate(true)
+    end
 end
 
 ----------------------- tabs  -------------------------
+
+test.helloWorld = {
+    s1 = function(c)
+        print("hello world")
+    end,
+}
+
+test.helloWorldEx = {
+    s1 = function(c)
+        c:call(test.tickPrint, "s1", nil, "Hello World Ex")
+    end,
+}
 
 test.hello = {
     s1 = function(c)
