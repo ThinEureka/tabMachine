@@ -19,7 +19,7 @@ local function outputValues(env, outputVars, outputValues)
             if outputValues == nil then
                 env[var] = nil
             else
-                env[var] = self._outValues[i] 
+                env[var] = outputValues[i] 
             end
         end
     end
@@ -139,7 +139,6 @@ function context:ctor()
 	self._eventFun = nil
 	self._updateFun = nil
     self._finalFun = nil
-    self._finalFunEx = nil
 
     self._outputVars = nil
     self._outputValues = nil
@@ -176,7 +175,7 @@ function context:start(scName, ...)
 
         subContext._updateFun = subUpdateFun
         subContext._eventFun = subEventFun
-        subContext._finalFunEx = subFinalFunEx
+        subContext._finalFun = subFinalFunEx
         self:_addSubContext(subContext)
 
         -- to ganrantee that the subcontext is added before execution
@@ -391,6 +390,7 @@ function context:_stopSub(scName)
 end
 
 function context:_stopSelf()
+    print("stop ", self._name)
     self._isStopped = true
 
     local subContext = self._headSubContext
@@ -402,19 +402,15 @@ function context:_stopSelf()
     self._headSubContext = nil
     self._tailSubContext = nil
 
-    if self.finalFun ~= nil then
-        self.finalFun(self)
-    end
-
-    if self.finalFunEx ~= nil then
-        self.finalFunEx(self.p)
+    if self._finalFun ~= nil then
+        self._finalFun(self.p)
     end
 
     local p = self.p
     local tm = self.tm
     if p then
         if self._outputVars then
-            setOutputs(p.v, self._outputVars, self._outputValues)
+            outputValues(p.v, self._outputVars, self._outputValues)
         end
         p:_removeSubContext(self)
     elseif self._isRoot then

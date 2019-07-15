@@ -36,6 +36,113 @@ test.hello = {
     end
 }
 
+test.final = {
+    s1 = function(c)
+        c:start("t1")
+        c:start("u1")
+        c:call("m1", "m1")
+    end,
+
+    t1_update = function(c, dt)
+        if c.v.a == nil then
+            c.v.a = 0
+        end
+
+        c.v.a = c.v.a + dt
+        if c.v.a > 1 then
+            c.v.a = c.v.a - 1
+            print("tick")
+        end
+    end,
+
+    t1_final = function(c)
+        print("t1 final")
+    end,
+
+    u1 = function(c)
+        print("u1")
+    end,
+
+    u1_final = function(c)
+        print("u1 final")
+    end,
+
+    m1 = {
+        s1 = function(c)
+            print("mmmm")
+            c:call("::delay", "d1", nil, 3)
+        end,
+
+        s1_final = function(c)
+            print("m1.s1 final")
+        end,
+
+        final = function(c)
+            print("m1 final")
+        end,
+    },
+
+    m1_final = function(c)
+        print("m1 ex final")
+    end,
+}
+
+test.inputs = {
+    s1 = function(c)
+        c:call(test.tickPrint, "s1", nil, "Hello World again")
+    end,
+}
+
+test.outputs = {
+    s1 = function(c)
+        c:call(test.tickPrint, "s1", {"o1", "o2"}, "Hello World again")
+    end,
+
+    s2 = function(c)
+        print("o1 ", c.v.o1)
+        print("o2 ", c.v.o2)
+    end,
+}
+
+test.tick = {
+    s1_update = function(c, dt)
+        if c.v.a == nil then
+            c.v.a = 0
+        end
+
+        c.v.a = c.v.a + dt
+        if c.v.a > 1 then
+            c.v.a = c.v.a - 1
+            print("tick")
+        end
+    end,
+}
+
+test.tickPrint = {
+    s1 = function(c, word)
+        c.v.word = word
+        c.v.t = 0
+        c.v.index = 0
+    end,
+
+    s1_update = function(c, dt)
+        c.v.t = c.v.t + dt
+        if c.v.t >= 1 then
+            c.v.t = c.v.t - 1
+            c.v.index = c.v.index + 1
+
+            if c.v.index <= c.v.word:len() then
+                local subWord = c.v.word:sub(1, c.v.index)
+                print(subWord)
+            else
+                c:output("o1-value", "o2-value")
+                c:stop()
+            end
+        end
+
+    end,
+}
+
 test.all = {
     s1 = function(c)
         c:call("::delay", "t0", nil, 10)
