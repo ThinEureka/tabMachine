@@ -15,9 +15,6 @@ function test.testTab(tabName)
     g_tabMachine = require("app.common.tabMachine.cocosTabMachine").new()
     g_tabMachine:installTab(test[tabName])
     g_tabMachine:start()
-    if g_tabMachine:isRunning() then
-        g_tabMachine:startUpdate(true)
-    end
 end
 
 ----------------------- tabs  -------------------------
@@ -75,6 +72,52 @@ test.extTrigger = {
 
     t2 = function(c)
         c:start("s1")
+    end
+}
+
+test.updateOptimization = {
+    s1 = function(c)
+        c:call(test.tickPrint, "t1", nil, "s1s1s1s1s1s1s1s1s1s1s1s1s1s1s1s1")
+    end,
+
+    u1 = {
+        s1 = function(c)
+            c:call(test.tickPrint, "t1", nil, "u1u1u1u1u1u1u1u1u1u1u1u1u1u1")
+        end
+    },
+
+    m1 = {
+        s1 = function(c)
+            c:call("t1", "t1")
+        end,
+
+        t1 = {
+            s1 = function(c)
+                c:call("t1", "t1")
+            end,
+
+            t1 = {
+                s1 = function(c)
+                    c:call("t1", "t1")
+                end,
+
+                t1 = {
+                    s1 = function(c)
+                        c:call(test.tickPrint, "t1", nil, "m1m1m1m1m1m1m1m1m1m1m1m1m1m1")
+                    end,
+                },
+            },
+        },
+    },
+
+    event = function(c, msg)
+        if msg == "s1" then
+            c:start("s1")
+        elseif msg == "t1" then
+            c:call("u1", "u1")
+        elseif msg == "m1" then
+            c:call("m1", "m1")
+        end
     end
 }
 

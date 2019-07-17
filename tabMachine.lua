@@ -73,11 +73,19 @@ function tabMachine:start(...)
 end
 
 function tabMachine:update(dt)
-    self._rootContext:_update(dt)
+    return self._rootContext:_update(dt)
 end
 
 function tabMachine:notify(msg, level)
     self._rootContext:notify(msg, level)
+end
+
+function tabMachine:_addUpdate()
+    -- to be need to be implemented by sub class
+end
+
+function tabMachine:_decUpdate()
+    -- to be need to be implemented by sub class
 end
 
 function tabMachine:stop()
@@ -170,6 +178,8 @@ function context:ctor()
     self._outputVars = nil
     self._outputValues = nil
 
+    self._needUpdateCount = 0
+
     self.v = {}
 end
 
@@ -204,6 +214,10 @@ function context:start(scName, ...)
         subContext._eventFunEx = subEventFun
         subContext._finalFunEx = subFinalFunEx
         self:_addSubContext(subContext)
+
+        if subContext:_selfNeedUpdate() then
+            subContext:_addUpdate()
+        end
 
         -- to ganrantee that the subcontext is added before execution
         if (sub ~= nil) then
@@ -339,6 +353,7 @@ function context:_addSubContext(subContext)
     return true
 end
 
+
 function context:_removeSubContext(subContext)
     if subContext.p == nil then
         return false
@@ -359,6 +374,7 @@ function context:_removeSubContext(subContext)
     if subContext._nextContext ~= nil then
         subContext._nextContext._preContext = subContext._preContext
     end
+
 
     subContext.p = nil
     subContext.rc = nil
@@ -424,12 +440,16 @@ end
 
 function context:_update(dt)
     -- inner update first
-    if self._updateFun then 
-        self._updateFun(self, dt)
+    if self._isStopped then
+        return false
     end
 
-    if self._isStopped then
-        return
+    if not self:_needUpdate() then
+        return false
+    end
+
+    if self._updateFun then 
+        self._updateFun(self, dt)
     end
 
     if self._updateFunEx then
@@ -438,11 +458,15 @@ function context:_update(dt)
 
     local subContext = self._headSubContext
     while subContext ~= nil do
-        if subContext.p and not subContext.p._isStopped then
+        if subContext.p
+            and not subContext.p._isStopped
+            and subContext:_needUpdate() then
             subContext:_update(dt)
         end
         subContext = subContext._nextContext
     end
+
+    return true
 end
 
 function context:notify(msg, level)
@@ -512,6 +536,10 @@ function  context:_installTab(tab)
 end
 
 function  context:_enter(...)
+    if self:_selfNeedUpdate() then
+        self:_addUpdate()
+    end
+
     if self:start("s1", ...) then
         return
     end
@@ -531,7 +559,16 @@ end
 
 function context:_stopSelf()
     print("stop ", self._name)
+
     self._isStopped = true
+
+    if self:_needUpdate() then
+       if self.p then 
+           self.p:_decUpdate()
+       elseif self._isRoot then
+           self.tm:_decUpdate()
+       end
+    end
 
     local subContext = self._headSubContext
     while subContext ~= nil do
@@ -581,6 +618,47 @@ function context:_stopSelf()
     elseif self._isRoot then
         tm:_onStopped()
     end
+end
+
+function context:_addUpdate()
+    if self._isStopped then
+        return false
+    end
+
+    local selfNeedUpdate = self:_needUpdate()
+    self._needUpdateCount = self._needUpdateCount + 1
+    if selfNeedUpdate ~= self:_needUpdate() then
+        if self.p then
+            return self.p:_addUpdate()
+        elseif self._isRoot and self.tm then
+            return self.tm:_addUpdate()
+        end
+    end
+end
+
+function context:_decUpdate()
+    if self._isStopped then
+        return false
+    end
+
+    local selfNeedUpdate = self:_needUpdate()
+    self._needUpdateCount = self._needUpdateCount - 1
+    if selfNeedUpdate ~= self:_needUpdate() then
+        if self.p then
+            return self.p:_decUpdate()
+        elseif self._isRoot and self.tm then
+            return self.tm:_decUpdate()
+        end
+    end
+end
+
+function context:_needUpdate()
+    return self._needUpdateCount > 0
+end
+
+function context:_selfNeedUpdate()
+    return self._updateFun ~= nil or
+        self._updateFunEx ~= nil
 end
 
 return tabMachine

@@ -22,22 +22,25 @@ function cocosTabMachine:ctor()
     end
 end
 
-function cocosTabMachine:startUpdate(perFrame)
-    assert(self:isRunning())
-    assert(self._timer == nil)
-
-    self._timer = SoradCreateTimer(g_tabMachine, function(dt)
-            g_tabMachine:update(dt)
-        end, perFrame)
+function cocosTabMachine:_addUpdate()
+    print("machine add update")
+    if self._timer == nil then
+        self._timer = SoradCreateTimer(g_tabMachine, function(dt)
+                g_tabMachine:update(dt)
+            end, perFrame)
+    end
 end
 
-function cocosTabMachine:_onStopped()
-    print("machine stopped")
+function cocosTabMachine:_decUpdate()
+    print("machine dec update")
     if self._timer then
         SoraDManagerRemoveTimerByTarget(self)
         self._timer = nil
     end
+end
 
+function cocosTabMachine:_onStopped()
+    print("machine stopped")
     tabMachine._onStopped(self)
 end
 
