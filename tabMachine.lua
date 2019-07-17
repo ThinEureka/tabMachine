@@ -48,6 +48,7 @@ function tabMachine:ctor()
     self._outputs = nil
     self._globalTabs = nil
     self._tab = nil
+    self._tickIndex = 0
 end
 
 function tabMachine:installTab(tab)
@@ -76,6 +77,10 @@ function tabMachine:update(dt)
     return self._rootContext:_update(dt)
 end
 
+function tabMachine:tick(index)
+    return self._rootContext:_tick(index)
+end
+
 function tabMachine:notify(msg, level)
     self._rootContext:notify(msg, level)
 end
@@ -85,6 +90,14 @@ function tabMachine:_addUpdate()
 end
 
 function tabMachine:_decUpdate()
+    -- to be need to be implemented by sub class
+end
+
+function tabMachine:_addTick()
+    -- to be need to be implemented by sub class
+end
+
+function tabMachine:_decTick()
     -- to be need to be implemented by sub class
 end
 
@@ -177,10 +190,12 @@ function context:ctor()
 
     self._eventFun = nil
     self._updateFun = nil
+    self._tickFun = nil
     self._finalFun = nil
     
     self._eventFunEx = nil
     self._updateFunEx = nil
+    self._tickFunEx = nil
     self._finalFunEx = nil
 
     self._outputVars = nil
@@ -188,6 +203,7 @@ function context:ctor()
 
     self._needUpdateCount = 0
     self._needNotifyCount = 0
+    self._needTickCount = 0
 
     self.v = {}
 end
@@ -199,15 +215,21 @@ function context:start(scName, ...)
     end
 
     local sub = self._tab[scName]
-    local subUpdateFun = self._tab[scName.."_update"]
-    local subEventFun = self._tab[scName.."_event"]
+    local subUpdateFunEx = self._tab[scName.."_update"]
+    local subEventFunEx = self._tab[scName.."_event"]
+    local subTickFunEx = self._tab[scName.."_tick"]
     local subFinalFunEx = self._tab[scName.."_final"]
 
-    if sub == nil and subUpdateFun == nil and subEventFun == nil then
-        return false
+    if sub == nil and
+        subUpdateFunEx == nil and
+        subTickFunEx == nil and
+        subEventFunEx == nil then 
+            return false
     end
 
-    if subUpdateFun == nil and subEventFun == nil then
+    if subUpdateFunEx == nil and
+        subTickFunEx == nil and
+        subEventFunEx == nil then
         sub(self, ...)
         if subFinalFunEx ~= nil then
             subFinalFunEx(self)
@@ -219,8 +241,9 @@ function context:start(scName, ...)
         subContext.p = self
         subContext._name = scName
 
-        subContext._updateFunEx = subUpdateFun
-        subContext._eventFunEx = subEventFun
+        subContext._updateFunEx = subUpdateFunEx
+        subContext._eventFunEx = subEventFunEx
+        subContext._tickFunEx = subTickFunEx
         subContext._finalFunEx = subFinalFunEx
         self:_addSubContext(subContext)
 
@@ -411,6 +434,7 @@ function context:_checkStop()
 
     if self._headSubContext == nil 
         and self._updateFun == nil
+        and self._tickFun == nil
         and self._eventFun == nil then
         self:_stopSelf() 
     end
@@ -469,6 +493,35 @@ function context:_update(dt)
     while subContext ~= nil do
         if subContext.p and not subContext.p._isStopped then
             subContext:_update(dt)
+        end
+        subContext = subContext._nextContext
+    end
+
+    return true
+end
+
+function context:_tick(index)
+    -- inner update first
+    if self._isStopped then
+        return false
+    end
+
+    if not self:_needTick() then
+        return false
+    end
+
+    if self._tickFun then 
+        self._tickFun(self, index)
+    end
+
+    if self._tickFunEx then
+        self._tickFunEx(self.p, index)
+    end
+
+    local subContext = self._headSubContext
+    while subContext ~= nil do
+        if subContext.p and not subContext.p._isStopped then
+            subContext:_tick(index)
         end
         subContext = subContext._nextContext
     end
@@ -561,6 +614,10 @@ function context:_prepareEnter()
         self:_addUpdate()
     end
 
+    if self:_selfNeedTick() then
+        self:_addTick()
+    end
+
     if self:_selfNeedNotify() then
         self:_addNotify()
     end
@@ -586,6 +643,14 @@ function context:_stopSelf()
            self.p:_decUpdate()
        elseif self._isRoot then
            self.tm:_decUpdate()
+       end
+    end
+
+    if self:_needTick() then
+       if self.p then 
+           self.p:_decTick()
+       elseif self._isRoot then
+           self.tm:_decTick()
        end
     end
 
@@ -686,6 +751,47 @@ end
 function context:_selfNeedUpdate()
     return self._updateFun ~= nil or
         self._updateFunEx ~= nil
+end
+
+function context:_addTick()
+    if self._isStopped then
+        return false
+    end
+
+    local oldNeedTick = self:_needTick()
+    self._needTickCount = self._needTickCount + 1
+    if oldNeedTick ~= self:_needTick() then
+        if self.p then
+            return self.p:_addTick()
+        elseif self._isRoot and self.tm then
+            return self.tm:_addTick()
+        end
+    end
+end
+
+function context:_decTick()
+    if self._isStopped then
+        return false
+    end
+
+    local oldNeedTick = self:_needTick()
+    self._needTickCount = self._needTickCount - 1
+    if oldNeedTick ~= self:_needTick() then
+        if self.p then
+            return self.p:_decTick()
+        elseif self._isRoot and self.tm then
+            return self.tm:_decTick()
+        end
+    end
+end
+
+function context:_needTick()
+    return self._needTickCount > 0
+end
+
+function context:_selfNeedTick()
+    return self._tickFun ~= nil or
+        self._tickFunEx ~= nil
 end
 
 function context:_addNotify()

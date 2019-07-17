@@ -16,7 +16,8 @@ local commonTabs = {}
 
 function cocosTabMachine:ctor()
     tabMachine.ctor(self)
-    self._timer = nil
+    self._updateTimer = nil
+    self._tickTimer = nil
     for name, tab in pairs(commonTabs) do
         self:registerGlobalTab(name, tab)
     end
@@ -24,18 +25,36 @@ end
 
 function cocosTabMachine:_addUpdate()
     print("machine add update")
-    if self._timer == nil then
-        self._timer = SoradCreateTimer(g_tabMachine, function(dt)
+    if self._updateTimer == nil then
+        self._updateTimer = SoradCreateTimer(self, function(dt)
                 g_tabMachine:update(dt)
-            end, perFrame)
+            end, true)
     end
 end
 
 function cocosTabMachine:_decUpdate()
     print("machine dec update")
-    if self._timer then
+    if self._updateTimer then
         SoraDManagerRemoveTimerByTarget(self)
-        self._timer = nil
+        self._updateTimer = nil
+    end
+end
+
+function cocosTabMachine:_addTick()
+    print("machine add tick")
+    if self._tickTimer == nil then
+        self._tickTimer = SoradCreateTimer(self, function(dt)
+                self._tickIndex = self._tickIndex + 1
+                g_tabMachine:tick(self._tickIndex)
+            end, false)
+    end
+end
+
+function cocosTabMachine:_decTick()
+    print("machine dec tick")
+    if self._tickTimer then
+        SoraDManagerRemoveTimerByTarget(self)
+        self._tickTimer = nil
     end
 end
 

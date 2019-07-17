@@ -266,16 +266,8 @@ test.outputs = {
 }
 
 test.tick = {
-    s1_update = function(c, dt)
-        if c.v.a == nil then
-            c.v.a = 0
-        end
-
-        c.v.a = c.v.a + dt
-        if c.v.a > 1 then
-            c.v.a = c.v.a - 1
-            print("tick")
-        end
+    s1 = function(c)
+        c:call(test.countDown, "t1", nil, 15, "tick")
     end,
 }
 
@@ -301,6 +293,21 @@ test.tickPrint = {
             end
         end
 
+    end,
+}
+
+test.countDown = {
+    s1 = function(c, num, tag)
+        c.v.num = num
+        c.v.tag = tag and tag or "countDown"
+    end,
+    
+    s1_tick = function(c, index)
+        print(c.v.tag .. ":" .. c.v.num, " ", index)
+        c.v.num = c.v.num - 1
+        if c.v.num <= 0 then
+            c:stop()
+        end
     end,
 }
 
