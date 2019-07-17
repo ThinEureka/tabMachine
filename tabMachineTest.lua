@@ -75,7 +75,7 @@ test.extTrigger = {
     end
 }
 
-test.updateOptimization = {
+test.updateOpt = {
     s1 = function(c)
         c:call(test.tickPrint, "t1", nil, "s1s1s1s1s1s1s1s1s1s1s1s1s1s1s1s1")
     end,
@@ -119,6 +119,27 @@ test.updateOptimization = {
             c:call("m1", "m1")
         end
     end
+}
+
+test.notifyOpt = {
+    s1 = function(c)
+        c.v.t = 0
+    end,
+
+    s1_update = function (c, dt)
+        c.v.t = c.v.t + dt
+        if c.v.t > 5 then
+            c:start("t1")
+            c:stop("s1")
+        end
+    end,
+
+    t1_event = function(c, msg)
+        if msg == "s1" then
+            c:start("s1")
+            c:stop("t1")
+        end
+    end,
 }
 
 test.notify = {

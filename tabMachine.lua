@@ -88,6 +88,14 @@ function tabMachine:_decUpdate()
     -- to be need to be implemented by sub class
 end
 
+function tabMachine:_addNotify()
+    -- to be need to be implemented by sub class
+end
+
+function tabMachine:_decNotify()
+    -- to be need to be implemented by sub class
+end
+
 function tabMachine:stop()
     self._rootContext:stop()
     -- callback _onStopped is expected to be called
@@ -179,6 +187,7 @@ function context:ctor()
     self._outputValues = nil
 
     self._needUpdateCount = 0
+    self._needNotifyCount = 0
 
     self.v = {}
 end
@@ -217,6 +226,10 @@ function context:start(scName, ...)
 
         if subContext:_selfNeedUpdate() then
             subContext:_addUpdate()
+        end
+
+        if subContext:_selfNeedNotify() then
+            subContext:_addNotify()
         end
 
         -- to ganrantee that the subcontext is added before execution
@@ -458,9 +471,7 @@ function context:_update(dt)
 
     local subContext = self._headSubContext
     while subContext ~= nil do
-        if subContext.p
-            and not subContext.p._isStopped
-            and subContext:_needUpdate() then
+        if subContext.p and not subContext.p._isStopped then
             subContext:_update(dt)
         end
         subContext = subContext._nextContext
@@ -470,15 +481,19 @@ function context:_update(dt)
 end
 
 function context:notify(msg, level)
+    if self._isStopped then
+        return false
+    end
+
+    if not self:_needNotify() then
+        return false
+    end
+
     if level == nil then
         level = -1
     end
 
     if level == 0 then
-        return false
-    end
-
-    if self._isStopped then
         return false
     end
 
@@ -540,6 +555,10 @@ function  context:_enter(...)
         self:_addUpdate()
     end
 
+    if self:_selfNeedNotify() then
+        self:_addNotify()
+    end
+
     if self:start("s1", ...) then
         return
     end
@@ -567,6 +586,14 @@ function context:_stopSelf()
            self.p:_decUpdate()
        elseif self._isRoot then
            self.tm:_decUpdate()
+       end
+    end
+
+    if self:_needNotify() then
+       if self.p then 
+           self.p:_decNotify()
+       elseif self._isRoot then
+           self.tm:_decNotify()
        end
     end
 
@@ -625,9 +652,9 @@ function context:_addUpdate()
         return false
     end
 
-    local selfNeedUpdate = self:_needUpdate()
+    local oldNeedUpdate = self:_needUpdate()
     self._needUpdateCount = self._needUpdateCount + 1
-    if selfNeedUpdate ~= self:_needUpdate() then
+    if oldNeedUpdate ~= self:_needUpdate() then
         if self.p then
             return self.p:_addUpdate()
         elseif self._isRoot and self.tm then
@@ -641,9 +668,9 @@ function context:_decUpdate()
         return false
     end
 
-    local selfNeedUpdate = self:_needUpdate()
+    local oldNeedUpdate = self:_needUpdate()
     self._needUpdateCount = self._needUpdateCount - 1
-    if selfNeedUpdate ~= self:_needUpdate() then
+    if oldNeedUpdate ~= self:_needUpdate() then
         if self.p then
             return self.p:_decUpdate()
         elseif self._isRoot and self.tm then
@@ -659,6 +686,47 @@ end
 function context:_selfNeedUpdate()
     return self._updateFun ~= nil or
         self._updateFunEx ~= nil
+end
+
+function context:_addNotify()
+    if self._isStopped then
+        return false
+    end
+
+    local oldNeedNotify = self:_needNotify()
+    self._needNotifyCount = self._needNotifyCount + 1
+    if oldNeedNotify ~= self:_needNotify() then
+        if self.p then
+            return self.p:_addNotify()
+        elseif self._isRoot and self.tm then
+            return self.tm:_addNotify()
+        end
+    end
+end
+
+function context:_decNotify()
+    if self._isStopped then
+        return false
+    end
+
+    local oldNeedNotify = self:_needNotify()
+    self._needNotifyCount = self._needNotifyCount - 1
+    if oldNeedNotify ~= self:_needNotify() then
+        if self.p then
+            return self.p:_decNotify()
+        elseif self._isRoot and self.tm then
+            return self.tm:_decNotify()
+        end
+    end
+end
+
+function context:_needNotify()
+    return self._needNotifyCount > 0
+end
+
+function context:_selfNeedNotify()
+    return self._eventFun ~= nil or
+        self._eventFunEx ~= nil
 end
 
 return tabMachine

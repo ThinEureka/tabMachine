@@ -39,6 +39,14 @@ function cocosTabMachine:_decUpdate()
     end
 end
 
+function tabMachine:_addNotify()
+    print("machine add notify")
+end
+
+function tabMachine:_decNotify()
+    print("machine dec notify")
+end
+
 function cocosTabMachine:_onStopped()
     print("machine stopped")
     tabMachine._onStopped(self)
