@@ -224,13 +224,7 @@ function context:start(scName, ...)
         subContext._finalFunEx = subFinalFunEx
         self:_addSubContext(subContext)
 
-        if subContext:_selfNeedUpdate() then
-            subContext:_addUpdate()
-        end
-
-        if subContext:_selfNeedNotify() then
-            subContext:_addNotify()
-        end
+        subContext:_prepareEnter()
 
         -- to ganrantee that the subcontext is added before execution
         if (sub ~= nil) then
@@ -314,6 +308,8 @@ function context:join(scNames, scName)
     end
 
     self:_addSubContext(subContext)
+
+    subContext:_prepareEnter()
 
     return true
 end
@@ -551,6 +547,16 @@ function  context:_installTab(tab)
 end
 
 function  context:_enter(...)
+    self:_prepareEnter()
+
+    if self:start("s1", ...) then
+        return
+    end
+
+    self:_checkStop()
+end
+
+function context:_prepareEnter()
     if self:_selfNeedUpdate() then
         self:_addUpdate()
     end
@@ -558,12 +564,6 @@ function  context:_enter(...)
     if self:_selfNeedNotify() then
         self:_addNotify()
     end
-
-    if self:start("s1", ...) then
-        return
-    end
-
-    self:_checkStop()
 end
 
 function context:_stopSub(scName)

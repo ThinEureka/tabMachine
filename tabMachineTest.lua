@@ -113,7 +113,7 @@ test.updateOpt = {
     event = function(c, msg)
         if msg == "s1" then
             c:start("s1")
-        elseif msg == "t1" then
+        elseif msg == "u1" then
             c:call("u1", "u1")
         elseif msg == "m1" then
             c:call("m1", "m1")
