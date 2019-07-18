@@ -27,7 +27,7 @@ function cocosTabMachine:_addUpdate()
     print("machine add update")
     if self._updateTimer == nil then
         self._updateTimer = SoradCreateTimer(self, function(dt)
-                g_tabMachine:update(dt)
+                self:update(dt)
             end, true)
     end
 end
@@ -45,7 +45,7 @@ function cocosTabMachine:_addTick()
     if self._tickTimer == nil then
         self._tickTimer = SoradCreateTimer(self, function(dt)
                 self._tickIndex = self._tickIndex + 1
-                g_tabMachine:tick(self._tickIndex)
+                self:tick(self._tickIndex)
             end, false)
     end
 end
