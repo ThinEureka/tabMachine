@@ -349,10 +349,34 @@ function context:start(scName, ...)
     if subUpdateFunEx == nil and
         subTickFunEx == nil and
         subEventFunEx == nil then
-        self.tm:_pcall(sub, self, ...)
-        self:_checkNext(scName)
-        if subFinalFunEx ~= nil then
-            self.tm:_pcall(subFinalFunEx, self, ...)
+        if subCatchFunEx == nil then
+            self.tm:_pcall(sub, self, ...)
+            self:_checkNext(scName)
+            if subFinalFunEx ~= nil then
+                self.tm:_pcall(subFinalFunEx, self, ...)
+            end
+        else
+            local subContext = self.tm:_createContext()
+            subContext.tm = self.tm
+            subContext.p = self
+            subContext._pp = self
+            subContext._name = scName
+
+            subContext._finalFunEx = subFinalFunEx
+            subContext._catchFunEx = subCatchFunEx
+            self:_addSubContext(subContext)
+
+            subContext._isEntering = true
+            subContext:_prepareEnter()
+
+            -- to ganrantee that the subcontext is added before execution
+            if (sub ~= nil) then
+                subContext:_setPc(subContext, "self", "start")
+                self.tm:_pcall(sub, self, ...)
+            end
+
+            subContext._isEntering = false
+            subContext:stop()
         end
     else
         local subContext = self.tm:_createContext()
@@ -419,8 +443,15 @@ function context:throw(e)
     local exception = {}
     exception.isCustom = true
     exception.e = e
+    
+    local c = self
+    if c._pc ~= nil and 
+        c._pc ~= self and
+        c._pc._pp == self then
+        c = c._pc
+    end
 
-    self:_throwException(exception)
+    c:_throwException(exception)
 end
 
 local function joint_event(c, msg)
@@ -629,7 +660,7 @@ function context:_update(dt)
     local subContext = self._headSubContext
     while subContext ~= nil do
         if subContext.p and not subContext.p._isStopped then
-            self:_setPc(self, subContext._name, "update_sub")
+            self:_setPc(subContext, subContext._name, "update_sub")
             subContext:_update(dt)
         end
         subContext = subContext._nextContext
@@ -659,7 +690,7 @@ function context:_tick(index)
     local subContext = self._headSubContext
     while subContext ~= nil do
         if subContext.p and not subContext.p._isStopped then
-            self:_setPc(self, subContext._name, "tick_sub")
+            self:_setPc(subContext, subContext._name, "tick_sub")
             subContext:_tick(index)
         end
         subContext = subContext._nextContext
@@ -714,7 +745,7 @@ function context:notify(msg, level)
     local subContext = self._headSubContext
     while subContext ~= nil do
         if subContext.p and not subContext.p._isStopped then
-            self:_setPc(self, subContext._name, "notify_sub")
+            self:_setPc(subContext, subContext._name, "notify_sub")
             captured = subContext:notify(msg, level - 1)
             if captured then
                 return true

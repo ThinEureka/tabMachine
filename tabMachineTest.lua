@@ -33,6 +33,32 @@ test.helloWorldEx = {
     end,
 }
 
+test.except1 = {
+    s1 = function(c)
+    end,
+
+    s1_catch = function(c)
+        print("catch s1")
+        return true
+    end,
+
+    s2 = function(c)
+        local a = 5
+        -- throw a lua exception
+        a = a + nil
+    end,
+
+    s2_catch = function(c, e)
+        print("catch s2")
+        return false
+    end,
+
+    catch = function(c, e)
+        print("catch")
+        return true
+    end
+}
+
 test.except = {
     s1 = function(c)
         c:call("t1", "t1")
@@ -59,6 +85,7 @@ test.except = {
         s1 = function(c)
             print("u1 start1")
             local a = nil
+            -- throw a lua error
             local b = a + 1
             c.v.t = 0
         end,
@@ -81,18 +108,13 @@ test.except = {
             c.v.t = c.v.t + dt
             if c.v.t > 5 then
                 local k = nil
+                -- throw a lua error
                 local x = k + 5
             end
         end,
 
         s2_catch = function(c, e)
             print("s2 catched but not receive")
-            return false
-        end,
-
-        catch = function(c, e)
-            print("s2 catched")
-            c:stop("s2")
             return false
         end,
 
@@ -104,7 +126,8 @@ test.except = {
             print("s3 ", 10 - c.v.index)
             c.v.index = c.v.index + 1
             if c.v.index > 10 then
-                c:getSub("s3"):throw("error e3")
+                -- throw a custom error
+                c:throw("error e3")
             end
         end,
 
@@ -112,10 +135,15 @@ test.except = {
             print("s3 catched")
             return false
         end,
+
+        catch = function(c, e)
+            print("u1 catched")
+            c:stop("s2")
+            return false
+        end,
     },
 
     catch = function(c, e)
-        print("final catch")
         if e.isCustom then
             c:stop()
         end
