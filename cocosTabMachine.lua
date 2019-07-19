@@ -75,19 +75,58 @@ function cocosTabMachine:_createContext()
     local context = tabMachine._createContext()
     context.registerMsg = function (c, msg, fun)
         context._hasMsg = true
+        local pc = c._pc
+
+        if pc == nil then
+            pc = c
+        end
+
+        local pcName = c._pcName
+        local pcAction = c._action
+
         SoraDAddMessage(c, msg, function(...)
-            fun(...)
+            pc:_setPcInfo(pc, "pcName", pcAction)
+            c.tm:_pcall(fun, ...)
         end)
     end
 
     return context
 end
 
+function cocosTabMachine:_createException(errorMsg, isTabMachineError)
+    local e = tabMachine._createException(self, errorMsg, isTabMachineError)
+    
+    e.luaErrorMsg = errorMsg
+    e.luaStackTrace = tostring(debug.traceback("", 2))
+    e.tabStack = {}
+
+    local c = self._curContext
+    if c ~= nil then
+        e.pcName = c._pcName
+        e.pcAaction = c._pcAction
+    end
+
+    while c ~= nil do
+        local pc = {}
+        pc.pcName = c._pcName
+        pc.pcAaction = c._pcAction
+        pc.name = c._name
+        table.insert(e.tabStack, pc)
+        c = c._pp
+    end
+
+    return e
+end
+
+function cocosTabMachine:_onUnCaughtException(e)
+    dump(e, "uncaught exception", 100)
+end
+
 function cocosTabMachine:_disposeContext(context)
     if self._hasMsg then
         SoraDRemoveMessageByTarget(context)
     end
-    print("context disposed ", context._name)
+    print("context disposed ", context:_getAbsName())
 end
 
 -------------------------- commonTabs --------------------------

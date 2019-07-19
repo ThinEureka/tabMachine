@@ -33,45 +33,93 @@ test.helloWorldEx = {
     end,
 }
 
-test.hello = {
-    s1 = function(c)
-        print("hello")
-        c:call(test.all, "s2")
-        c:call(test.all, "s4")
-    end,
-
-    s3 = function(c)
-        print("s3 call all return")
-    end,
-
-    s5 = function(c) 
-        print("s5 call all return")
-    end
-}
-
-test.extTrigger = {
+test.except = {
     s1 = function(c)
         c:call("t1", "t1")
+        c:call("u1", "u1")
     end,
 
-    t1 = {
+    s1_catch = function(c, e)
+        print("final catch")
+        --dump(e)
+        c:stop("s1")
+        return true
+    end,
+
+    t1 ={
         s1 = function(c)
-            c:call("m1", "m1")
-        end,
-
-        m1 = {
-            s1 = function(c)
-                print("inner s1")
-                g_head = c
-            end,
-
-            s1_event = function(c)
-            end,
-        },
+            c:start("m1")
+        end
     },
 
-    t2 = function(c)
-        c:start("s1")
+    --m1_update = function(c, dt)
+    --end,
+
+    u1 = {
+        s1 = function(c)
+            print("u1 start1")
+            local a = nil
+            local b = a + 1
+            c.v.t = 0
+        end,
+
+        s1_update = function(c, dt)
+            print("kkk")
+        end,
+
+        s1_catch = function(c, e)
+            c:stop("s1")
+            return true
+        end,
+
+        s2 = function(c)
+            c.v.t = 0
+        end,
+
+        s2_tick = function(c, dt)
+            print("s2 ", 5 - c.v.t)
+            c.v.t = c.v.t + dt
+            if c.v.t > 5 then
+                local k = nil
+                local x = k + 5
+            end
+        end,
+
+        s2_catch = function(c, e)
+            print("s2 catched but not receive")
+            return false
+        end,
+
+        catch = function(c, e)
+            print("s2 catched")
+            c:stop("s2")
+            return false
+        end,
+
+        s3 = function(c)
+            c.v.index = 0
+        end,
+
+        s3_tick = function(c, index)
+            print("s3 ", 10 - c.v.index)
+            c.v.index = c.v.index + 1
+            if c.v.index > 10 then
+                c:getSub("s3"):throw("error e3")
+            end
+        end,
+
+        s3_catch = function(c)
+            print("s3 catched")
+            return false
+        end,
+    },
+
+    catch = function(c, e)
+        print("final catch")
+        if e.isCustom then
+            c:stop()
+        end
+        return true
     end
 }
 
@@ -149,12 +197,12 @@ test.notify = {
 
     s1_event = function(c, msg)
         print("s1 event ", msg)
-        if msg == "end s1" then
+        if msg == "end_s1" then
             return  false
-        elseif msg == "end s2" then
+        elseif msg == "end_s2" then
             c:stop("s2")
             return true
-        elseif msg == "start s2" then
+        elseif msg == "start_s2" then
             c:call(test.tickPrint, "s2", nil, "Hello world")
         end
         return false
@@ -169,7 +217,7 @@ test.notify = {
         if msg == "end" then
             c:stop()
             return true
-        elseif msg == "end s2" then
+        elseif msg == "end_s2" then
             print("receive end s2 not captured")
             return false
         end
@@ -377,6 +425,48 @@ test.all = {
             c:stop()
         end
     end,
+}
+
+test.call_all = {
+    s1 = function(c)
+        print("hello")
+        c:call(test.all, "s2")
+        c:call(test.all, "s4")
+    end,
+
+    s3 = function(c)
+        print("s3 call all return")
+    end,
+
+    s5 = function(c) 
+        print("s5 call all return")
+    end
+}
+
+test.extTrigger = {
+    s1 = function(c)
+        c:call("t1", "t1")
+    end,
+
+    t1 = {
+        s1 = function(c)
+            c:call("m1", "m1")
+        end,
+
+        m1 = {
+            s1 = function(c)
+                print("inner s1")
+                g_head = c
+            end,
+
+            s1_event = function(c)
+            end,
+        },
+    },
+
+    t2 = function(c)
+        c:start("s1")
+    end
 }
 
 return test
