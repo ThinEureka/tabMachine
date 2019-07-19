@@ -53,13 +53,29 @@ test.except1 = {
         return false
     end,
 
+    s3 = function(c)
+        c.v.m = 0
+    end,
+
+    s3_tick = function(c, dt)
+        c.v.m = c.v.m + 1
+        print("s3 ", 10 - c.v.m)
+        if c.v.m >= 10 then
+            --throw custom error
+            c:throw("error s3")
+        end
+    end,
+
     catch = function(c, e)
         print("catch")
+        if e.isCustom then
+            c:stop()
+        end
         return true
     end
 }
 
-test.except = {
+test.except2 = {
     s1 = function(c)
         c:call("t1", "t1")
         c:call("u1", "u1")
