@@ -2,15 +2,11 @@
 --email 04nycs@gmail.com
 --created on July 11, 2019 
 
-local tabMachine = class("tabMachine", function (target)
-    if target == nil then
-        target = {}
-    end
+local tabMachine = class("tabMachine")
 
-    return target
-end)
+tabMachine.context = class("context")
 
-local context = class("context")
+local context = tabMachine.context
 
 tabMachine.event_context_stop = "context_stop"
 
@@ -25,10 +21,6 @@ local function outputValues(env, outputVars, outputValues)
             end
         end
     end
-end
-
-local function isValidGlobalTabName(name)
-    return name:len() > 2 and name:sub(1, 2) == "::"
 end
 
 local function isEmptyTable(t)
@@ -53,7 +45,7 @@ function tabMachine:ctor()
 end
 
 function tabMachine:installTab(tab)
-    local subContext = self:_createContext()
+    local subContext = self:_createContext(tab)
     subContext.tm = self
     subContext.p = nil
     subContext._name = "root"
@@ -127,26 +119,6 @@ function tabMachine:getOutputs()
     return nil
 end
 
-function tabMachine:registerGlobalTab(name, tab)
-    local typeName = type(name)
-    assert(typeName == "string")
-    assert(isValidGlobalTabName(name))
-    local typeTab = type(tab)
-    assert(typeTab == "table" or typeTab == "userdata")
-    if self._globalTabs == nil then
-        self._globalTabs = {}
-    end
-    self._globalTabs[name] = tab
-end
-
-function tabMachine:_getGlobalTab(name)
-    if self._globalTabs == nil then
-        return nil
-    end
-
-    return self._globalTabs[name]
-end
-
 function tabMachine:_setOutputs(outputValues)
     self._outValues = outputValues
 end
@@ -156,8 +128,8 @@ function tabMachine:_onStopped()
     self._rootContext = nil
 end
 
-function tabMachine:_createContext()
-    return context.new()
+function tabMachine:_createContext(...)
+    return context.new(...)
 end
 
 function tabMachine:_pcall(f, ...)
@@ -217,7 +189,6 @@ function tabMachine:_pcallMachine(f, ...)
 
     return nil
 end
-
 
 function tabMachine:_createException(errorMsg, isTabMachineError)
     -- the subclass may override to get the call stack info
@@ -414,11 +385,7 @@ function  context:call(tabName, scName, outputVars, ...)
     self:_setPc(self, scName, "call")
     local tab = nil
     if type(tabName) == "string" then
-        if isValidGlobalTabName(tabName) then
-            tab = self.tm:_getGlobalTab(tabName)
-        else
-            tab = self._tab[tabName]
-        end
+        tab = self._tab[tabName]
     elseif type(tabName) == "table" or type(tabName) == "userdata" then
         tab = tabName
     end
@@ -427,7 +394,37 @@ function  context:call(tabName, scName, outputVars, ...)
         return
     end
 
-    local subContext = self.tm:_createContext()
+    local subContext = self.tm:_createContext(tab, ...)
+    subContext.tm = self.tm
+    subContext.p = self
+    subContext._pp = self
+    subContext._name = scName
+
+    subContext:_installTab(tab)
+    subContext._outputVars = outputVars
+    self:_addSubContext(subContext)
+    subContext:_enter(...)
+end
+
+function  context:_callWithContext(context, tabName, scName, outputVars, ...)
+    print("call ", tabName, " ", self:_getAbsName().. "." .. scName)
+    if self._isStopped then
+        return
+    end
+
+    self:_setPc(self, scName, "call")
+    local tab = nil
+    if type(tabName) == "string" then
+        tab = self._tab[tabName]
+    elseif type(tabName) == "table" or type(tabName) == "userdata" then
+        tab = tabName
+    end
+
+    if tab == nil then
+        return
+    end
+
+    local subContext = self.tm:_createContext(...)
     subContext.tm = self.tm
     subContext.p = self
     subContext._pp = self
@@ -466,13 +463,16 @@ local function joint_event(c, msg)
     end
 
     if isEmptyTable(c.v._unTriggeredContexts) then
+        if c.v.callack then
+            c.v.callback()
+        end
         c:stop()
     end
     -- always return false
     return false
 end
 
-function context:join(scNames, scName)
+function context:join(scNames, scName, callback)
     if self._isStopped then
         return
     end
@@ -482,10 +482,10 @@ function context:join(scNames, scName)
     end
 
     self:_setPc(self, scName, "join")
-    self.tm:_pcall(self._pJoin, self, scNames, scName)
+    self.tm:_pcall(self._pJoin, self, scNames, scName, callback)
 end
 
-function context:_pJoin(scNames, scName)
+function context:_pJoin(scNames, scName, callback)
     local subContext = self.tm:_createContext()
     subContext.tm = self.tm
     subContext.p = self
@@ -493,6 +493,7 @@ function context:_pJoin(scNames, scName)
     subContext._name = scName
     subContext._eventFun = joint_event
     subContext.v._unTriggeredContexts = {}
+    subContext.v.callback = callback
 
     for _, name in ipairs(scNames) do
         subContext.v._unTriggeredContexts[name] = true
@@ -502,6 +503,16 @@ function context:_pJoin(scNames, scName)
     subContext:_prepareEnter()
 end
 
+function context:tabWait(scNames)
+    local t = {
+        s1 = function(c)
+            self:join(scNames, "__wait__", function() c:stop() end )
+        end,
+
+        s1_event = function() end
+    }
+    return t
+end
 
 function context:hasSub(scName)
     local subContext = self._headSubContext
@@ -764,9 +775,9 @@ function  context:_installTab(tab)
     end
 
     self._finalFun = self._tab.final
-    self._updateFun = self._tab.update
     self._eventFun = self._tab.event
     self._catchFun = self._tab.catch
+    self._tickFun = self._tab.tick
 end
 
 function  context:_enter(...)

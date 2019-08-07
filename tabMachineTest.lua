@@ -3,6 +3,7 @@
 --email 04nycs@gmail.com
 --created on July 13, 2019 
 --
+local cocosTabMachine = require("app.common.tabMachine.cocosTabMachine")
 
 local test = {}
 
@@ -12,7 +13,7 @@ function test.testTab(tabName)
         g_tabMachine = nil
     end
 
-    g_tabMachine = require("app.common.tabMachine.cocosTabMachine").new()
+    g_tabMachine = cocosTabMachine.new()
     g_tabMachine:installTab(test[tabName])
     g_tabMachine:start()
 end
@@ -66,10 +67,17 @@ test.except1 = {
         end
     end,
 
+    s3_catch = function(c, e)
+        if e.isCustom then
+            --
+            return false
+        end
+    end,
+
     catch = function(c, e)
         print("catch")
         if e.isCustom then
-            c:stop()
+            c:stop("s3")
         end
         return true
     end
@@ -322,7 +330,7 @@ test.final = {
     m1 = {
         s1 = function(c)
             print("mmmm")
-            c:call("::delay", "d1", nil, 3)
+            c:call(g_t.delay, "d1", nil, 3)
         end,
 
         s1_final = function(c)
@@ -405,7 +413,7 @@ test.countDown = {
 
 test.all = {
     s1 = function(c)
-        c:call("::delay", "t0", nil, 10)
+        c:call(g_t.delay, "t0", nil, 10)
     end,
 
     t1 = function(c)

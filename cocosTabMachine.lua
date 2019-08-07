@@ -6,11 +6,11 @@
 
 local tabMachine = require("app.common.tabMachine.tabMachine")
 
-local cocosTabMachine = class("cocosTabMachine", function(target)
-    return tabMachine.new(target)
-end)
+local cocosTabMachine = class("cocosTabMachine", tabMachine)
 
-local commonTabs = {}
+local cocosContext = require("app.common.tabMachine.cocosContext")
+
+g_t = {}
 
 -------------------------- cocosTabMachine ----------------------
 
@@ -18,9 +18,14 @@ function cocosTabMachine:ctor()
     tabMachine.ctor(self)
     self._updateTimer = nil
     self._tickTimer = nil
-    for name, tab in pairs(commonTabs) do
-        self:registerGlobalTab(name, tab)
+end
+
+function cocosTabMachine:getObject(path)
+    if self._rootContext == nil then
+        return nil
     end
+
+    return self._rootContext:getObject(path)
 end
 
 function cocosTabMachine:_addUpdate()
@@ -35,7 +40,7 @@ end
 function cocosTabMachine:_decUpdate()
     print("machine dec update")
     if self._updateTimer then
-        SoraDManagerRemoveTimerByTarget(self)
+        SoraDManagerRemoveTimer(self, self._updateTimer)
         self._updateTimer = nil
     end
 end
@@ -44,6 +49,7 @@ function cocosTabMachine:_addTick()
     print("machine add tick")
     if self._tickTimer == nil then
         self._tickTimer = SoradCreateTimer(self, function(dt)
+                print("m tick")
                 self._tickIndex = self._tickIndex + 1
                 self:tick(self._tickIndex)
             end, false)
@@ -53,7 +59,7 @@ end
 function cocosTabMachine:_decTick()
     print("machine dec tick")
     if self._tickTimer then
-        SoraDManagerRemoveTimerByTarget(self)
+        SoraDManagerRemoveTimer(self, self._tickTimer)
         self._tickTimer = nil
     end
 end
@@ -71,26 +77,12 @@ function cocosTabMachine:_onStopped()
     tabMachine._onStopped(self)
 end
 
-function cocosTabMachine:_createContext()
-    local context = tabMachine._createContext()
-    context.registerMsg = function (c, msg, fun)
-        context._hasMsg = true
-        local pc = c._pc
-
-        if pc == nil then
-            pc = c
-        end
-
-        local pcName = c._pcName
-        local pcAction = c._action
-
-        SoraDAddMessage(c, msg, function(...)
-            pc:_setPcInfo(pc, "pcName", pcAction)
-            c.tm:_pcall(fun, ...)
-        end)
+function cocosTabMachine:_createContext(tab, ...)
+    if tab ~= nil and tab.isTabClass then
+        return tab.new(...)
+    else
+        return cocosContext.new(...)
     end
-
-    return context
 end
 
 function cocosTabMachine:_createException(errorMsg, isTabMachineError)
@@ -103,13 +95,13 @@ function cocosTabMachine:_createException(errorMsg, isTabMachineError)
     local c = self._curContext
     if c ~= nil then
         e.pcName = c._pcName
-        e.pcAaction = c._pcAction
+        e.pcAction = c._pcAction
     end
 
     while c ~= nil do
         local pc = {}
         pc.pcName = c._pcName
-        pc.pcAaction = c._pcAction
+        pc.pcAction = c._pcAction
         pc.name = c._name
         table.insert(e.tabStack, pc)
         c = c._pp
@@ -123,15 +115,13 @@ function cocosTabMachine:_onUnCaughtException(e)
 end
 
 function cocosTabMachine:_disposeContext(context)
-    if self._hasMsg then
-        SoraDRemoveMessageByTarget(context)
+    if context.dispose then
+        context:dispose()
     end
-    print("context disposed ", context:_getAbsName())
 end
 
--------------------------- commonTabs --------------------------
-
-commonTabs["::delay"] = {
+-------------------------- gt --------------------------
+g_t.delay = {
     s1 = function(c, totalTime)
         c.v.totalTime = totalTime
         c.v.time = 0
@@ -145,7 +135,7 @@ commonTabs["::delay"] = {
     end,
 }
 
-commonTabs["::skipFrames"] = {
+g_t.skipFrames = {
     s1 = function (c, totalFrames)
         c.v.totalFrames = totalFrames
         c.v.numFrames = 0
@@ -158,6 +148,19 @@ commonTabs["::skipFrames"] = {
         end
     end,
 }
+
+g_t.waitMessage = {
+    s1 = function(c, msg)
+        c:registerMsg(msg, function()
+            c:output(true, msg)
+            c:stop()
+        end)
+    end,
+
+    event = function()
+    end,
+}
+
 
 return cocosTabMachine
 
