@@ -6,6 +6,9 @@ local tabMachine = class("tabMachine")
 
 tabMachine.context = class("context")
 
+g_t = {}
+g_t.anyOutputVars = {"a1", "a2", "a3", "a4", "a5", "a6", "a7", "a8", "a9", "a10"}
+
 local context = tabMachine.context
 
 tabMachine.event_context_stop = "context_stop"
@@ -149,9 +152,9 @@ function tabMachine:_pcall(f, ...)
     end
 
     --print("machine xpcall")
-    local a1, a2, a3, a4, a5, a6 = ...
+    local a1, a2, a3, a4, a5, a6, a7, a8, a9, a10 = ...
     local stat, result = xpcall(function()
-        return f(a1, a2, a3, a4, a5, a6)
+        return f(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10)
     end, on_error) 
 
     if stat then
@@ -632,16 +635,14 @@ function context:_startNext(scName)
         end
     end
 
-    if splitPos == l then
-        return
-    end
+    local num = 0
 
     local base = scName:sub(1, splitPos)
-    local num = scName:sub(splitPos + 1, l)
+    num = scName:sub(splitPos + 1, l)
     num = tonumber(num)
 
     if num == nil then
-        return
+        num = 0
     end
 
     local nextSub = base .. (num + 1)
@@ -911,7 +912,7 @@ function context:_detach()
 
     local p = self.p
     local tm = self.tm
-    if p then
+    if p and not p._isStopped then
         if self._outputVars then
             outputValues(p.v, self._outputVars, self._outputValues)
         end

@@ -10,8 +10,6 @@ local cocosTabMachine = class("cocosTabMachine", tabMachine)
 
 local cocosContext = require("app.common.tabMachine.cocosContext")
 
-g_t = {}
-
 -------------------------- cocosTabMachine ----------------------
 
 function cocosTabMachine:ctor()
@@ -53,6 +51,20 @@ function cocosTabMachine:_addTick()
                 self._tickIndex = self._tickIndex + 1
                 self:tick(self._tickIndex)
             end, false)
+    end
+end
+
+-- to restart timer in the case all timers are 
+-- stopped globally
+function cocosTabMachine:refreshTimer()
+    if self._updateTimer ~= nil then
+        self._updateTimer = nil
+        self:_addUpdate()
+    end
+
+    if self._tickTimer ~= nil then
+        self._tickTimer = nil
+        self:_addTick()
     end
 end
 
@@ -112,6 +124,9 @@ end
 
 function cocosTabMachine:_onUnCaughtException(e)
     dump(e, "uncaught exception", 100)
+    device.showAlert("出错了,测试使用,请截图", tostring(e.luaStackTrace), {"下次不再显示","确定"}, function ( event )
+        
+    end)
 end
 
 function cocosTabMachine:_disposeContext(context)
@@ -119,48 +134,6 @@ function cocosTabMachine:_disposeContext(context)
         context:dispose()
     end
 end
-
--------------------------- gt --------------------------
-g_t.delay = {
-    s1 = function(c, totalTime)
-        c.v.totalTime = totalTime
-        c.v.time = 0
-    end,
-
-    s1_update = function(c, dt)
-        c.v.time = c.v.time + dt
-        if c.v.time >= c.v.totalTime then
-            c:stop()
-        end
-    end,
-}
-
-g_t.skipFrames = {
-    s1 = function (c, totalFrames)
-        c.v.totalFrames = totalFrames
-        c.v.numFrames = 0
-    end,
-
-    s1_update = function(c, dt)
-        c.v.numFrames = c.v.numFrames + 1
-        if c.v.numFrames >= c.v.totalFrames then
-            c:stop()
-        end
-    end,
-}
-
-g_t.waitMessage = {
-    s1 = function(c, msg)
-        c:registerMsg(msg, function()
-            c:output(true, msg)
-            c:stop()
-        end)
-    end,
-
-    event = function()
-    end,
-}
-
 
 return cocosTabMachine
 

@@ -374,25 +374,35 @@ test.tick = {
 test.tickPrint = {
     s1 = function(c, word)
         c.v.word = word
-        c.v.t = 0
         c.v.index = 0
     end,
 
-    s1_update = function(c, dt)
-        c.v.t = c.v.t + dt
-        if c.v.t >= 1 then
-            c.v.t = c.v.t - 1
-            c.v.index = c.v.index + 1
+    -- s1_update = function(c, dt)
+    --     c.v.t = c.v.t + dt
+    --     if c.v.t >= 1 then
+    --         c.v.t = c.v.t - 1
+    --         c.v.index = c.v.index + 1
 
-            if c.v.index <= c.v.word:len() then
-                local subWord = c.v.word:sub(1, c.v.index)
-                print(subWord)
-            else
-                c:output("o1-value", "o2-value")
-                c:stop()
-            end
+    --         if c.v.index <= c.v.word:len() then
+    --             local subWord = c.v.word:sub(1, c.v.index)
+    --             print(subWord)
+    --         else
+    --             c:output("o1-value", "o2-value")
+    --             c:stop()
+    --         end
+    --     end
+
+    -- end,
+
+    s1_tick = function(c, index)
+        c.v.index = c.v.index + 1
+        if c.v.index <= c.v.word:len() then
+            local subWord = c.v.word:sub(1, c.v.index)
+            print(subWord)
+        else
+            c:output("o1-value", "o2-value")
+            c:stop()
         end
-
     end,
 }
 
