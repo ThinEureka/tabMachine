@@ -264,7 +264,7 @@ function context:ctor()
     self.v = {}
 end
 
-function context:_getAbsName()
+function context:_getPath()
     local c = self
     local name = nil
     while c do
@@ -299,7 +299,7 @@ function context:_setPc(pc, pcName, action)
 end
 
 function context:start(scName, ...)
-    print("start ",  self:_getAbsName().. "." ..scName)
+    print("start ",  self:_getPath().. "." ..scName)
     if self._isStopped then
         return
     end
@@ -380,7 +380,7 @@ function context:start(scName, ...)
 end
 
 function  context:call(tabName, scName, outputVars, ...)
-    print("call ", tabName, " ", self:_getAbsName().. "." .. scName)
+    print("call ", tabName, " ", self:_getPath().. "." .. scName)
     if self._isStopped then
         return
     end
@@ -410,7 +410,7 @@ function  context:call(tabName, scName, outputVars, ...)
 end
 
 function  context:_callWithContext(context, tabName, scName, outputVars, ...)
-    print("call ", tabName, " ", self:_getAbsName().. "." .. scName)
+    print("call ", tabName, " ", self:_getPath().. "." .. scName)
     if self._isStopped then
         return
     end
@@ -603,7 +603,7 @@ function context:_checkNext(scName)
 end
 
 function context:_checkStop()
-    print("checkStop ", self:_getAbsName(), self._isEntering,
+    print("checkStop ", self:_getPath(), self._isEntering,
         " ", self._headSubContext, " ",
         self._updateFun, " ", self._tickFun, " ", self._eventFun, " ")
 
@@ -621,7 +621,7 @@ function context:_checkStop()
 end
 
 function context:_startNext(scName)
-    print("start next ", self:_getAbsName().. "." ..scName)
+    print("start next ", self:_getPath().. "." ..scName)
     local l = scName:len()
     local splitPos = l
     local zero = '0'
@@ -782,7 +782,7 @@ function  context:_installTab(tab)
 end
 
 function  context:_enter(...)
-    print("enter ",  self:_getAbsName())
+    print("enter ",  self:_getPath())
     self._isEntering = true
     self:_prepareEnter()
     self:start("s1", ...)
@@ -823,7 +823,7 @@ function context:_pStopSub(scName)
 end
 
 function context:_stopSelf()
-    print("stop ", self:_getAbsName())
+    print("stop ", self:_getPath())
     self:_setPc(self, "self", "stop_self")
     self._isStopped = true
     self:_stopUpdateTickNotify()
@@ -1094,7 +1094,7 @@ function context:_throwException(exception)
         return false
     end
 
-    print("throwException ", self:_getAbsName())
+    print("throwException ", self:_getPath())
 
     local isCatched = false
     if self._catchFun ~= nil then

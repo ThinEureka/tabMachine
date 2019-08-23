@@ -34,7 +34,7 @@ function cocosContext:dispose()
         SoraDRemoveMessageByTarget(self)
     end
 
-    print("context disposed ", self:_getAbsName())
+    print("context disposed ", self:_getPath())
 end
 
 function cocosContext:getObject(path)
@@ -114,7 +114,6 @@ g_t.waitMessage = {
 
 g_t.click = {
     s1 = function(c, target, soundId)
-        target:retain()
         c.v.target = target
         c.v.target:addTouchEventListener(function(btn, event_type)
             if event_type == ccui.TouchEventType.ended then
@@ -131,8 +130,9 @@ g_t.click = {
 
     final = function(c)
         local target = c.v.target
-        target:addTouchEventListener(g_t.empty_touch)
-        target:release()
+        if not tolua.isnull() then
+            target:addTouchEventListener(g_t.empty_touch)
+        end
     end,
 }
 
@@ -140,7 +140,6 @@ g_t.click = {
 
 g_t.waitForLastFrame = {
     s1 = function(c, act)
-        act:retain()
         c.v.act = act
         act:setLastFrameCallFunc(function()
             c:stop()
@@ -149,8 +148,9 @@ g_t.waitForLastFrame = {
 
     final = function(c)
         local act = c.v.act
-        act:setLastFrameCallFunc(g_t.empty_frame)
-        act:release()
+        if not tolua.isnull(act) then
+            act:setLastFrameCallFunc(g_t.empty_frame)
+        end
     end,
 
     event = g_t.empty_event,
@@ -173,10 +173,10 @@ function g_t.bind(tab, ...)
 end
 
 function g_t.seq(...)
-    local tempTabs = {...}
+    local tabs = {...}
     return {
         s1 = function (c)
-            c.v.tabs = tempTabs
+            c.v.tabs = tabs
             for key, tab in ipairs(c.v.tabs) do
                 if type(tab) == "number" then
                     c.v.tabs[key] = g_t.bind(g_t.delay, tab)
@@ -199,16 +199,24 @@ function g_t.seq(...)
     }
 end
 
--- function g_t.concurrentAll(...)
--- end
+function g_t.join(...)
+    local tabs = {...}
+    return {
+        s1 = function(c)
+            for index, tab in ipairs(tabs) do
+                c:call(tab, "ss_"..index)
+            end
+        end,
+    }
+end
 
 function g_t.select(...)
-    local tempTabs = {...}
+    local tabs = {...}
     return {
         s1 = function (c)
             c.v.prefix = "__select_sub"
             c.v.prefixLen = string.len(c.v.prefix)
-            c.v.tabs = tempTabs
+            c.v.tabs = tabs
             for k,tab in ipairs(c.v.tabs) do 
                 c:call(tab, c.v.prefix..k, g_t.anyOutputVars)
             end 
