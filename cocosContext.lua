@@ -130,7 +130,7 @@ g_t.click = {
 
     final = function(c)
         local target = c.v.target
-        if not tolua.isnull() then
+        if not tolua.isnull(target) then
             target:addTouchEventListener(g_t.empty_touch)
         end
     end,

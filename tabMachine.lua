@@ -294,7 +294,7 @@ end
 function context:_setPc(pc, pcName, action)
     self.tm._curContext = self
     self._pc = pc
-    self._pcName = name
+    self._pcName = pcName
     self._pcAction = action
 end
 
@@ -531,6 +531,14 @@ end
 
 function context:output(...)
     self._outputValues = {...}
+end
+
+function context:abortSub(scName)
+    local sc = self:getSub(scName)
+    if sc ~= nil then
+        sc._name = "__abort" .. sc._name
+        self:stop(scName)
+    end
 end
 
 function context:stop(scName)
@@ -779,6 +787,7 @@ function  context:_installTab(tab)
     self._eventFun = self._tab.event
     self._catchFun = self._tab.catch
     self._tickFun = self._tab.tick
+    self._updateFun = self._tab.update
 end
 
 function  context:_enter(...)
