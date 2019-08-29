@@ -1,8 +1,8 @@
 
 --author cs
 --email 04nycs@gmail.com
+--https://github.com/ThinEureka/tabMachine
 --created on July 13, 2019 
---
 
 local tabMachine = require("app.common.tabMachine.tabMachine")
 
@@ -124,6 +124,23 @@ end
 
 function cocosTabMachine:_onUnCaughtException(e)
     dump(e, "uncaught exception", 100)
+
+    --上报
+    local eMsg = ""
+    local errorMsg = e.errorMsg or "no errorMsg"
+    local tabStack = e.tabStack and util.serialize(e.tabStack or {}) or "no tabStack"
+    local luaStackTrace = e.luaStackTrace or "no luaStackTrace"
+
+    local strTop = "==== errorMsg ====\n"
+    eMsg = eMsg .. strTop .. errorMsg
+    strTop = "\n\n==== tabStack ====\n"
+    eMsg = eMsg .. strTop .. tabStack
+    strTop = "\n\n==== luaStackTrace ===="
+    eMsg = eMsg .. strTop .. luaStackTrace
+    if fabric then
+        fabric:getInstance():allSet(tostring(errorMsg), eMsg)
+    end
+
     device.showAlert("出错了,测试使用,请截图", tostring(e.luaStackTrace), {"下次不再显示","确定"}, function ( event )
         
     end)

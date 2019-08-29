@@ -1,5 +1,6 @@
 --author cs
 --email 04nycs@gmail.com
+--https://github.com/ThinEureka/tabMachine
 --created on July 11, 2019 
 
 local tabMachine = class("tabMachine")
@@ -40,7 +41,6 @@ function tabMachine:ctor()
     self._isRunning = false
     self._rootContext = nil
     self._outputs = nil
-    self._globalTabs = nil
     self._tab = nil
     self._curContext = nil
     self._tickIndex = 0

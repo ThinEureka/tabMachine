@@ -1,6 +1,6 @@
-
 --author cs
 --email 04nycs@gmail.com
+--https://github.com/ThinEureka/tabMachine
 --created on July 13, 2019 
 --
 local cocosTabMachine = require("app.common.tabMachine.cocosTabMachine")

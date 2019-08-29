@@ -1,3 +1,7 @@
+--author cs
+--email 04nycs@gmail.com
+--https://github.com/ThinEureka/tabMachine
+--created on July 11, 2019 
 
 g_t = {}
 g_t.anyOutputVars = {"a1", "a2", "a3", "a4", "a5", "a6", "a7", "a8", "a9", "a10"}
@@ -156,6 +160,15 @@ g_t.waitForLastFrame = {
     event = g_t.empty_event,
 }
 
+g_t.waitForAct = {
+    s1 = function (c, node, act)
+        transition.execute(node, act, {onComplete = function()
+            c:stop()
+        end})
+    end,
+    event = g_t.empty_event,
+}
+
 --------------------wrapped tabs -------------
 
 function g_t.bind(tab, ...)
@@ -204,7 +217,7 @@ function g_t.join(...)
     return {
         s1 = function(c)
             for index, tab in ipairs(tabs) do
-                c:call(tab, "ss_"..index)
+                c:call(tab, "ss_"..index.. "ss")
             end
         end,
     }
