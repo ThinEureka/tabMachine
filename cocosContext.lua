@@ -140,35 +140,6 @@ g_t.click = {
     end,
 }
 
--------------------------------actions -------------------
-
-g_t.waitForLastFrame = {
-    s1 = function(c, act)
-        c.v.act = act
-        act:setLastFrameCallFunc(function()
-            c:stop()
-        end)
-    end,
-
-    final = function(c)
-        local act = c.v.act
-        if not tolua.isnull(act) then
-            act:setLastFrameCallFunc(g_t.empty_frame)
-        end
-    end,
-
-    event = g_t.empty_event,
-}
-
-g_t.waitForAct = {
-    s1 = function (c, node, act)
-        transition.execute(node, act, {onComplete = function()
-            c:stop()
-        end})
-    end,
-    event = g_t.empty_event,
-}
-
 --------------------wrapped tabs -------------
 
 function g_t.bind(tab, ...)
@@ -250,6 +221,7 @@ function g_t.select(...)
 
 end
 
+require("app.common.tabMachine.tabAction")
 -- function g_t.tabIfElse(conCallback, tabIf, tabElse)
 --     return {
 --         s1 = function (c)

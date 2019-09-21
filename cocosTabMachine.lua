@@ -47,7 +47,6 @@ function cocosTabMachine:_addTick()
     print("machine add tick")
     if self._tickTimer == nil then
         self._tickTimer = SoradCreateTimer(self, function(dt)
-                print("m tick")
                 self._tickIndex = self._tickIndex + 1
                 self:tick(self._tickIndex)
             end, false)
@@ -141,7 +140,7 @@ function cocosTabMachine:_onUnCaughtException(e)
         fabric:getInstance():allSet(tostring(errorMsg), eMsg)
     end
 
-    device.showAlert("出错了,测试使用,请截图", tostring(e.luaStackTrace), {"下次不再显示","确定"}, function ( event )
+    device.showAlert("出错了,测试使用,请截图", tostring(eMsg), {"下次不再显示","确定"}, function ( event )
         
     end)
 end

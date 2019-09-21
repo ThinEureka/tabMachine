@@ -880,13 +880,13 @@ function context:_stopSubs()
         return
     end
 
-    self:_setPc(self, "self", "stop_update_and_tick")
+    self:_setPc(self, "self", "stop subs")
 
     self._isSubStopped = true
-    local subContext = self._headSubContext
+    local subContext = self._tailSubContext
     while subContext ~= nil do
         subContext:stop()
-        subContext = subContext._nextContext
+        subContext = subContext._preContext
     end
 end
 
