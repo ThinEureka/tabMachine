@@ -76,6 +76,7 @@ end
 g_t.empty_event = function(target, e) end
 g_t.empty_touch = function(target, type) end
 g_t.empty_frame = function(...) end
+g_t.empty_fun = function(...) end
 
 g_t.delay = {
     s1 = function(c, totalTime)
@@ -107,8 +108,8 @@ g_t.skipFrames = {
 
 g_t.waitMessage = {
     s1 = function(c, msg)
-        c:registerMsg(msg, function()
-            c:output(true, msg)
+        c:registerMsg(msg, function(target, data)
+            c:output(data)
             c:stop()
         end)
     end,
@@ -196,6 +197,10 @@ end
 
 function g_t.select(...)
     local tabs = {...}
+    return g_t.selectWithArray(tabs)
+end
+
+function g_t.selectWithArray(tabs)
     return {
         s1 = function (c)
             c.v.prefix = "__select_sub"

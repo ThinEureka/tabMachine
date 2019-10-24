@@ -307,18 +307,15 @@ function context:start(scName, ...)
     self:_setPc(self, "self", scName)
 
     local sub = self._tab[scName]
+    if sub == nil then
+        return
+    end
+
     local subUpdateFunEx = self._tab[scName.."_update"]
     local subEventFunEx = self._tab[scName.."_event"]
     local subTickFunEx = self._tab[scName.."_tick"]
     local subFinalFunEx = self._tab[scName.."_final"]
     local subCatchFunEx = self._tab[scName.."_catch"]
-
-    if sub == nil and
-        subUpdateFunEx == nil and
-        subTickFunEx == nil and
-        subEventFunEx == nil then 
-            return
-    end
 
     if subUpdateFunEx == nil and
         subTickFunEx == nil and
@@ -404,6 +401,19 @@ function  context:call(tabName, scName, outputVars, ...)
     subContext._name = scName
 
     subContext:_installTab(tab)
+
+    local subUpdateFunEx = self._tab[scName.."_update"]
+    local subEventFunEx = self._tab[scName.."_event"]
+    local subTickFunEx = self._tab[scName.."_tick"]
+    local subFinalFunEx = self._tab[scName.."_final"]
+    local subCatchFunEx = self._tab[scName.."_catch"]
+
+    subContext._updateFunEx = subUpdateFunEx
+    subContext._eventFunEx = subEventFunEx
+    subContext._tickFunEx = subTickFunEx
+    subContext._finalFunEx = subFinalFunEx
+    subContext._catchFunEx = subCatchFunEx
+
     subContext._outputVars = outputVars
     self:_addSubContext(subContext)
     subContext:_enter(...)
@@ -762,6 +772,10 @@ function context:notify(msg, level)
         return false
     end
 
+    if level == 1 then
+        return false
+    end
+
     local subContext = self._headSubContext
     while subContext ~= nil do
         if subContext.p and not subContext.p._isStopped then
@@ -772,6 +786,19 @@ function context:notify(msg, level)
             end
         end
         subContext = subContext._nextContext
+    end
+
+    return false
+end
+
+function context:upwardNotify(msg)
+    local p = self
+    while p and not p._isStopped do
+        local captured = p:notify(msg, 1)
+        if captured then
+            return true
+        end
+        p = p.p
     end
 
     return false
