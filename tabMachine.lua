@@ -476,8 +476,8 @@ local function joint_event(c, msg)
     end
 
     if isEmptyTable(c.v._unTriggeredContexts) then
-        if c.v.callack then
-            c.v.callback()
+        if c.v._callback then
+            c.v._callback()
         end
         c:stop()
     end
@@ -506,7 +506,7 @@ function context:_pJoin(scNames, scName, callback)
     subContext._name = scName
     subContext._eventFun = joint_event
     subContext.v._unTriggeredContexts = {}
-    subContext.v.callback = callback
+    subContext.v._callback = callback
 
     for _, name in ipairs(scNames) do
         subContext.v._unTriggeredContexts[name] = true
@@ -516,10 +516,12 @@ function context:_pJoin(scNames, scName, callback)
     subContext:_prepareEnter()
 end
 
-function context:tabWait(scNames)
+function context:tabWait(scNames, scName)
     local t = {
         s1 = function(c)
-            self:join(scNames, "__wait__", function() c:stop() end )
+            self:join(scNames, scName, function() 
+                c:output(true)
+                c:stop() end )
         end,
 
         s1_event = function() end
