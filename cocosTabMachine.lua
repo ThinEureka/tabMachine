@@ -114,10 +114,6 @@ function cocosTabMachine:_createException(errorMsg, isTabMachineError)
         pc.pcName = c._pcName
         pc.pcAction = c._pcAction
         pc.name = c._name
-        pc.nickName = c._nickName
-        if c.__cname ~= "cocosContext" and c.__cname ~= nil then
-            pc.className = c.__cname
-        end
         table.insert(e.tabStack, pc)
         c = c._pp
     end
@@ -144,11 +140,9 @@ function cocosTabMachine:_onUnCaughtException(e)
         fabric:getInstance():allSet(tostring(errorMsg), eMsg)
     end
 
-    if device.platform == "mac" or userSDKManager.isBeta() or userSDKManager.isReportError() then
-        device.showAlert("出错了,测试使用,请截图", tostring(eMsg), {"下次不再显示","确定"}, function ( event )
-            
-        end)
-    end
+    device.showAlert("出错了,测试使用,请截图", tostring(eMsg), {"下次不再显示","确定"}, function ( event )
+        
+    end)
 end
 
 function cocosTabMachine:_disposeContext(context)
