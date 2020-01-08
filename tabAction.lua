@@ -4,6 +4,10 @@
 
 g_t.waitForLastFrame = {
     s1 = function(c, act)
+        if g_t.debug then
+            c._nickName = "waitForLastFrame"
+        end
+
         c.v.act = act
         act:setLastFrameCallFunc(function()
             c:stop()
@@ -22,6 +26,9 @@ g_t.waitForLastFrame = {
 
 g_t.waitForAct = {
     s1 = function (c, node, act)
+        if g_t.debug then
+            c._nickName = "waitForAct"
+        end
         transition.execute(node, act, {onComplete = function()
             c:stop()
         end})
@@ -31,6 +38,9 @@ g_t.waitForAct = {
 
 g_t.tween =  {
     s1 = function(c, fun, v1, v2, duration)
+        if g_t.debug then
+            c._nickName = "tween"
+        end
         fun(v1)
         c.v.time = 0
         c.v.duration = duration
@@ -67,6 +77,9 @@ local setNodeAttribute
 function g_t.timeLine(node, timeStr, eParam)
     return {
         s1 = function (c)
+            if g_t.debug then
+                c._nickName = "timeLine"
+            end
             if not c.v.lineData then 
                 c.v.lineData = parseTimeLineData(timeStr, node, eParam)
             end 
@@ -150,6 +163,15 @@ setNodeAttribute = function (node, oldAttribute, finalAttribute, curTime)
         local sy = oldAttribute.sy + addSy * rate
         node:setScaleY(sy)
     end 
+    if finalAttribute.cr and finalAttribute.cg and finalAttribute.cb then
+        local addR = finalAttribute.cr and (finalAttribute.cr - oldAttribute.cr )
+        local addG = finalAttribute.cg and (finalAttribute.cg - oldAttribute.cg )
+        local addB = finalAttribute.cb and (finalAttribute.cb - oldAttribute.cb )
+        local cr = oldAttribute.cr + addR * rate
+        local cg = oldAttribute.cg + addG * rate
+        local cb = oldAttribute.cb + addB * rate
+        node:setColor(cc.c3b(cr, cg, cb))
+    end
 end
 
 getNodeAttribute = function (node, curData)
@@ -177,6 +199,18 @@ getNodeAttribute = function (node, curData)
     end
     if curData.sy or curData["+sy"] then 
         data.sy = node:getScaleY()
+    end
+    if curData.cr then
+        local color = node:getColor()
+        data.cr = color.r
+    end
+    if curData.cg then
+        local color = node:getColor()
+        data.cg = color.g
+    end
+    if curData.cb then
+        local color = node:getColor()
+        data.cb = color.b
     end
     return data
 end

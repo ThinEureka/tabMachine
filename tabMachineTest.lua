@@ -4,6 +4,7 @@
 --created on July 13, 2019 
 --
 local cocosTabMachine = require("app.common.tabMachine.cocosTabMachine")
+local tabDebugger = require("app.common.tabMachine.tabDebugger")
 
 local test = {}
 
@@ -14,6 +15,7 @@ function test.testTab(tabName)
     end
 
     g_tabMachine = cocosTabMachine.new()
+    g_tabMachine:setDebugger(tabDebugger.new())
     g_tabMachine:installTab(test[tabName])
     g_tabMachine:start()
 end
@@ -85,8 +87,8 @@ test.except1 = {
 
 test.except2 = {
     s1 = function(c)
-        c:call("t1", "t1")
-        c:call("u1", "u1")
+        c:call(c._tab.t1, "t1")
+        c:call(c._tab.u1, "u1")
     end,
 
     s1_catch = function(c, e)
@@ -188,17 +190,17 @@ test.updateOpt = {
 
     m1 = {
         s1 = function(c)
-            c:call("t1", "t1")
+            c:call(c._tab.t1, "t1")
         end,
 
         t1 = {
             s1 = function(c)
-                c:call("t1", "t1")
+                c:call(c._tab.t1, "t1")
             end,
 
             t1 = {
                 s1 = function(c)
-                    c:call("t1", "t1")
+                    c:call(c._tab.t1, "t1")
                 end,
 
                 t1 = {
@@ -214,9 +216,9 @@ test.updateOpt = {
         if msg == "s1" then
             c:start("s1")
         elseif msg == "u1" then
-            c:call("u1", "u1")
+            c:call(c._tab.u1, "u1")
         elseif msg == "m1" then
-            c:call("m1", "m1")
+            c:call(c._tab.m1, "m1")
         end
     end
 }
@@ -296,11 +298,25 @@ test.join = {
     end,
 }
 
+test.lifetime = {
+    s1 = function(c)
+        c._nickName = "lifetime"
+        c:call(g_t.delay, "s2", nil, 1)
+    end,
+
+    s3 = function(c)
+        local tabs = {{}, g_t.bind(test.tickPrint, "hello"), g_t.bind(test.tickPrint, "world")}
+        for index, tab in ipairs(tabs) do
+            c:call(tab, "kk"..index)
+        end
+    end,
+}
+
 test.final = {
     s1 = function(c)
         c:start("t1")
         c:start("u1")
-        c:call("m1", "m1")
+        c:call(c._tab.m1, "m1")
     end,
 
     t1_update = function(c, dt)
@@ -449,7 +465,7 @@ test.all = {
                 c.v.m = 0
             end
             c.v.m = c.v.m + 1
-            c:call("m1", "m1")
+            c:call(c._tab.m1, "m1")
         end
 
         if c.v.t >= 100 then
@@ -507,12 +523,12 @@ test.call_all = {
 
 test.extTrigger = {
     s1 = function(c)
-        c:call("t1", "t1")
+        c:call(c._tab.t1, "t1")
     end,
 
     t1 = {
         s1 = function(c)
-            c:call("m1", "m1")
+            c:call(c._tab.m1, "m1")
         end,
 
         m1 = {

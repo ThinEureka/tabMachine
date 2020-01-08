@@ -44,7 +44,7 @@ function tabMachine:ctor()
     self._tab = nil
     self._curContext = nil
     self._tickIndex = 0
-    self._isEntering = false
+    self._debugger = nil
 end
 
 function tabMachine:installTab(tab)
@@ -58,8 +58,18 @@ function tabMachine:installTab(tab)
     self._rootContext:_installTab(tab)
 end
 
+function tabMachine:setDebugger(debugger)
+    self._debugger = debugger
+end
+
+function tabMachine:getDebugger()
+    return self._debugger
+end
+
 function tabMachine:start(...)
-    print("machine start")
+    if self._debugger then
+        self._debugger:onMachineStart(self)
+    end
     if self._tab == nil then
         return
     end
@@ -261,6 +271,8 @@ function context:ctor()
     self._needNotifyCount = 0
     self._needTickCount = 0
 
+    self._enterCount = 0
+
     self.v = {}
 end
 
@@ -291,6 +303,10 @@ function context:getSub(scName)
     return nil
 end
 
+function context:hasAnySub()
+    return self._headSubContext ~= nil
+end
+
 function context:_setPc(pc, pcName, action)
     self.tm._curContext = self
     self._pc = pc
@@ -299,16 +315,22 @@ function context:_setPc(pc, pcName, action)
 end
 
 function context:start(scName, ...)
-    print("start ",  self:_getPath().. "." ..scName)
     if self._isStopped then
         return
     end
 
     self:_setPc(self, "self", scName)
 
+    self:_addEnterCount()
     local sub = self._tab[scName]
     if sub == nil then
+        self:_decEnterCount()
         return
+    end
+
+    local debugger = self:_getDebugger()
+    if debugger then
+        debugger:onContextStart(self, scName)
     end
 
     local subUpdateFunEx = self._tab[scName.."_update"]
@@ -337,7 +359,6 @@ function context:start(scName, ...)
             subContext._catchFunEx = subCatchFunEx
             self:_addSubContext(subContext)
 
-            subContext._isEntering = true
             subContext:_prepareEnter()
 
             -- to ganrantee that the subcontext is added before execution
@@ -346,7 +367,6 @@ function context:start(scName, ...)
                 self.tm:_pcall(sub, self, ...)
             end
 
-            subContext._isEntering = false
             subContext:stop()
         end
     else
@@ -363,7 +383,6 @@ function context:start(scName, ...)
         subContext._catchFunEx = subCatchFunEx
         self:_addSubContext(subContext)
 
-        subContext._isEntering = true
         subContext:_prepareEnter()
 
         -- to ganrantee that the subcontext is added before execution
@@ -371,26 +390,25 @@ function context:start(scName, ...)
             subContext:_setPc(subContext, "self", "start")
             self.tm:_pcall(sub, self, ...)
         end
-
-        subContext._isEntering = false
     end
+    self:_decEnterCount()
 end
 
-function  context:call(tabName, scName, outputVars, ...)
-    print("call ", tabName, " ", self:_getPath().. "." .. scName)
+function  context:call(tab, scName, outputVars, ...)
+    local debugger = self:_getDebugger()
+    if debugger then
+        debugger:onTabCall(self, scName, tab)
+    end
+
     if self._isStopped then
         return
     end
 
     self:_setPc(self, scName, "call")
-    local tab = nil
-    if type(tabName) == "string" then
-        tab = self._tab[tabName]
-    elseif type(tabName) == "table" or type(tabName) == "userdata" then
-        tab = tabName
-    end
+    self:_addEnterCount()
 
     if tab == nil then
+        self:_decEnterCount()
         return
     end
 
@@ -417,23 +435,25 @@ function  context:call(tabName, scName, outputVars, ...)
     subContext._outputVars = outputVars
     self:_addSubContext(subContext)
     subContext:_enter(...)
+
+    self:_decEnterCount()
 end
 
-function  context:_callWithContext(context, tabName, scName, outputVars, ...)
-    print("call ", tabName, " ", self:_getPath().. "." .. scName)
+function  context:_callWithContext(context, tab, scName, outputVars, ...)
+    local debugger = self:_getDebugger()
+    if debugger then
+        debugger:onTabCall(self, scName, tab)
+    end
+
     if self._isStopped then
         return
     end
 
     self:_setPc(self, scName, "call")
-    local tab = nil
-    if type(tabName) == "string" then
-        tab = self._tab[tabName]
-    elseif type(tabName) == "table" or type(tabName) == "userdata" then
-        tab = tabName
-    end
+    self:_addEnterCount()
 
     if tab == nil then
+        self:_decEnterCount()
         return
     end
 
@@ -447,6 +467,8 @@ function  context:_callWithContext(context, tabName, scName, outputVars, ...)
     subContext._outputVars = outputVars
     self:_addSubContext(subContext)
     subContext:_enter(...)
+
+    self:_decEnterCount()
 end
 
 function context:throw(e)
@@ -623,9 +645,9 @@ function context:_checkNext(scName)
 end
 
 function context:_checkStop()
-    print("checkStop ", self:_getPath(), self._isEntering,
-        " ", self._headSubContext, " ",
-        self._updateFun, " ", self._tickFun, " ", self._eventFun, " ")
+    -- print("checkStop ", self:_getPath(), self._isEntering,
+    --     " ", self._headSubContext, " ",
+    --     self._updateFun, " ", self._tickFun, " ", self._eventFun, " ")
 
     if self._isStopped then
         return
@@ -635,13 +657,13 @@ function context:_checkStop()
         and self._updateFun == nil
         and self._tickFun == nil
         and self._eventFun == nil 
-        and not self._isEntering then
+        and self._enterCount <= 0 then
         self:_stopSelf() 
     end
 end
 
 function context:_startNext(scName)
-    print("start next ", self:_getPath().. "." ..scName)
+    --print("start next ", self:_getPath().. "." ..scName)
     local l = scName:len()
     local splitPos = l
     local zero = '0'
@@ -680,6 +702,7 @@ function context:_update(dt)
     end
 
     self:_setPc(self, "self", "update")
+    self:_addEnterCount()
 
     if self._updateFun then 
         self.tm:_pcall(self._updateFun, self, dt)
@@ -697,6 +720,7 @@ function context:_update(dt)
         end
         subContext = subContext._nextContext
     end
+    self:_decEnterCount()
 end
 
 function context:_tick(index)
@@ -710,6 +734,7 @@ function context:_tick(index)
     end
 
     self:_setPc(self, "self", "tick")
+    self:_addEnterCount()
 
     if self._tickFun then 
         self.tm:_pcall(self._tickFun, self, index)
@@ -727,6 +752,7 @@ function context:_tick(index)
         end
         subContext = subContext._nextContext
     end
+    self:_decEnterCount()
 end
 
 function context:notify(msg, level)
@@ -747,6 +773,7 @@ function context:notify(msg, level)
     end
 
     self:_setPc(self, "self", "notify")
+    self:_addEnterCount()
 
     local captured = false
     -- call ex notified first
@@ -755,10 +782,12 @@ function context:notify(msg, level)
     end
 
     if captured then
+        self:_decEnterCount()
         return true
     end
 
     if self._isStopped then
+        self:_decEnterCount()
         return false
     end
 
@@ -767,14 +796,17 @@ function context:notify(msg, level)
     end
 
     if captured then
+        self:_decEnterCount()
         return true
     end
 
     if self._isStopped then
+        self:_decEnterCount()
         return false
     end
 
     if level == 1 then
+        self:_decEnterCount()
         return false
     end
 
@@ -784,23 +816,30 @@ function context:notify(msg, level)
             self:_setPc(subContext, subContext._name, "notify_sub")
             captured = subContext:notify(msg, level - 1)
             if captured then
+                self:_decEnterCount()
                 return true
             end
         end
         subContext = subContext._nextContext
     end
+    self:_decEnterCount()
 
     return false
 end
 
-function context:upwardNotify(msg)
+function context:upwardNotify(msg, lvl)
     local p = self
-    while p and not p._isStopped do
+    if lvl == nil then
+        lvl = -1
+    end
+
+    while lvl ~= 0 and p ~= nil and not p._isStopped do
         local captured = p:notify(msg, 1)
         if captured then
             return true
         end
         p = p.p
+        lvl = lvl - 1
     end
 
     return false
@@ -820,26 +859,25 @@ function  context:_installTab(tab)
 end
 
 function  context:_enter(...)
-    print("enter ",  self:_getPath())
-    self._isEntering = true
     self:_prepareEnter()
     self:start("s1", ...)
-    self._isEntering = false
-    self:_checkStop()
 end
 
 function context:_prepareEnter()
     self:_setPc(self, "self", "prepare")
 
     if self:_selfNeedUpdate() then
+        self:_addEnterCount()
         self:_addUpdate()
     end
 
     if self:_selfNeedTick() then
+        self:_addEnterCount()
         self:_addTick()
     end
 
     if self:_selfNeedNotify() then
+        self:_addEnterCount()
         self:_addNotify()
     end
 end
@@ -861,7 +899,11 @@ function context:_pStopSub(scName)
 end
 
 function context:_stopSelf()
-    print("stop ", self:_getPath())
+    local debugger = self:_getDebugger()
+    if debugger then
+        debugger:onContextStop(self)
+    end
+
     self:_setPc(self, "self", "stop_self")
     self._isStopped = true
     self:_stopUpdateTickNotify()
@@ -991,6 +1033,24 @@ function context:_notifyStop()
         p:_checkStop()
     elseif self._isRoot then
         tm:_onStopped()
+    end
+end
+
+function context:_addEnterCount()
+    if self._isStopped then
+        return
+    end
+    self._enterCount = self._enterCount + 1
+end
+
+function context:_decEnterCount()
+    if self._isStopped then
+        return
+    end
+
+    self._enterCount = self._enterCount - 1
+    if self._enterCount <= 0 then
+        self:_checkStop()
     end
 end
 
@@ -1132,7 +1192,10 @@ function context:_throwException(exception)
         return false
     end
 
-    print("throwException ", self:_getPath())
+    local debugger = self:_getDebugger()
+    if debugger then
+        debugger:onContextException(self, exception)
+    end
 
     local isCatched = false
     if self._catchFun ~= nil then
@@ -1157,6 +1220,15 @@ function context:_throwException(exception)
     end
 
     return false
+end
+
+function context:_getDebugger()
+    local tm = self.tm
+    if tm == nil then
+        return nil
+    end
+
+    return tm:getDebugger()
 end
 
 return tabMachine
