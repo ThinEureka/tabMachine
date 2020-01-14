@@ -13,6 +13,7 @@ g_t.anyOutputVars = {"a1", "a2", "a3", "a4", "a5", "a6", "a7", "a8", "a9", "a10"
 local context = tabMachine.context
 
 tabMachine.event_context_stop = "context_stop"
+tabMachine.event_trigger = "event_trigger"
 
 ----------------- util functions ---------------------
 local function outputValues(env, outputVars, outputValues)
@@ -552,6 +553,36 @@ function context:tabWait(scNames, scName)
     return t
 end
 
+function context:tabWaitEvents(eventNames, scName)
+    return {
+        s1 = function(c)
+            local scNames = {}
+            for _, name in ipairs(eventNames) do
+                local tab = {
+                    s1 = g_t.empty_fun,
+                    s1_event = function(c1, msg)
+                        if not c1.p or c1.p._isStopped then
+                            return false
+                        end
+                        if type(msg) == "table" 
+                            and msg.eventType == tabMachine.event_trigger
+                            and msg.target == self
+                            and msg.eventName == c1._tab._ename then
+                                c1:stop()
+                                return true
+                        end
+                    end,
+                    _ename = name,
+                }
+                local tabName = name .. "_start"
+                self:call(tab, tabName)
+                table.insert(scNames, tabName)
+            end
+            c:call(self:tabWait(scNames, scName), "s2")
+        end,
+    }
+end
+
 function context:hasSub(scName)
     local subContext = self._headSubContext
     while subContext do
@@ -1016,7 +1047,10 @@ function context:_notifyStop()
     
     self:_setPc(self, "self", "notify_stop")
 
+    local addEnter = false
     if p and not p._isStopped and p:_needNotify() then
+        addEnter = true
+        p:_addEnterCount()
         local msg = {
             eventType = tabMachine.event_context_stop,
             p = p,
@@ -1031,6 +1065,10 @@ function context:_notifyStop()
         p:_checkStop()
     elseif self._isRoot then
         tm:_onStopped()
+    end
+
+    if addEnter then
+         p:_decEnterCount()
     end
 end
 
