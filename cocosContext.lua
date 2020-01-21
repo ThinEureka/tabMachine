@@ -306,7 +306,7 @@ function g_t.concurrentSteps(...)
 
         _abortPreviousSteps = function(c, index)
             for i = math.max(index - 1, 1), -1 do
-                c:abortSub(c.v.prefix .. i)
+                c:abort(c.v.prefix .. i)
             end
         end,
     }

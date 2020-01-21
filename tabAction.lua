@@ -39,7 +39,7 @@ g_t.waitForAct = {
 g_t.tween =  {
     s1 = function(c, fun, v1, v2, duration)
         if g_t.debug then
-            c._nickName = "tween"
+            c._nickName =  "tween"
         end
         fun(v1)
         c.v.time = 0
@@ -223,7 +223,6 @@ parseTimeLineData = function ( str, node, eParam)
         local data = SoraDSplitString(v, ",")
         for _,str in ipairs(data) do 
             local pos = string.find(str, "=")
-            print(pos)
             local key = string.sub(str, 1, pos - 1)
             local value = string.sub(str, pos+1, string.len(str))
             if key ~= "e" then 
@@ -231,7 +230,6 @@ parseTimeLineData = function ( str, node, eParam)
             else 
                 value = eParam[value]
             end  
-            print(key,value)
             result[key] = value
         end 
         table.insert(lineData,result)

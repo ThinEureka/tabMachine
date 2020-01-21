@@ -599,11 +599,17 @@ function context:output(...)
     self._outputValues = {...}
 end
 
-function context:abortSub(scName)
-    local sc = self:getSub(scName)
+function context:abort(scName)
+    local sc
+    if scName ~= nil then
+        sc = self:getSub(scName)
+    else
+        sc = self
+    end
+    
     if sc ~= nil then
         sc._name = "__abort" .. sc._name
-        self:stop(scName)
+        sc:stop()
     end
 end
 
