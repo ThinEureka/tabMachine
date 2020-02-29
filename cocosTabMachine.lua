@@ -9,6 +9,7 @@ local tabMachine = require("app.common.tabMachine.tabMachine")
 local cocosTabMachine = class("cocosTabMachine", tabMachine)
 
 local cocosContext = require("app.common.tabMachine.cocosContext")
+local schedulerTime = require(cc.PACKAGE_NAME .. ".scheduler")
 
 -------------------------- cocosTabMachine ----------------------
 
@@ -29,16 +30,15 @@ end
 function cocosTabMachine:_addUpdate()
     print("machine add update")
     if self._updateTimer == nil then
-        self._updateTimer = SoradCreateTimer(self, function(dt)
-                self:update(dt)
-            end, true)
+        self._updateTimer = schedulerTime.scheduleUpdateGlobal(function(dt)
+            self:update(dt) end)
     end
 end
 
 function cocosTabMachine:_decUpdate()
     print("machine dec update")
     if self._updateTimer then
-        SoraDManagerRemoveTimer(self, self._updateTimer)
+        schedulerTime.unscheduleGlobal(self._updateTimer)
         self._updateTimer = nil
     end
 end
@@ -46,31 +46,16 @@ end
 function cocosTabMachine:_addTick()
     print("machine add tick")
     if self._tickTimer == nil then
-        self._tickTimer = SoradCreateTimer(self, function(dt)
-                self._tickIndex = self._tickIndex + 1
-                self:tick(self._tickIndex)
-            end, false)
-    end
-end
-
--- to restart timer in the case all timers are 
--- stopped globally
-function cocosTabMachine:refreshTimer()
-    if self._updateTimer ~= nil then
-        self._updateTimer = nil
-        self:_addUpdate()
-    end
-
-    if self._tickTimer ~= nil then
-        self._tickTimer = nil
-        self:_addTick()
+        local schedulerTime = require(cc.PACKAGE_NAME .. ".scheduler")
+        self._tickTimer = schedulerTime.scheduleGlobal(function(dt)
+            self:tick(dt) end, 1.0)
     end
 end
 
 function cocosTabMachine:_decTick()
     print("machine dec tick")
     if self._tickTimer then
-        SoraDManagerRemoveTimer(self, self._tickTimer)
+        schedulerTime.unscheduleGlobal(self._tickTimer)
         self._tickTimer = nil
     end
 end

@@ -66,6 +66,71 @@ g_t.tween =  {
     end,
 }
 
+g_t.tweenCircOut =  {
+    s1 = function(c, fun, v1, v2, duration)
+        if g_t.debug then
+            c._nickName =  "tweenCircOut"
+        end
+        fun(v1)
+        c.v.time = 0
+        c.v.duration = duration
+        c.v.v1 = v1
+        c.v.v2 = v2
+        c.v.fun = fun
+    end,
+
+    s1_update = function(c, dt)
+        c.v.time = c.v.time + dt
+        if c.v.time > c.v.duration then
+            c:stop()
+            return
+        end
+
+        c.v.value = c.v.time / c.v.duration - 1
+        local v = (c.v.v2 - c.v.v1) * math.sqrt(1 - c.v.value * c.v.value) + c.v.v1
+        c.v.fun(v)
+    end,
+
+    s1_final = function(c)
+        c.v.fun(c.v.v2)
+    end,
+
+    _preCal = function(v1, v2, curDuration, duration)
+        local value = curDuration / duration - 1
+        return (v2 - v1) * math.sqrt(1 - value * value) + v1
+    end
+}
+
+g_t.tweenCircIn =  {
+    s1 = function(c, fun, v1, v2, duration)
+        if g_t.debug then
+            c._nickName =  "tweenCircIn"
+        end
+        fun(v1)
+        c.v.time = 0
+        c.v.duration = duration
+        c.v.v1 = v1
+        c.v.v2 = v2
+        c.v.fun = fun
+    end,
+
+    s1_update = function(c, dt)
+        c.v.time = c.v.time + dt
+        if c.v.time > c.v.duration then
+            c:stop()
+            return
+        end
+        
+        c.v.value = c.v.time / c.v.duration
+        local v = (c.v.v1 - c.v.v2) * (math.sqrt(1 - c.v.value * c.v.value) - 1) + c.v.v1
+        c.v.fun(v)
+    end,
+
+    s1_final = function(c)
+        c.v.fun(c.v.v2)
+    end,
+}
+
 local getNodeAttribute
 local parseTimeLineData
 local setNodeAttribute

@@ -10,6 +10,8 @@ local tabMachine = require("app.common.tabMachine.tabMachine")
 local cocosContext = class("cocosContext", tabMachine.context)
 cocosContext.isTabClass = true
 
+local schedulerTime = require(cc.PACKAGE_NAME .. ".scheduler")
+
 
 function cocosContext:ctor()
     tabMachine.context.ctor(self)
@@ -103,16 +105,24 @@ g_t.delay = {
         if g_t.debug then
             c._nickName = "delay"
         end
-        c.v.totalTime = totalTime
-        c.v.time = 0
-    end,
 
-    s1_update = function(c, dt)
-        c.v.time = c.v.time + dt
-        if c.v.time >= c.v.totalTime then
+        if totalTime == nil then
             c:stop()
+        else
+            c.v.timer = schedulerTime.performWithDelayGlobal(function(dt) 
+                c.v.timer = nil
+                c:stop() 
+            end, totalTime)
         end
     end,
+
+    final = function (c)
+        if c.v.timer ~= nil then
+            schedulerTime.unscheduleGlobal(c.v.timer)
+        end
+    end,
+
+    s1_event = g_t.empty_event,
 }
 
 g_t.skipFrames = {
