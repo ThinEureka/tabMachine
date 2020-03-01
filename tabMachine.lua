@@ -79,40 +79,8 @@ function tabMachine:start(...)
     self:_pcallMachine(self._rootContext._enter, self._rootContext, ...)
 end
 
-function tabMachine:update(dt)
-    self:_pcallMachine(self._rootContext._update, self._rootContext, dt)
-end
-
-function tabMachine:tick(index)
-    self:_pcallMachine(self._rootContext._tick, self._rootContext, index)
-end
-
 function tabMachine:notify(msg, level)
     self:_pcallMachine(self._rootContext.notify, self._rootContext, msg, level)
-end
-
-function tabMachine:_addUpdate()
-    -- to be need to be implemented by sub class
-end
-
-function tabMachine:_decUpdate()
-    -- to be need to be implemented by sub class
-end
-
-function tabMachine:_addTick()
-    -- to be need to be implemented by sub class
-end
-
-function tabMachine:_decTick()
-    -- to be need to be implemented by sub class
-end
-
-function tabMachine:_addNotify()
-    -- to be need to be implemented by sub class
-end
-
-function tabMachine:_decNotify()
-    -- to be need to be implemented by sub class
 end
 
 function tabMachine:stop()
@@ -227,53 +195,55 @@ end
 ---------------------- context -------------------------
 
 function context:ctor()
-    self.tm = nil
-    self.p = nil
-    self._pp = nil
+    --il assignment optimization]
+    -- self.tm = nil
+    -- self.p = nil
+    -- self._pp = nil
 
-    self._pc = nil
-    self._pcAction = nil
-    self._pcName = nil
+    -- self._pc = nil
+    -- self._pcAction = nil
+    -- self._pcName = nil
 
-    self._tab = nil
-    self._name = nil
-    self._isRoot = false
+    -- self._tab = nil
+    -- self._name = nil
 
-    self._isStopped = false
-    self._isUpdateTickNotifyStopped = false
-    self._isSubStopped = false
-    self._isFinalized = false
-    self._isDetached = false
-    self._isDisposed = false
-    self._isNotifyStopped = false
+    --[false assignment optimization]
+    -- self._isRoot = false
 
-    self._headSubContext = nil
-    self._tailSubContext = nil
+    -- self._isStopped = false
+    -- self._isUpdateTickNotifyStopped = false
+    -- self._isSubStopped = false
+    -- self._isFinalized = false
+    -- self._isDetached = false
+    -- self._isDisposed = false
+    -- self._isNotifyStopped = false
 
-    self._preContext = nil
-    self._nextContext = nil
+    --[nil assignment optimization]
+    -- self._headSubContext = nil
+    -- self._tailSubContext = nil
 
-    self._eventFun = nil
-    self._updateFun = nil
-    self._tickFun = nil
-    self._finalFun = nil
-    self._catchFun = nil
+    -- self._preContext = nil
+    -- self._nextContext = nil
+
+    -- self._eventFun = nil
+    -- self._updateFun = nil
+    -- self._tickFun = nil
+    -- self._finalFun = nil
+    -- self._catchFun = nil
     
-    self._eventFunEx = nil
-    self._updateFunEx = nil
-    self._tickFunEx = nil
-    self._finalFunEx = nil
-    self._catchFunEx = nil
+    -- self._eventFunEx = nil
+    -- self._updateFunEx = nil
+    -- self._tickFunEx = nil
+    -- self._finalFunEx = nil
+    -- self._catchFunEx = nil
 
-    self._outputVars = nil
-    self._outputValues = nil
+    -- self._outputVars = nil
+    -- self._outputValues = nil
 
-    self._needUpdateCount = 0
-    self._needNotifyCount = 0
-    self._needTickCount = 0
+    --self._updateTimer = nil
+    --self._tickTimer = nil
 
     self._enterCount = 0
-
     self.v = {}
 end
 
@@ -735,10 +705,6 @@ function context:_update(dt)
         return
     end
 
-    if not self:_needUpdate() then
-        return
-    end
-
     self:_setPc(self, "self", "update")
     self:_addEnterCount()
 
@@ -750,24 +716,12 @@ function context:_update(dt)
         self.tm:_pcall(self._updateFunEx, self.p, dt)
     end
 
-    local subContext = self._headSubContext
-    while subContext ~= nil do
-        if subContext.p and not subContext.p._isStopped then
-            self:_setPc(subContext, subContext._name, "update_sub")
-            subContext:_update(dt)
-        end
-        subContext = subContext._nextContext
-    end
     self:_decEnterCount()
 end
 
 function context:_tick(index)
     -- inner update first
     if self._isStopped then
-        return false
-    end
-
-    if not self:_needTick() then
         return false
     end
 
@@ -782,23 +736,11 @@ function context:_tick(index)
         self.tm:_pcall(self._tickFunEx, self.p, index)
     end
 
-    local subContext = self._headSubContext
-    while subContext ~= nil do
-        if subContext.p and not subContext.p._isStopped then
-            self:_setPc(subContext, subContext._name, "tick_sub")
-            subContext:_tick(index)
-        end
-        subContext = subContext._nextContext
-    end
     self:_decEnterCount()
 end
 
 function context:notify(msg, level)
     if self._isStopped then
-        return false
-    end
-
-    if not self:_needNotify() then
         return false
     end
 
@@ -815,7 +757,7 @@ function context:notify(msg, level)
 
     local captured = false
     -- call ex notified first
-    if self._eventFunEx and self.p then
+    if self._eventFunEx and self.p and self._eventFunEx ~= g_t.empty_event then
         captured = self.tm:_pcall(self._eventFunEx, self.p, msg)
     end
 
@@ -829,7 +771,7 @@ function context:notify(msg, level)
         return false
     end
 
-    if self._eventFun then
+    if self._eventFun and self._eventFunEx ~= g_t.empty_event then
         captured = self.tm:_pcall(self._eventFun, self, msg)
     end
 
@@ -905,15 +847,11 @@ function context:_prepareEnter()
     self:_setPc(self, "self", "prepare")
 
     if self:_selfNeedUpdate() then
-        self:_addUpdate()
+        self._updateTimer = self.tm:_createTimer(function (dt) self:_update(dt) end)
     end
 
     if self:_selfNeedTick() then
-        self:_addTick()
-    end
-
-    if self:_selfNeedNotify() then
-        self:_addNotify()
+        self._tickTimer = self.tm:_createTimer(function (dt) self:_tick() end, 1.0)
     end
 end
 
@@ -956,28 +894,15 @@ function context:_stopUpdateTickNotify()
 
     self:_setPc(self, "self", "stop_update_and_tick")
     self._isUpdateTickNotifyStopped = true
-    if self:_needUpdate() then
-       if self.p then 
-           self.p:_decUpdate()
-       elseif self._isRoot then
-           self.tm:_decUpdate()
-       end
+
+    if self._updateTimer then
+        self.tm:_destroyTimer(self._updateTimer)
+        self._updateTimer = nil
     end
 
-    if self:_needTick() then
-       if self.p then 
-           self.p:_decTick()
-       elseif self._isRoot then
-           self.tm:_decTick()
-       end
-    end
-
-    if self:_needNotify() then
-       if self.p then 
-           self.p:_decNotify()
-       elseif self._isRoot then
-           self.tm:_decNotify()
-       end
+    if self._tickTimer then
+        self.tm:_destroyTimer(self._tickTimer)
+        self._tickTimer = nil
     end
 end
 
@@ -1054,7 +979,7 @@ function context:_notifyStop()
     self:_setPc(self, "self", "notify_stop")
 
     local addEnter = false
-    if p and not p._isStopped and p:_needNotify() then
+    if p and not p._isStopped then
         addEnter = true
         p:_addEnterCount()
         local msg = {
@@ -1096,122 +1021,14 @@ function context:_decEnterCount()
     end
 end
 
-function context:_addUpdate()
-    if self._isStopped then
-        return
-    end
-
-    local oldNeedUpdate = self:_needUpdate()
-    self._needUpdateCount = self._needUpdateCount + 1
-    if oldNeedUpdate ~= self:_needUpdate() then
-        if self.p then
-            return self.p:_addUpdate()
-        elseif self._isRoot and self.tm then
-            return self.tm:_addUpdate()
-        end
-    end
-end
-
-function context:_decUpdate()
-    if self._isStopped then
-        return
-    end
-
-    local oldNeedUpdate = self:_needUpdate()
-    self._needUpdateCount = self._needUpdateCount - 1
-    if oldNeedUpdate ~= self:_needUpdate() then
-        if self.p then
-            return self.p:_decUpdate()
-        elseif self._isRoot and self.tm then
-            return self.tm:_decUpdate()
-        end
-    end
-end
-
-function context:_needUpdate()
-    return self._needUpdateCount > 0
-end
-
 function context:_selfNeedUpdate()
     return self._updateFun ~= nil or
         self._updateFunEx ~= nil
 end
 
-function context:_addTick()
-    if self._isStopped then
-        return
-    end
-
-    local oldNeedTick = self:_needTick()
-    self._needTickCount = self._needTickCount + 1
-    if oldNeedTick ~= self:_needTick() then
-        if self.p then
-            return self.p:_addTick()
-        elseif self._isRoot and self.tm then
-            return self.tm:_addTick()
-        end
-    end
-end
-
-function context:_decTick()
-    if self._isStopped then
-        return
-    end
-
-    local oldNeedTick = self:_needTick()
-    self._needTickCount = self._needTickCount - 1
-    if oldNeedTick ~= self:_needTick() then
-        if self.p then
-            return self.p:_decTick()
-        elseif self._isRoot and self.tm then
-            return self.tm:_decTick()
-        end
-    end
-end
-
-function context:_needTick()
-    return self._needTickCount > 0
-end
-
 function context:_selfNeedTick()
     return self._tickFun ~= nil or
         self._tickFunEx ~= nil
-end
-
-function context:_addNotify()
-    if self._isStopped then
-        return
-    end
-
-    local oldNeedNotify = self:_needNotify()
-    self._needNotifyCount = self._needNotifyCount + 1
-    if oldNeedNotify ~= self:_needNotify() then
-        if self.p then
-            return self.p:_addNotify()
-        elseif self._isRoot and self.tm then
-            return self.tm:_addNotify()
-        end
-    end
-end
-
-function context:_decNotify()
-    if self._isStopped then
-        return
-    end
-
-    local oldNeedNotify = self:_needNotify()
-    self._needNotifyCount = self._needNotifyCount - 1
-    if oldNeedNotify ~= self:_needNotify() then
-        if self.p then
-            return self.p:_decNotify()
-        elseif self._isRoot and self.tm then
-            return self.tm:_decNotify()
-        end
-    end
-end
-
-function context:_needNotify()
-    return self._needNotifyCount > 0
 end
 
 function context:_selfNeedNotify()

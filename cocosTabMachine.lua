@@ -27,47 +27,6 @@ function cocosTabMachine:getObject(path)
     return self._rootContext:getObject(path)
 end
 
-function cocosTabMachine:_addUpdate()
-    print("machine add update")
-    if self._updateTimer == nil then
-        self._updateTimer = schedulerTime.scheduleUpdateGlobal(function(dt)
-            self:update(dt) end)
-    end
-end
-
-function cocosTabMachine:_decUpdate()
-    print("machine dec update")
-    if self._updateTimer then
-        schedulerTime.unscheduleGlobal(self._updateTimer)
-        self._updateTimer = nil
-    end
-end
-
-function cocosTabMachine:_addTick()
-    print("machine add tick")
-    if self._tickTimer == nil then
-        local schedulerTime = require(cc.PACKAGE_NAME .. ".scheduler")
-        self._tickTimer = schedulerTime.scheduleGlobal(function(dt)
-            self:tick(dt) end, 1.0)
-    end
-end
-
-function cocosTabMachine:_decTick()
-    print("machine dec tick")
-    if self._tickTimer then
-        schedulerTime.unscheduleGlobal(self._tickTimer)
-        self._tickTimer = nil
-    end
-end
-
-function tabMachine:_addNotify()
-    print("machine add notify")
-end
-
-function tabMachine:_decNotify()
-    print("machine dec notify")
-end
-
 function cocosTabMachine:_onStopped()
     print("machine stopped")
     tabMachine._onStopped(self)
@@ -79,6 +38,18 @@ function cocosTabMachine:_createContext(tab, ...)
     else
         return cocosContext.new(...)
     end
+end
+
+function cocosTabMachine:_createTimer(callback, interval)
+    if interval == 0 or interval == nil then
+        return  schedulerTime.scheduleUpdateGlobal(callback)
+    else
+        return  schedulerTime.scheduleGlobal(callback, interval)
+    end
+end
+
+function cocosTabMachine:_destroyTimer(handler)
+     schedulerTime.unscheduleGlobal(handler)
 end
 
 function cocosTabMachine:_createException(errorMsg, isTabMachineError)
