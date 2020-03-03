@@ -846,6 +846,10 @@ end
 function context:_prepareEnter()
     self:_setPc(self, "self", "prepare")
 
+    if self.p then
+        self._debugger = self.p._debugger
+    end
+
     if self:_selfNeedUpdate() then
         self._updateTimer = self.tm:_createTimer(function (dt) self:_update(dt) end)
     end
@@ -1082,12 +1086,25 @@ function context:_throwException(exception)
 end
 
 function context:_getDebugger()
+    if self._debugger ~= nil then
+        return self._debugger
+    end
+
     local tm = self.tm
     if tm == nil then
         return nil
     end
 
     return tm:getDebugger()
+end
+
+function context:setDebugger(debugger)
+    self._debugger = debugger
+    local subContext = self._headSubContext
+    while subContext ~= nil do
+        subContext:setDebugger(debugger)
+        subContext = subContext._nextContext
+    end
 end
 
 return tabMachine
