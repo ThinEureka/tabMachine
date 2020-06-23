@@ -46,6 +46,8 @@ function tabMachine:ctor()
     self._curContext = nil
     self._tickIndex = 0
     self._debugger = nil
+    self._contextStack = {}
+    self._curStackNum = 0
 end
 
 function tabMachine:installTab(tab)
@@ -76,11 +78,11 @@ function tabMachine:start(...)
     end
 
     self._isRunning = true
-    self:_pcallMachine(self._rootContext._enter, self._rootContext, ...)
+    self._rootContext:_enter(...)
 end
 
 function tabMachine:notify(msg, level)
-    self:_pcallMachine(self._rootContext.notify, self._rootContext, msg, level)
+    self._rootContext:notify(msg, level)
 end
 
 function tabMachine:stop()
@@ -114,15 +116,30 @@ function tabMachine:_createContext(...)
     return context.new(...)
 end
 
-function tabMachine:_pcall(f, ...)
-    local function on_error(errorMsg)
-        local e = self:_createException(errorMsg, false)
+function tabMachine:_pcall(f, c, ...)
 
-        local catched = false
-        local curContext = self._curContext
-        if curContext ~= nil then
-            self._curContext = nil
-            catched = curContext:_throwException(e)
+    local function on_error(errorMsg)
+        local e = self:_createException(errorMsg)
+        local i = self._curStackNum
+        local catched = true
+        while i > 0 do
+            local context = self._contextStack[i].context
+            if not context:_throwException(e) then
+                self:_addContextException(e, context)
+                catched = false
+            end
+
+            i = i - 1
+            local lastContext = context
+            while i > 0 do
+                local context = self._contextStack[i].context
+                if context == lastContext._pp or context == lastContext then
+                    lastContext = context
+                    i = i - 1
+                else
+                    break
+                end
+            end
         end
 
         if not catched then
@@ -130,11 +147,26 @@ function tabMachine:_pcall(f, ...)
         end
     end
 
-    --print("machine xpcall")
+    local curContextInfo
+    self._curStackNum = self._curStackNum + 1
+    if #self._contextStack < self._curStackNum then
+        curContextInfo = {}
+        curContextInfo.context = c
+        table.insert(self._contextStack, curContextInfo)
+    else
+        curContextInfo = self._contextStack[self._curStackNum]
+        curContextInfo.context = c
+    end
+
     local a1, a2, a3, a4, a5, a6, a7, a8, a9, a10 = ...
+
+
     local stat, result = xpcall(function()
-        return f(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10)
-    end, on_error) 
+        return f(c, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10)
+    end, on_error)
+
+    curContextInfo.context = nil
+    self._curStackNum = self._curStackNum -1
 
     if stat then
         return result
@@ -143,44 +175,17 @@ function tabMachine:_pcall(f, ...)
     return nil
 end
 
-function tabMachine:_pcallMachine(f, ...)
-    -- deal with excetion caused by machine itself
-    -- such exceptions can't be properly handled by
-    -- machine itself 
-    -- or deal with external unprected calls which 
-    -- you have no way to trace
-    local function on_error(errorMsg)
-        local e = self:_createException(errorMsg, true)
-        local catched = false
-        local curContext = self._curContext
-        if curContext ~= nil then
-            self._curContext = nil
-            catched = curContext:_throwException(e)
-        end
-        self:_onUnCaughtException(e)
-    end
-
-    local a1, a2, a3, a4, a5, a6 = ...
-    local stat, result = xpcall(function()
-        return f(a1, a2, a3, a4, a5, a6)
-    end, on_error) 
-
-    if stat then
-        return result
-    end
-
-    return nil
-end
-
-function tabMachine:_createException(errorMsg, isTabMachineError)
+function tabMachine:_createException(errorMsg)
     -- the subclass may override to get the call stack info
     -- acoording to whether its debug or release configuration
     local exception = {}
     exception.errorMsg = errorMsg
-    exception.isTabMachineError = isTabMachineError
     exception.isCustom = false
     
     return exception
+end
+
+function tabMachine:_addContextException(e, context)
 end
 
 function tabMachine:_onUnCaughtException(e)
@@ -263,13 +268,13 @@ function context:_getPath()
 end
 
 function context:getSub(scName)
-    local curContext = self._headSubContext
+    local curContext = self._tailSubContext
     while curContext ~= nil  do
         if curContext.p == self and
             curContext._name == scName then
             return curContext
         end
-        curContext = curContext._nextContext 
+        curContext = curContext._preContext 
     end
     return nil
 end
@@ -279,7 +284,8 @@ function context:hasAnySub()
 end
 
 function context:_setPc(pc, pcName, action)
-    self.tm._curContext = self
+    -- do return end
+    -- self.tm._curContext = self
     self._pc = pc
     self._pcName = pcName
     self._pcAction = action
@@ -287,6 +293,10 @@ end
 
 function context:start(scName, ...)
     if self._isStopped then
+        return
+    end
+
+    if self._tab == nil then
         return
     end
 
@@ -392,11 +402,14 @@ function  context:call(tab, scName, outputVars, ...)
 
     subContext:_installTab(tab)
 
-    local subUpdateFunEx = self._tab[scName.."_update"]
-    local subEventFunEx = self._tab[scName.."_event"]
-    local subTickFunEx = self._tab[scName.."_tick"]
-    local subFinalFunEx = self._tab[scName.."_final"]
-    local subCatchFunEx = self._tab[scName.."_catch"]
+    local subUpdateFunEx, subEventFunEx, subTickFunEx, subFinalFunEx, subCatchFunEx
+    if self._tab then
+        subUpdateFunEx = self._tab[scName.."_update"]
+        subEventFunEx = self._tab[scName.."_event"]
+        subTickFunEx = self._tab[scName.."_tick"]
+        subFinalFunEx = self._tab[scName.."_final"]
+        subCatchFunEx = self._tab[scName.."_catch"]
+    end
 
     subContext._updateFunEx = subUpdateFunEx
     subContext._eventFunEx = subEventFunEx
@@ -569,6 +582,10 @@ function context:output(...)
     self._outputValues = {...}
 end
 
+function context:getOutputs()
+    return self._outputValues
+end
+
 function context:abort(scName)
     local sc
     if scName ~= nil then
@@ -594,6 +611,24 @@ function context:stop(scName)
         self:_stopSub(scName)
         self:_checkStop()
     end
+end
+
+function context:stopAllSubs(scName)
+    if self._isStopped then
+        return
+    end
+
+    local curContext = self._tailSubContext
+    while curContext ~= nil do
+        if scName == nil or curContext._name == scName then
+            curContext:stop()
+        end
+        curContext = curContext._preContext
+    end
+end
+
+function context:isStopped()
+    return self._isStopped
 end
 
 function context:_addSubContext(subContext)
@@ -771,7 +806,7 @@ function context:notify(msg, level)
         return false
     end
 
-    if self._eventFun and self._eventFunEx ~= g_t.empty_event then
+    if self._eventFun and self._eventFun ~= g_t.empty_event then
         captured = self.tm:_pcall(self._eventFun, self, msg)
     end
 
@@ -977,9 +1012,14 @@ function context:_dispose()
 end
 
 function context:_notifyStop()
+    if self._isNotifyStopped then
+        return
+    end
+
+    self._isNotifyStopped = true
     local p = self._pp
     local tm = self.tm
-    
+
     self:_setPc(self, "self", "notify_stop")
 
     local addEnter = false
@@ -1041,6 +1081,10 @@ function context:_selfNeedNotify()
 end
 
 function context:_throwException(exception)
+    if self._isNotifyStopped then
+        return true
+    end
+
     if self._isStopped then
         -- when expction is thrown after c 
         -- is stopped, the parent should not
@@ -1052,7 +1096,9 @@ function context:_throwException(exception)
         self:_detach()
         self:_dispose()
         -- notifyStop should not be called here
-        return false
+
+        --allow handling exception even after being stopped
+        --return false
     end
 
     local debugger = self:_getDebugger()

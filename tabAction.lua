@@ -36,8 +36,59 @@ g_t.waitForAct = {
     event = g_t.empty_event,
 }
 
+g_t.playSpineAnimation = {
+    s1 = function(c, spine, animationName)
+        c.v.spine = spine
+        spine:registerSpineEventHandler(function (data)
+            if data.type == spEventTypeString.SP_ANIMATION_COMPLETE 
+                and animationName == data.animation then
+                c:stop()
+            end
+        end,spEventType.SP_ANIMATION_COMPLETE)
+        spine:setAnimation(0, animationName, false)
+    end,
+
+    final = function(c)
+        local spine = c.v.spine
+        if not tolua.isnull(spine) then
+            spine:unregisterSpineEventHandler(sp.EventType.ANIMATION_COMPLETE)
+        end
+    end,
+    event = g_t.empty_event,
+}
+
+g_t.curveCircleEaseOut = function(v1, v2, k)
+    local value = k - 1
+    return (v2 - v1) * math.sqrt(1 - value * value) + v1
+end
+
+g_t.curveCircleEaseIn = function(v1, v2, k)
+    local value = k
+    return (v1 - v2) * (math.sqrt(1 - value * value) - 1) + v1
+end
+
+g_t.curveQuadEaseOut = function(v1, v2, k)
+    local value = k
+    return (v1 - v2) * value * (value - 2) + v1
+end
+
+g_t.curveQuadEaseIn = function(v1, v2, k)
+    local value = k
+    return (v2 - v1) * value * value + v1
+end
+
+g_t.curveCubicEaseIn = function(v1, v2, k)
+    local value = k
+    return (v2 - v1) * k * value * value + v1
+end
+
+g_t.defaultLine = function (v1, v2, k)
+    local value = k
+    return v1 * (1.0 - value) + v2 * value
+end
+
 g_t.tween =  {
-    s1 = function(c, fun, v1, v2, duration)
+    s1 = function(c, fun, v1, v2, duration, curve)
         if g_t.debug then
             c._nickName =  "tween"
         end
@@ -47,6 +98,7 @@ g_t.tween =  {
         c.v.v1 = v1
         c.v.v2 = v2
         c.v.fun = fun
+        c.v.curve = curve
     end,
 
     s1_update = function(c, dt)
@@ -57,78 +109,29 @@ g_t.tween =  {
         end
 
         local rate = c.v.time / c.v.duration
-        local v = c.v.v1 * (1.0 - rate) + c.v.v2 * rate
+        local v
+        if c.v.curve and type(c.v.curve) == "function" then
+            v = c.v.curve(c.v.v1, c.v.v2, rate)
+        else
+            v = c.v.v1 * (1.0 - rate) + c.v.v2 * rate
+        end
         c.v.fun(v)
     end,
 
-    s1_final = function(c)
-        c.v.fun(c.v.v2)
-    end,
-}
-
-g_t.tweenCircOut =  {
-    s1 = function(c, fun, v1, v2, duration)
-        if g_t.debug then
-            c._nickName =  "tweenCircOut"
-        end
-        fun(v1)
-        c.v.time = 0
-        c.v.duration = duration
-        c.v.v1 = v1
-        c.v.v2 = v2
-        c.v.fun = fun
-    end,
-
-    s1_update = function(c, dt)
-        c.v.time = c.v.time + dt
-        if c.v.time > c.v.duration then
-            c:stop()
-            return
-        end
-
-        c.v.value = c.v.time / c.v.duration - 1
-        local v = (c.v.v2 - c.v.v1) * math.sqrt(1 - c.v.value * c.v.value) + c.v.v1
-        c.v.fun(v)
-    end,
-
-    s1_final = function(c)
+    s2 = function(c)
         c.v.fun(c.v.v2)
     end,
 
-    _preCal = function(v1, v2, curDuration, duration)
-        local value = curDuration / duration - 1
-        return (v2 - v1) * math.sqrt(1 - value * value) + v1
+    _preCal = function(v1, v2, curDuration, duration, curve)
+        local rate = curDuration / duration
+        local v
+        if curve and type(curve) == "function" then
+            v = curve(v1, v2, rate)
+        else
+            v = v1 * (1.0 - rate) + v2 * rate
+        end
+        return v
     end
-}
-
-g_t.tweenCircIn =  {
-    s1 = function(c, fun, v1, v2, duration)
-        if g_t.debug then
-            c._nickName =  "tweenCircIn"
-        end
-        fun(v1)
-        c.v.time = 0
-        c.v.duration = duration
-        c.v.v1 = v1
-        c.v.v2 = v2
-        c.v.fun = fun
-    end,
-
-    s1_update = function(c, dt)
-        c.v.time = c.v.time + dt
-        if c.v.time > c.v.duration then
-            c:stop()
-            return
-        end
-        
-        c.v.value = c.v.time / c.v.duration
-        local v = (c.v.v1 - c.v.v2) * (math.sqrt(1 - c.v.value * c.v.value) - 1) + c.v.v1
-        c.v.fun(v)
-    end,
-
-    s1_final = function(c)
-        c.v.fun(c.v.v2)
-    end,
 }
 
 local getNodeAttribute

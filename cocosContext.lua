@@ -94,11 +94,44 @@ function cocosContext:getObject(path)
     return object
 end
 
+function cocosContext:getTreeMsg()
+    local msg = self:getMsg(self)
+    return msg
+end
+
+function cocosContext:getMsg(context, prefix, msg)
+    local xx = prefix or ""
+    local name = xx..context._name
+    if context.__cname and context.__cname ~= "cocosContext" then
+        name = name .. "(" .. context.__cname .. ")"
+    end
+
+    if context._nickName then
+        name = name .. "[" .. context._nickName .. "]"
+    end
+
+    msg = msg or ""
+    msg = msg .. "\n" .. name
+    print(name)
+
+    local subContext = context._headSubContext
+    while subContext ~= nil do
+        msg = self:getMsg(subContext, xx .. " ", msg)
+        subContext = subContext._nextContext
+    end
+    return msg
+end
+
 -------------------------- gt --------------------------
 g_t.empty_event = function(target, e) end
 g_t.empty_touch = function(target, type) end
 g_t.empty_frame = function(...) end
 g_t.empty_fun = function(...) end
+
+g_t.tabError = {
+    s1 = g_t.empty_fun,
+    event = g_t.empty_event,
+}
 
 g_t.delay = {
     s1 = function(c, totalTime)
@@ -165,27 +198,8 @@ g_t.click = {
         end
 
         c.v.target = target
-        if target.isSwallowTouches and not target:isSwallowTouches() then
-            c.v.checkIsMoved = true
-            c.v.isMoved = false
-        end
         c.v.target:addTouchEventListener(function(btn, event_type)
-            if event_type == ccui.TouchEventType.began then
-                c.v.isMoved = false
-            elseif event_type == ccui.TouchEventType.moved then
-                local touchBeganPoint = btn:getTouchBeganPosition()
-                local touchmovePoint =  btn:getTouchMovePosition()
-                local distance = cc.pGetDistance(touchBeganPoint, touchmovePoint)
-                if tonumber(distance) > TOUCH_MOVED_ERROR_VALUE then
-                    c.v.isMoved = true
-                end
-            elseif event_type == ccui.TouchEventType.ended then
-                if c.v.isMoved then
-                    c.v.isMoved = false
-                    if c.v.checkIsMoved then
-                        return
-                    end
-                end
+            if event_type == ccui.TouchEventType.ended then
                 c:output(true)
                 if soundId ~= -1 then
                     SoraDPlaySound(soundId)
@@ -224,8 +238,7 @@ function g_t.bind(tab, ...)
     }
 end
 
-function g_t.seq(...)
-    local tabs = {...}
+function g_t.seqWithArray(tabs)
     return {
         s1 = function (c)
             if g_t.debug then
@@ -258,6 +271,11 @@ function g_t.seq(...)
             c:call(c.v.tabs[index], scName)
         end,
     }
+end
+
+function g_t.seq(...)
+    local tabs = {...}
+    return g_t.seqWithArray(tabs)
 end
 
 --同时开始的步聚，某一个完成(或关键步骤开始派发sconcurrentStep_step_start事件)后，前面的要取消掉

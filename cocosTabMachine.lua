@@ -54,12 +54,20 @@ end
 
 function cocosTabMachine:_createException(errorMsg, isTabMachineError)
     local e = tabMachine._createException(self, errorMsg, isTabMachineError)
-    
     e.luaErrorMsg = errorMsg
     e.luaStackTrace = tostring(debug.traceback("", 2))
-    e.tabStack = {}
+    return e
+end
 
-    local c = self._curContext
+function cocosTabMachine:_addContextException(e, context)
+    if e.tabStacks == nil then
+        e.tabStacks = {}
+    end
+
+    local tabStack = {}
+    table.insert(e.tabStacks, tabStack)
+
+    local c = context
     if c ~= nil then
         e.pcName = c._pcName
         e.pcAction = c._pcAction
@@ -74,11 +82,9 @@ function cocosTabMachine:_createException(errorMsg, isTabMachineError)
         if c.__cname ~= "cocosContext" and c.__cname ~= nil then
             pc.className = c.__cname
         end
-        table.insert(e.tabStack, pc)
+        table.insert(tabStack, pc)
         c = c._pp
     end
-
-    return e
 end
 
 function cocosTabMachine:_onUnCaughtException(e)
@@ -87,22 +93,25 @@ function cocosTabMachine:_onUnCaughtException(e)
     --上报
     local eMsg = ""
     local errorMsg = e.errorMsg or "no errorMsg"
-    local tabStack = e.tabStack and util.serialize(e.tabStack or {}) or "no tabStack"
+    local tabStacks = e.tabStacks and self:prettyStr(e.tabStacks or {}) or "no tabStacks"
     local luaStackTrace = e.luaStackTrace or "no luaStackTrace"
+    local tabTreeInfo = self._rootContext and self._rootContext:getTreeMsg() or ""
 
     local strTop = "==== errorMsg ====\n"
     eMsg = eMsg .. strTop .. errorMsg
-    strTop = "\n\n==== tabStack ====\n"
-    eMsg = eMsg .. strTop .. tabStack
-    strTop = "\n\n==== luaStackTrace ===="
+    strTop = "\n\n==== tabStacks ====\n"
+    eMsg = eMsg .. strTop .. tabStacks
+    strTop = "\n\n==== luaStackTrace ====\n"
     eMsg = eMsg .. strTop .. luaStackTrace
+    strTop = "\n\n==== tabTreeInfo ====\n"
+    eMsg = eMsg .. strTop .. tabTreeInfo
     if fabric then
         fabric:getInstance():allSet(tostring(errorMsg), eMsg)
     end
 
     if device.platform == "mac" or userSDKManager.isBeta() or userSDKManager.isReportError() then
-        device.showAlert("出错了,测试使用,请截图", tostring(eMsg), {"下次不再显示","确定"}, function ( event )
-            
+        device.showAlert("出错了,测试使用,请截图", tostring(eMsg), {"下次不再显示","复制"}, function ( event )
+            SoraDCopyText( tostring(eMsg) )
         end)
     end
 end
@@ -111,6 +120,30 @@ function cocosTabMachine:_disposeContext(context)
     if context.dispose then
         context:dispose()
     end
+end
+
+function cocosTabMachine:prettyStr(arr)
+    local str = "{\n"
+    for i,v in ipairs(arr or {}) do
+        str = str .. string.format("    [%d] = {\n", i)
+        for m,n in ipairs(v or {}) do
+            str = str .. "        "
+            str = str .. string.format("%s", n.name)
+            if n.className then
+                str = str .. string.format("(%s)", n.className)
+            end
+            if n.nickName then
+                str = str .. string.format("[%s]", n.nickName)
+            end
+            if n.pcName and n.pcAction then
+                str = str .. string.format(":%s,%s", n.pcName, n.pcAction)
+            end
+            str = str .. "\n"
+        end
+        str = str .. "    }\n"
+    end
+    str = str .. "}"
+    return str
 end
 
 return cocosTabMachine
