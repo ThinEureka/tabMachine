@@ -982,7 +982,6 @@ function context:_finalize()
 end
 
 function context:forEachSub(callback)
-    self._isSubStopped = true
     local subContext = self._tailSubContext
     while subContext ~= nil do
         local isIterationFinished = callback(subContext)
