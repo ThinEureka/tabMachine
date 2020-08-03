@@ -57,34 +57,108 @@ g_t.playSpineAnimation = {
     event = g_t.empty_event,
 }
 
-g_t.curveCircleEaseOut = function(v1, v2, k)
+g_t.curve = {}
+g_t.curve.circleEaseOut = function(k)
     local value = k - 1
-    return (v2 - v1) * math.sqrt(1 - value * value) + v1
+    return math.sqrt(1 - value * value)
 end
 
-g_t.curveCircleEaseIn = function(v1, v2, k)
+g_t.curve.circleEaseIn = function(k)
     local value = k
-    return (v1 - v2) * (math.sqrt(1 - value * value) - 1) + v1
+    return -1 * (math.sqrt(1 - value * value) - 1)
 end
 
-g_t.curveQuadEaseOut = function(v1, v2, k)
-    local value = k
-    return (v1 - v2) * value * (value - 2) + v1
+g_t.curve.circleEaseInOut = function(k)
+    local value = k*2
+    if value < 1 then 
+        return -0.5*(math.sqrt(1 - value * value) - 1)
+    end
+    value = value - 2
+    return 0.5 * (math.sqrt(1 - value * value) + 1)
 end
 
-g_t.curveQuadEaseIn = function(v1, v2, k)
+g_t.curve.quadEaseOut = function(k)
     local value = k
-    return (v2 - v1) * value * value + v1
+    return -1 * value * (value - 2)
 end
 
-g_t.curveCubicEaseIn = function(v1, v2, k)
+g_t.curve.quadEaseIn = function(k)
     local value = k
-    return (v2 - v1) * k * value * value + v1
+    return value * value
 end
 
-g_t.defaultLine = function (v1, v2, k)
+g_t.curve.quadEaseInOut = function(k)
+    local value = k * 2
+    if value < 1 then 
+        return 0.5 * value * value
+    end 
+    value = value - 1
+    return -0.5*(value*(value-2)-1)
+end
+
+g_t.curve.cubicEaseIn = function(k)
     local value = k
-    return v1 * (1.0 - value) + v2 * value
+    return k * value * value
+end
+
+g_t.curve.cubicEaseOut = function (k)
+    local value = k - 1
+    return value*value*value+1
+end
+
+g_t.curve.cubicEaseInOut = function(k)
+    local value = k * 2
+    if value < 1 then 
+        return 0.5 * value * value * value
+    end
+    value = value - 2
+    return 0.5 * (value * value * value + 2)
+end
+
+g_t.curve.sineEaseIn = function (k)
+    return -1*math.cos(k*math.pi/2) + 1
+end
+
+g_t.curve.sineEaseOut = function (k)
+    return math.sin(k*math.pi/2)
+end
+
+g_t.curve.sineEaseInOut = function (k)
+    return -0.5*(math.cos(math.pi*k)-1)
+end
+
+g_t.curve.expoEaseIn = function (k)
+    return math.pow(2, 10*(k-1))
+end
+
+g_t.curve.expoEaseOut = function (k)
+    return math.sin(k*math.pi/2)
+end
+
+g_t.curve.expoEaseInOut = function (k)
+    return -0.5*(math.cos(math.pi*k)-1)
+end
+
+g_t.curve.quintEaseIn = function (k)
+    return k * k * k * k * k
+end
+
+g_t.curve.quintEaseOut = function (k)
+    k = k - 1
+    return k * k * k * k * k + 1
+end
+
+g_t.curve.quintEaseInOut = function (k)
+    k = k * 2
+    if k < 1 then 
+        return 0.5 * k * k * k * k * k
+    end
+    k= k - 2
+    return 0.5 * (k * k * k * k * k + 2)
+end
+
+g_t.curve.defaultLine = function (k)
+    return k
 end
 
 g_t.tween =  {
@@ -111,7 +185,8 @@ g_t.tween =  {
         local rate = c.v.time / c.v.duration
         local v
         if c.v.curve and type(c.v.curve) == "function" then
-            v = c.v.curve(c.v.v1, c.v.v2, rate)
+            local tempRate = c.v.curve(rate)
+            v = (c.v.v2 - c.v.v1)*tempRate + c.v.v1
         else
             v = c.v.v1 * (1.0 - rate) + c.v.v2 * rate
         end
@@ -126,7 +201,8 @@ g_t.tween =  {
         local rate = curDuration / duration
         local v
         if curve and type(curve) == "function" then
-            v = curve(v1, v2, rate)
+            local tempRate = curve(rate)
+            v = (v2 - v1)*tempRate + v1
         else
             v = v1 * (1.0 - rate) + v2 * rate
         end
@@ -154,7 +230,6 @@ function g_t.timeLine(node, timeStr, eParam)
             if not c.v.time then 
                 c.v.time = 0
             end
-
             c.v.curData = table.remove(c.v.lineData, 1)
             if not c.v.curData then 
                 c:stop()
@@ -190,6 +265,11 @@ setNodeAttribute = function (node, oldAttribute, finalAttribute, curTime)
     local rate = 1
     if finalAttribute.time > 0 then 
         rate = (finalAttribute.time - math.max(finalAttribute.t - curTime,0)) / finalAttribute.time
+        if finalAttribute.curve then
+            if g_t.curve[finalAttribute.curve] then 
+                rate = g_t.curve[finalAttribute.curve](rate)
+            end
+        end
     end
     if finalAttribute.x or finalAttribute["+x"] then 
         local addX = finalAttribute.x and (finalAttribute.x - oldAttribute.x) or finalAttribute["+x"]
@@ -293,7 +373,9 @@ parseTimeLineData = function ( str, node, eParam)
             local pos = string.find(str, "=")
             local key = string.sub(str, 1, pos - 1)
             local value = string.sub(str, pos+1, string.len(str))
-            if key ~= "e" then 
+            if key == "curve" then
+                value = value
+            elseif key ~= "e" then 
                 value = tonumber(value)
             else 
                 value = eParam[value]

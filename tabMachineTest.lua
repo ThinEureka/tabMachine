@@ -87,8 +87,8 @@ test.except1 = {
 
 test.except2 = {
     s1 = function(c)
-        c:call(c._tab.t1, "t1")
-        c:call(c._tab.u1, "u1")
+        c:call(c.t1, "t1")
+        c:call(c.u1, "u1")
     end,
 
     s1_catch = function(c, e)
@@ -190,17 +190,17 @@ test.updateOpt = {
 
     m1 = {
         s1 = function(c)
-            c:call(c._tab.t1, "t1")
+            c:call(c.t1, "t1")
         end,
 
         t1 = {
             s1 = function(c)
-                c:call(c._tab.t1, "t1")
+                c:call(c.t1, "t1")
             end,
 
             t1 = {
                 s1 = function(c)
-                    c:call(c._tab.t1, "t1")
+                    c:call(c.t1, "t1")
                 end,
 
                 t1 = {
@@ -216,9 +216,9 @@ test.updateOpt = {
         if msg == "s1" then
             c:start("s1")
         elseif msg == "u1" then
-            c:call(c._tab.u1, "u1")
+            c:call(c.u1, "u1")
         elseif msg == "m1" then
-            c:call(c._tab.m1, "m1")
+            c:call(c.m1, "m1")
         end
     end
 }
@@ -316,7 +316,7 @@ test.final = {
     s1 = function(c)
         c:start("t1")
         c:start("u1")
-        c:call(c._tab.m1, "m1")
+        c:call(c.m1, "m1")
     end,
 
     t1_update = function(c, dt)
@@ -465,7 +465,7 @@ test.all = {
                 c.v.m = 0
             end
             c.v.m = c.v.m + 1
-            c:call(c._tab.m1, "m1")
+            c:call(c.m1, "m1")
         end
 
         if c.v.t >= 100 then
@@ -523,12 +523,12 @@ test.call_all = {
 
 test.extTrigger = {
     s1 = function(c)
-        c:call(c._tab.t1, "t1")
+        c:call(c.t1, "t1")
     end,
 
     t1 = {
         s1 = function(c)
-            c:call(c._tab.m1, "m1")
+            c:call(c.m1, "m1")
         end,
 
         m1 = {

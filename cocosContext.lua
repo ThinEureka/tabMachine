@@ -305,7 +305,7 @@ function g_t.concurrentSteps(...)
                 if  msg.eventType == tabMachine.event_context_stop then
                     if msg.name:find(c.v.prefix) and not msg.name:find("__abort") then
                         local index = msg.name:sub(c.v.prefixLen+1)
-                        c._tab._abortPreviousSteps(c, index)
+                        c:_abortPreviousSteps(c, index)
                     end
 
                     if not c:hasAnySub() and not c.v.isEnter then
@@ -321,7 +321,7 @@ function g_t.concurrentSteps(...)
                     end
 
                     if targetIndex ~= nil then
-                        c._tab._abortPreviousSteps(c, targetIndex)
+                        c:_abortPreviousSteps(c, targetIndex)
                         return true
                     end
 

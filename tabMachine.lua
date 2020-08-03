@@ -981,6 +981,18 @@ function context:_finalize()
     end
 end
 
+function context:forEachSub(callback)
+    self._isSubStopped = true
+    local subContext = self._tailSubContext
+    while subContext ~= nil do
+        local isIterationFinished = callback(subContext)
+        if isIterationFinished then
+            break
+        end
+        subContext = subContext._preContext
+    end
+end
+
 function context:_detach()
     if self._isDetached then
         return

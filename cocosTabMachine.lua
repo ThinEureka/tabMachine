@@ -36,7 +36,14 @@ function cocosTabMachine:_createContext(tab, ...)
     if tab ~= nil and tab.isTabClass then
         return tab.new(...)
     else
-        return cocosContext.new(...)
+        local c = {}
+        local class = (tab and tab.class) or cocosContext
+        setmetatable(c, {__index = function(t, k)
+            return (tab and tab[k]) or class[k]
+        end})
+        c.class = class
+        c:ctor(...)
+        return c
     end
 end
 
