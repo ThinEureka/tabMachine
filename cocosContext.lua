@@ -382,33 +382,144 @@ function g_t.selectWithArray(tabs)
             end
         end 
     }
-
 end
 
+function g_t.tabWhile(conditionCallback, tabLoop)
+    return {
+        s1 = function (c)
+            if g_t.debug then
+                c._nickName = "while"
+            end
+
+            if conditionCallback() then
+                c.v.flowCode = nil
+                c:call(tabLoop, "s2", {"flowCode"})
+            end
+        end,
+
+        s3 = function(c)
+            if c.v.flowCode == g_t.flowCodeBreak then
+                return
+            else
+                c:start("s1")
+            end
+        end,
+    }
+end
+
+function g_t.tabDoWhile(tabLoop, conditionCallback)
+    return {
+        s1 = function (c)
+            if g_t.debug then
+                c._nickName = "doWhile"
+            end
+            c.v.flowCode = nil
+            c:call(tabLoop, "s2", {"flowCode"})
+        end,
+
+        s3 = function (c)
+            if c.v.flowCode == g_t.flowCodeBreak then 
+                return
+            end
+            if conditionCallback() then
+                c:start("s1")
+            end
+        end
+    }
+end
+
+function g_t.tabForIndex(beginIndex, endIndex, tabLoop)
+    return {
+        s1 = function (c)
+            if g_t.debug then
+                c._nickName = "forNum"
+            end
+            c.v.index = beginIndex
+        end,
+
+        s2 = function (c)
+            if (c.v.index <= endIndex) then
+                c.v.flowCode = nil
+                c:call(tabLoop, "s3", {"flowCode"}, c.v.index)
+            end
+        end,
+
+        s4 = function (c)
+            if c.v.flowCode == g_t.flowCodeBreak then 
+                return
+            end
+
+             c.v.index = c.v.index + 1
+             c:start("s2")
+        end,
+    }
+end
+
+function g_t.tabForIpairs(array, tabLoop)
+    return {
+        s1 = function (c)
+            if g_t.debug then
+                c._nickName = "forIpairs"
+            end
+            c.v.index = 1
+        end,
+
+        s2 = function (c)
+            if (c.v.index <= #array) then
+                c.v.flowCode = nil
+                c:call(tabLoop, "s3", {"flowCode"}, c.v.index, array[c.v.index])
+            end
+        end,
+
+        s4 = function (c)
+            if c.v.flowCode == g_t.flowCodeBreak then 
+                return
+            end
+             c.v.index = c.v.index + 1
+             c:start("s2")
+        end,
+    }
+end
+
+function g_t.tabForPairs(map, tabLoop)
+    return {
+        s1 = function (c)
+            if g_t.debug then
+                c._nickName = "forPairs"
+            end
+            c.v.num = 0
+            c.v.funNext = pairs(map)
+            c.v.key = nil
+        end,
+
+        s2 = function(c)
+            c.v.key, c.v.value = c.v.funNext(map, c.v.key)
+        end,
+
+        s3 = function (c)
+            if (c.v.key ~= nil) then
+                c:call(tabLoop, "s4", nil, c.v.key, c.v.value)
+            end
+        end,
+
+        s5 = function(c)
+            if c.v.flowCode == g_t.flowCodeBreak then 
+                return
+            end
+            c:start("s2")
+        end,
+    }
+end
+
+function cocosContext:break_()
+    self:output(g_t.flowCodeBreak)
+    self:stop()
+end
+
+g_t.flowCodeBreak = "break"
+
 require("app.common.tabMachine.tabAction")
--- function g_t.tabIfElse(conCallback, tabIf, tabElse)
---     return {
---         s1 = function (c)
---             if conCallback() then
---                 c:call(tabIf, "if")
---             else
---                 c:call(tabElse, "else")
---             end
---         end,
---     }
--- end
 
--- function g_t.tabWhile(conditionCallback, tab)
---     return {
---         s1 = function (c)
---         if conditionCallback() then
---             c:call(tab, "s0")
---         end,
-
---         event = g_t.empty_event
---     }
--- end
---
 
 
 return cocosContext

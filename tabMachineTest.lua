@@ -422,6 +422,224 @@ test.tickPrint = {
     end,
 }
 
+test.tabWhile = {
+    s1 = function(c)
+        c.v.N = 0
+        local function condition() 
+            return c.v.N < 10
+        end
+        local loop = {
+            s1 = function(c1)
+                local word = "["
+                for i = 1, c.v.N do
+                    word = word .. tostring(c.v.N)
+                end
+                word = word .. "]"
+                c1:call(test.tickPrint, "s2", nil, word)
+            end,
+            s3 = function(c1)
+                -- note that we modify the local value of c indead of c1
+                c.v.N = c.v.N + 1
+            end,
+        }
+        c:call(g_t.tabWhile(condition, loop), "s2")
+    end,
+}
+
+test.tabDoWhile = {
+     s1 = function(c)
+        c.v.N = 0
+        local function condition() 
+            return c.v.N < 10
+        end
+        local loop = {
+            s1 = function(c1)
+                local word = "["
+                for i = 1, c.v.N do
+                    word = word .. tostring(c.v.N)
+                end
+                word = word .. "]"
+                c1:call(test.tickPrint, "s2", nil, word)
+            end,
+            s3 = function(c1)
+                -- note that we modify the local value of c indead of c1
+                c.v.N = c.v.N + 1
+            end,
+        }
+        c:call(g_t.tabDoWhile(loop, condition), "s2")
+    end,
+}
+
+test.tabForIndex = {
+    s1 = function(c)
+        local loop = {
+            s1 = function(c1, index)
+                local word = "["
+                for i = 1, index do
+                    word = word .. tostring(index)
+                end
+                word = word .. "]"
+                c1:call(test.tickPrint, "s2", nil, word)
+            end,
+        }
+        c:call(g_t.tabForIndex(1, 9, loop, "s2"))
+    end,
+}
+
+test.tabForIpairs = {
+    s1 = function(c)
+        local array = {}
+        for i = 1, 9 do
+            table.insert(array, i)
+        end
+
+        local loop = {
+            s1 = function(c1, index, v)
+                local word = "["
+                for i = 1, index do
+                    word = word .. tostring(v)
+                end
+                word = word .. "]"
+                c1:call(test.tickPrint, "s2", nil, word)
+            end,
+        }
+        c:call(g_t.tabForIpairs(array, loop , "s2"))
+    end,
+}
+
+test.tabForPairs = {
+    s1 = function(c)
+        local map = {abc = "99", [2] = "mmmmm"}
+        map.kk = 9
+        map.gg = "This is innevetable"
+        local loop = {
+            s1 = function(c1, k, v)
+                local word = "[" .. k .. "-" .. v .. "]"
+                c1:call(test.tickPrint, "s2", nil, word)
+            end,
+        }
+        c:call(g_t.tabForPairs(map, loop, "s2"))
+    end,
+}
+
+test.tabBreak = {
+    s1 = function(c)
+        c.v.N = 0
+        local function condition() 
+            return c.v.N < 10
+        end
+        local loop = {
+            s1 = function(c1)
+                local word = "["
+                for i = 1, c.v.N do
+                    word = word .. tostring(c.v.N)
+                end
+                word = word .. "]"
+                if c.v.N == 4 then
+                    print("break")
+                    c1:break_()
+                    return
+                end
+                c1:call(test.tickPrint, "s2", nil, word)
+            end,
+            s3 = function(c1)
+                -- note that we modify the local value of c indead of c1
+                c.v.N = c.v.N + 1
+            end,
+        }
+        c:call(g_t.tabWhile(condition, loop), "s2")
+    end,
+
+     s3 = function(c)
+        c.v.N = 0
+        local function condition() 
+            return c.v.N < 10
+        end
+        local loop = {
+            s1 = function(c1)
+                local word = "["
+                for i = 1, c.v.N do
+                    word = word .. tostring(c.v.N)
+                end
+                word = word .. "]"
+                if c.v.N == 5 then
+                    print("break")
+                    c1:break_()
+                    return
+                end
+                c1:call(test.tickPrint, "s2", nil, word)
+            end,
+            s3 = function(c1)
+                -- note that we modify the local value of c indead of c1
+                c.v.N = c.v.N + 1
+            end,
+        }
+        c:call(g_t.tabDoWhile(loop, condition), "s4")
+    end,
+
+    s5 = function(c)
+        local loop = {
+            s1 = function(c1, index)
+                local word = "["
+                for i = 1, index do
+                    word = word .. tostring(index)
+                end
+                word = word .. "]"
+                if index == 4 then
+                    print("break")
+                    c1:break_()
+                    return
+                end
+                c1:call(test.tickPrint, "s2", nil, word)
+            end,
+        }
+        c:call(g_t.tabForIndex(1, 9, loop), "s6")
+    end,
+
+    s7 = function(c)
+        local array = {}
+        for i = 1, 9 do
+            table.insert(array, i)
+        end
+
+        local loop = {
+            s1 = function(c1, index, v)
+                local word = "["
+                for i = 1, index do
+                    word = word .. tostring(v)
+                end
+                word = word .. "]"
+                if index == 4 then
+                    print("break")
+                    c1:break_()
+                    return
+                end
+                c1:call(test.tickPrint, "s2", nil, word)
+            end,
+        }
+        c:call(g_t.tabForIpairs(array, loop), "s8")
+    end,
+
+    s9 = function(c)
+        local map = {abc = "99", [2] = "mmmmm"}
+        map.kk = 9
+        map.gg = "This is innevetable"
+        local loop = {
+            s1 = function(c1, k, v)
+                local word = "[" .. k .. "-" .. v .. "]"
+                if k == "kk" then
+                    print("break")
+                    c1:break_()
+                    return
+                end
+                c1:call(test.tickPrint, "s2", nil, word)
+            end,
+        }
+        c:call(g_t.tabForPairs(map, loop), "s10")
+    end,
+}
+
+
 test.countDown = {
     s1 = function(c, num, tag)
         c.v.num = num
@@ -436,6 +654,7 @@ test.countDown = {
         end
     end,
 }
+
 
 test.all = {
     s1 = function(c)
