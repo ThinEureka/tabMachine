@@ -482,7 +482,7 @@ test.tabForIndex = {
                 c1:call(test.tickPrint, "s2", nil, word)
             end,
         }
-        c:call(g_t.tabForIndex(1, 9, loop, "s2"))
+        c:call(g_t.tabForIndex(1, 9, loop), "s2")
     end,
 }
 

@@ -518,8 +518,11 @@ end
 
 g_t.flowCodeBreak = "break"
 
+function cocosContext:tabEscort(scNames, tab)
+    local tabWait = self:tabWait(scNames, "__escortWait")
+    return g_t.select(tabWait, tab)
+end
+
 require("app.common.tabMachine.tabAction")
-
-
 
 return cocosContext
