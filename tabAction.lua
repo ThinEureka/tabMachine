@@ -363,12 +363,21 @@ getNodeAttribute = function (node, curData)
     return data
 end
 
+local function splitStr(inputstr, sep)
+    local t={} ; i=1
+    for str in string.gmatch(inputstr, "([^"..sep.."]+)") do
+        t[i] = str
+        i = i + 1
+    end
+    return t
+end
+
 parseTimeLineData = function ( str, node, eParam)
-    local tempData = SoraDSplitString(str, "|")
+    local tempData = splitStr(str, "|")
     local lineData = {}
     for k,v in ipairs(tempData) do
         local result = {}
-        local data = SoraDSplitString(v, ",")
+        local data = splitStr(v, ",")
         for _,str in ipairs(data) do 
             local pos = string.find(str, "=")
             local key = string.sub(str, 1, pos - 1)
