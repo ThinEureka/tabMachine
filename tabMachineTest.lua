@@ -298,6 +298,26 @@ test.join = {
     end,
 }
 
+test.select = {
+    s1 = function(c)
+        local isSameOrder = math.random(2) == 2
+        
+        if isSameOrder then
+            local a = g_t.bind(test.tickPrint,  "Hello World")
+            local b = g_t.bind(test.tickPrint, "HaHaHaHaHa HaHaHa")
+            c:call(g_t.select(a, b), "s2")
+        else
+            local a = g_t.bind(test.tickPrint,  "Hello World long long long long long long")
+            local b = g_t.bind(test.tickPrint, "HaHaHaHaHa HaHaHa")
+            c:call(g_t.select(a, b), "s2")
+        end
+    end,
+
+    s3 = function(c)
+        print("select done")
+    end,
+}
+
 test.lifetime = {
     s1 = function(c)
         c._nickName = "lifetime"

@@ -248,6 +248,9 @@ function context:ctor()
     --self._updateTimer = nil
     --self._tickTimer = nil
 
+    --self._lifeTimeMinitor = nil
+    --self,._listeningScNames = {}
+
     self._enterCount = 0
     self.v = {}
 end
@@ -516,11 +519,31 @@ function context:_pJoin(scNames, scName, callback)
     subContext.v._callback = callback
 
     for _, name in ipairs(scNames) do
+        self:registerLifeTimeListener(name, subContext)
         subContext.v._unTriggeredContexts[name] = true
     end
 
     self:_addSubContext(subContext)
     subContext:_prepareEnter()
+end
+
+function context:registerLifeTimeListener(name, subContext)
+    if self._lifeTimeMinitor == nil then
+        self._lifeTimeMinitor = {}
+    end
+
+    if subContext._listeningScNames == nil then
+        subContext._listeningScNames = {}
+    end
+
+    table.insert(subContext._listeningScNames, name)
+
+    local listeners = self._lifeTimeMinitor[name]
+    if listeners == nil then
+        listeners = {}
+        self._lifeTimeMinitor[name] = listeners
+    end
+    listeners[subContext] = true
 end
 
 function context:tabWait(scNames, scName)
@@ -1006,6 +1029,23 @@ function context:_detach()
         if self._outputVars then
             outputValues(p.v, self._outputVars, self._outputValues)
         end
+        local scNames = self._listeningScNames
+        if scNames ~= nil then
+            local monitor = p._lifeTimeMinitor
+            if monitor ~= nil then
+                for _, name in ipairs(scNames) do
+                    local listeners = monitor[name]   
+                    listeners[self] = nil
+                    if next(listeners) == nil then
+                        monitor[name] = nil
+                    end
+                end
+
+                if next(p._lifeTimeMinitor) == nil then
+                    p._lifeTimeMinitor = nil
+                end
+            end
+        end
         p:_removeSubContext(self)
     elseif self._isRoot then
         tm:_setOutputs(self._outputVavlues)
@@ -1034,16 +1074,22 @@ function context:_notifyStop()
     self:_setPc(self, "self", "notify_stop")
 
     local addEnter = false
-    if p and not p._isStopped then
-        addEnter = true
-        p:_addEnterCount()
-        local msg = {
-            eventType = tabMachine.event_context_stop,
-            p = p,
-            name = self._name
-        }
-        -- only down to its siblings
-        p:notify(msg, 2)
+    if p and p._lifeTimeMinitor and not p._isStopped then
+        local listeners = p._lifeTimeMinitor[self._name]
+        if listeners ~= nil then
+            local msg = {
+                eventType = tabMachine.event_context_stop,
+                p = p,
+                name = self._name
+            }
+
+            addEnter = true
+            p:_addEnterCount()
+
+            for c in pairs(listeners) do
+                c:notify(msg, 1)
+            end
+        end
     end
 
     if p and not p._isStopped then

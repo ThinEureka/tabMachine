@@ -278,72 +278,17 @@ function g_t.seq(...)
     return g_t.seqWithArray(tabs)
 end
 
---同时开始的步聚，某一个完成(或关键步骤开始派发sconcurrentStep_step_start事件)后，前面的要取消掉
---g_t.seq的第一步默认有这一功能
-function g_t.concurrentSteps(...)
+function g_t.join(...)
     local tabs = {...}
+    return g_t.joinWithArray(tabs)
+end
+
+function g_t.joinWithArray(tabs)
     return {
         s1 = function(c)
             if g_t.debug then
-                c._nickName = "concurrentSteps"
+                c._nickName = "join"
             end
-            c.v.prefix = "step_"
-            c.v.prefixLen = string.len(c.v.prefix)
-
-            c.v.isEnter = true
-            for index, tab in ipairs(tabs) do
-                c:call(tab, c.v.prefix .. index, g_t.anyOutputVars)
-            end
-            c.v.isEnter = false
-            if not c:hasAnySub() and not c.v.isEnter then
-                c:stop()
-            end
-        end,
-
-        event = function (c, msg)
-            if type(msg) == "table"  then
-                if  msg.eventType == tabMachine.event_context_stop then
-                    if msg.name:find(c.v.prefix) and not msg.name:find("__abort") then
-                        local index = msg.name:sub(c.v.prefixLen+1)
-                        c:_abortPreviousSteps(c, index)
-                    end
-
-                    if not c:hasAnySub() and not c.v.isEnter then
-                        c:stop()
-                    end
-                elseif msg.name == "concurrentSteps_step_start" and msg.target then
-                    local targetIndex = nil
-                    for index, tab in ipairs(tabs) do
-                        if tab == msg.target._tab then
-                            targetIndex = index
-                            break
-                        end
-                    end
-
-                    if targetIndex ~= nil then
-                        c:_abortPreviousSteps(c, targetIndex)
-                        return true
-                    end
-
-                    if not c:hasAnySub() and not c.v.isEnter then
-                        c:stop()
-                    end
-                end
-            end
-        end,
-
-        _abortPreviousSteps = function(c, index)
-            for i = math.max(index - 1, 1), -1 do
-                c:abort(c.v.prefix .. i)
-            end
-        end,
-    }
-end
-
-function g_t.join(...)
-    local tabs = {...}
-    return {
-        s1 = function(c)
             for index, tab in ipairs(tabs) do
                 c:call(tab, "ss_"..index.. "ss")
             end
@@ -365,15 +310,18 @@ function g_t.selectWithArray(tabs)
             c.v.prefix = "__select_sub"
             c.v.prefixLen = string.len(c.v.prefix)
             c.v.tabs = tabs
+            local s1Sub = c:getSub("s1")
             for k,tab in ipairs(c.v.tabs) do 
-                c:call(tab, c.v.prefix..k, g_t.anyOutputVars)
+                local name = c.v.prefix..k
+                c:registerLifeTimeListener(name, s1Sub)
+                c:call(tab, name, g_t.anyOutputVars)
             end 
         end,
 
-        event = function (c, msg)
+        s1_event = function (c, msg)
             if type(msg) == "table" 
                 and msg.eventType == tabMachine.event_context_stop then
-                if msg.name:find("__select_sub") then
+                if msg.name:find(c.v.prefix) then
                     local index = msg.name:sub(c.v.prefixLen+1)
                     c:output(tonumber(index),c.v.a1, c.v.a2, c.v.a3, c.v.a4, c.v.a5, c.v.a6, c.v.a7,
                         c.v.a8, c.v.a9, c.v.a10)

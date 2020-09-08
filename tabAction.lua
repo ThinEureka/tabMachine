@@ -178,7 +178,7 @@ g_t.tween =  {
     s1_update = function(c, dt)
         c.v.time = c.v.time + dt
         if c.v.time > c.v.duration then
-            c:stop()
+            c:stop("s1")
             return
         end
 
@@ -207,6 +207,43 @@ g_t.tween =  {
             v = v1 * (1.0 - rate) + v2 * rate
         end
         return v
+    end
+}
+
+g_t.printText = {
+    s1 = function(c,labNode,word,interval)
+        print("tabPrintText==========", word, interval)
+        c.v.word = word or ""
+        c.v.index = 0
+        c.v.t = 0
+        c.v.interval = interval or 0.1
+        c.v.wordCount = SubStringGetTotalIndex(word)
+        c.v.labelNode = labNode
+        dump(c.v.wordCount,"c.v.wordCountc.v.wordCount")
+        if c.v.wordCount > 1 then
+            local subWord = SubStringUTF8(c.v.word, 1, 1)
+              c.v.labelNode:setString(subWord)
+        end
+    end,
+    s1_update = function(c, dt)
+        c.v.t = c.v.t + dt
+        if c.v.t >= c.v.interval then
+            c.v.t = c.v.t - c.v.interval
+            c.v.index = c.v.index + 1
+            print(c.v.index ,"c.v.index c.v.index ")
+            if c.v.index <= c.v.wordCount then
+                local subWord = SubStringUTF8(c.v.word, 1, c.v.index)
+
+                if not tolua.isnull(  c.v.labelNode) then
+                      c.v.labelNode:setString(subWord)
+                end
+            else
+                c:stop()
+            end
+        end
+    end,
+    final = function(c)
+       -- labNode = nil
     end
 }
 
