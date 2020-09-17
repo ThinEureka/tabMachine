@@ -13,7 +13,6 @@ g_t.anyOutputVars = {"a1", "a2", "a3", "a4", "a5", "a6", "a7", "a8", "a9", "a10"
 local context = tabMachine.context
 
 tabMachine.event_context_stop = "context_stop"
-tabMachine.event_trigger = "event_trigger"
 
 ----------------- util functions ---------------------
 local function outputValues(env, outputVars, outputValues)
@@ -67,6 +66,17 @@ end
 
 function tabMachine:getDebugger()
     return self._debugger
+end
+
+function tabMachine:getScheduler()
+    return self._scheduler
+end
+
+function tabMachine:setScheduler(scheduler)
+    self._scheduler = scheduler
+    if self._rootContext then
+        self._rootContext:setScheduler(scheduler)
+    end
 end
 
 function tabMachine:start(...)
@@ -251,6 +261,8 @@ function context:ctor()
     --self._lifeTimeMinitor = nil
     --self,._listeningScNames = {}
 
+    --self._scheduler = nil
+
     self._enterCount = 0
     self.v = {}
 end
@@ -312,7 +324,7 @@ function context:start(scName, ...)
         return
     end
 
-    local debugger = self:_getDebugger()
+    local debugger = self._debugger
     if debugger then
         debugger:onContextStart(self, scName)
     end
@@ -380,7 +392,7 @@ function context:start(scName, ...)
 end
 
 function  context:call(tab, scName, outputVars, ...)
-    local debugger = self:_getDebugger()
+    local debugger = self._debugger
     if debugger then
         debugger:onTabCall(self, scName, tab)
     end
@@ -428,7 +440,7 @@ function  context:call(tab, scName, outputVars, ...)
 end
 
 function  context:_callWithContext(context, tab, scName, outputVars, ...)
-    local debugger = self:_getDebugger()
+    local debugger = self._debugger
     if debugger then
         debugger:onTabCall(self, scName, tab)
     end
@@ -557,36 +569,6 @@ function context:tabWait(scNames, scName)
         s1_event = function() end
     }
     return t
-end
-
-function context:tabWaitEvents(eventNames, scName)
-    return {
-        s1 = function(c)
-            local scNames = {}
-            for _, name in ipairs(eventNames) do
-                local tab = {
-                    s1 = g_t.empty_fun,
-                    s1_event = function(c1, msg)
-                        if not c1.p or c1.p._isStopped then
-                            return false
-                        end
-                        if type(msg) == "table" 
-                            and msg.eventType == tabMachine.event_trigger
-                            and msg.target == self
-                            and msg.eventName == c1._tab._ename then
-                                c1:stop()
-                                return true
-                        end
-                    end,
-                    _ename = name,
-                }
-                local tabName = name .. "_start"
-                self:call(tab, tabName)
-                table.insert(scNames, tabName)
-            end
-            c:call(self:tabWait(scNames, scName), "s2")
-        end,
-    }
 end
 
 function context:hasSub(scName)
@@ -906,15 +888,13 @@ function context:_prepareEnter()
 
     if self.p then
         self._debugger = self.p._debugger
+        self._scheduler = self.p._scheduler
+    else
+        self._debugger = self.tm._debugger
+        self._scheduler = self.tm._scheduler
     end
 
-    if self:_selfNeedUpdate() then
-        self._updateTimer = self.tm:_createTimer(function (dt) self:_update(dt) end)
-    end
-
-    if self:_selfNeedTick() then
-        self._tickTimer = self.tm:_createTimer(function (dt) self:_tick() end, 1.0)
-    end
+    self:_createTickAndUpdateTimers()
 end
 
 function context:_stopSub(scName)
@@ -934,7 +914,7 @@ function context:_pStopSub(scName)
 end
 
 function context:_stopSelf()
-    local debugger = self:_getDebugger()
+    local debugger = self._debugger
     if debugger then
         debugger:onContextStop(self)
     end
@@ -957,13 +937,31 @@ function context:_stopUpdateTickNotify()
     self:_setPc(self, "self", "stop_update_and_tick")
     self._isUpdateTickNotifyStopped = true
 
+    self:_destroyTickAndUpdateTimers()
+end
+
+function context:_createTickAndUpdateTimers()
+    if self._isUpdateTickNotifyStopped then
+        return 
+    end
+    
+    if self:_selfNeedUpdate() then
+        self._updateTimer = self._scheduler:createTimer(function (dt) self:_update(dt) end)
+    end
+
+    if self:_selfNeedTick() then
+        self._tickTimer = self._scheduler:createTimer(function (dt) self:_tick() end, 1.0)
+    end
+end
+
+function context:_destroyTickAndUpdateTimers()
     if self._updateTimer then
-        self.tm:_destroyTimer(self._updateTimer)
+        self._scheduler:destroyTimer(self._updateTimer)
         self._updateTimer = nil
     end
 
     if self._tickTimer then
-        self.tm:_destroyTimer(self._tickTimer)
+        self._scheduler:destroyTimer(self._tickTimer)
         self._tickTimer = nil
     end
 end
@@ -1158,7 +1156,7 @@ function context:_throwException(exception)
         --return false
     end
 
-    local debugger = self:_getDebugger()
+    local debugger = self._debugger
     if debugger then
         debugger:onContextException(self, exception)
     end
@@ -1188,17 +1186,28 @@ function context:_throwException(exception)
     return false
 end
 
+function context:getScheduler()
+    return self._scheduler
+end
+
+function context:setScheduler(scheduler)
+    if scheduler == self._scheduler then
+        return
+    end
+
+    self:_destroyTickAndUpdateTimers()
+    self._scheduler = scheduler
+    self:_createTickAndUpdateTimers()
+
+    local subContext = self._headSubContext
+    while subContext ~= nil do
+        subContext:setScheduler(scheduler)
+        subContext = subContext._nextContext
+    end
+end
+
 function context:_getDebugger()
-    if self._debugger ~= nil then
-        return self._debugger
-    end
-
-    local tm = self.tm
-    if tm == nil then
-        return nil
-    end
-
-    return tm:getDebugger()
+    return self._debugger
 end
 
 function context:setDebugger(debugger)

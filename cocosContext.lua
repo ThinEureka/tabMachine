@@ -10,9 +10,6 @@ local tabMachine = require("app.common.tabMachine.tabMachine")
 local cocosContext = class("cocosContext", tabMachine.context)
 cocosContext.isTabClass = true
 
-local schedulerTime = require(cc.PACKAGE_NAME .. ".scheduler")
-
-
 function cocosContext:ctor()
     tabMachine.context.ctor(self)
     self._hasMsg = false
@@ -133,6 +130,72 @@ g_t.tabError = {
     event = g_t.empty_event,
 }
 
+g_t.schedulerCtrl = {
+    s1 = function(c, target)
+        c.v.cocosScheduler = cc.Scheduler:new()
+        c.v.cocosScheduler:retain()
+
+        c.v.actionManager = cc.ActionManager:new()
+        c.v.actionManager:retain()
+
+        c.v.timer = cc.Director:getInstance():getScheduler():scheduleScriptFunc(function(dt)
+                if not c.v.isPaused then
+                    if c.v.timeScale then
+                        dt = dt * c.v.timeScale
+                    end
+                    c.v.cocosScheduler:update(dt)
+                     c.v.actionManager:update(dt)
+                end
+            end, 0, false)
+
+        c.v.target = target
+        target:setScheduler(c.tm:createScheduler(c.v.cocosScheduler, c.v.animationManager, c))
+    end,
+
+    event = g_t.empty_event,
+
+    final = function(c)
+        if c.v.timer then
+            cc.Director:getInstance():getScheduler():unscheduleScriptEntry(c.v.timer)
+            c.v.timer = nil
+        end
+
+        if not c.v.target._isFinalized then
+            c.v.target:setScheduler(c.tm:createSystemScheduler())
+        end 
+
+        if not tolua.isnull(c.v.cocosScheduler) then
+            c.v.cocosScheduler:release()
+            c.v.cocosScheduler = nil
+        end
+
+        if not tolua.isnull(c.v.actionManager) then
+            c.v.actionManager:release()
+            c.v.actionManager = nil
+        end
+    end,
+
+    isPaused = function(c)
+        return c.v.isPaused
+    end,
+
+    pause = function(c)
+        c.v.isPaused = true
+    end,
+
+    resume = function(c)
+        c.v.isPaused = false
+    end,
+
+    setTimeScale = function (c, timeScale)
+        c.v.timeScale = timeScale
+    end,
+
+    getTimeScale = function(c, timeScale)
+        return c.v.timeScale
+    end,
+}
+
 g_t.delay = {
     s1 = function(c, totalTime)
         if g_t.debug then
@@ -142,7 +205,9 @@ g_t.delay = {
         if totalTime == nil then
             c:stop()
         else
-            c.v.timer = schedulerTime.performWithDelayGlobal(function(dt) 
+            local scheduler = c:getScheduler()
+            c.v.totalTime = totalTime
+            c.v.timer = scheduler:createTimer(function(dt) 
                 c.v.timer = nil
                 c:stop() 
             end, totalTime)
@@ -151,11 +216,38 @@ g_t.delay = {
 
     final = function (c)
         if c.v.timer ~= nil then
-            schedulerTime.unscheduleGlobal(c.v.timer)
+            local scheduler = c:getScheduler()
+            scheduler:destroyTimer(c.v.timer)
         end
     end,
 
     s1_event = g_t.empty_event,
+
+    --override 
+    --This is a hack, don't do this in custom code and
+    --don't change scheduler when there are g_t.delays 
+    --running. Usually, we set a scheduler only when 
+    --a part of system is initialized, we don't want to
+    --pay for the price needed to make sure g_t.delay 
+    --work precisely even when the scheduler is changed.
+    --Resarting the timer with original total time is an 
+    --acceptable solution as a compromise between 
+    --efficiency and correctness.
+    setScheduler = function (c, scheduler)
+        local oldScheduler = c:getScheduler()
+        if c.v.timer ~= nil then
+            local oldScheduler = c:getScheduler()
+            oldScheduler:destroyTimer(c.v.timer)
+        end
+        cocosContext.setScheduler(c, scheduler)
+        if c.v.timer ~= nil then
+            local newScheduler = c:getScheduler()
+            c.v.timer = newScheduler:createTimer(function(dt) 
+                c.v.timer = nil
+                c:stop() 
+            end, c.v.totalTime)
+        end
+    end,
 }
 
 g_t.skipFrames = {

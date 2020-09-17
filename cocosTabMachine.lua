@@ -9,7 +9,6 @@ local tabMachine = require("app.common.tabMachine.tabMachine")
 local cocosTabMachine = class("cocosTabMachine", tabMachine)
 
 local cocosContext = require("app.common.tabMachine.cocosContext")
-local schedulerTime = require(cc.PACKAGE_NAME .. ".scheduler")
 
 -------------------------- cocosTabMachine ----------------------
 
@@ -17,6 +16,83 @@ function cocosTabMachine:ctor()
     tabMachine.ctor(self)
     self._updateTimer = nil
     self._tickTimer = nil
+    
+    self._scheduler = self:createSystemScheduler()
+end
+
+function cocosTabMachine:createSystemScheduler()
+    local cocosScheduler = cc.Director:getInstance():getScheduler()
+    local actionManager = cc.Director:getInstance():getActionManager()
+    return self:createScheduler(cocosScheduler, actionManager, nil) 
+end
+
+function cocosTabMachine:createScheduler(cocosScheduler, actionManager, ctrl)
+    local scheduler = {}
+    function scheduler:createTimer(callback, interval)
+        if interval == 0 or interval == nil then
+            return  cocosScheduler:scheduleScriptFunc(callback, 0, false)
+        else
+            return  cocosScheduler:scheduleScriptFunc(callback, interval, false)
+        end
+    end
+
+    function scheduler:destroyTimer(handler)
+        cocosScheduler:unscheduleScriptEntry(handler)
+    end
+
+    function scheduler:getCocosScheduler()
+        return cocosScheduler
+    end
+
+    function scheduler:getActionManager()
+        return actionManager
+    end
+
+    function scheduler:isUsingDirectorScheduler()
+        return cocosScheduler == cc.Director:getInstance():getScheduler()
+    end
+
+    function scheduler:pause()
+        if ctrl then
+            ctrl:pause()
+        end
+    end
+
+    function scheduler:resume()
+        if ctrl then
+            ctrl:resume()
+        end
+    end
+
+    function scheduler:setTimeScale(timeScale)
+        if ctrl then
+            ctrl:setTimeScale(timeScale)
+        else
+            cocosScheduler:setTimeScale(timeScale)
+        end
+    end
+
+    function scheduler:getTimeScale()
+        if ctrl then
+            return ctrl:getTimeScale()
+        else
+            return cocosScheduler:getTimeScale() 
+        end
+    end
+
+    function scheduler:isPaused()
+        if ctrl then
+            return ctrl:isPaused()
+        else
+            return false
+        end
+    end
+
+    return scheduler
+end
+
+function cocosTabMachine:getScheduler()
+    return self._scheduler
 end
 
 function cocosTabMachine:getObject(path)
@@ -45,18 +121,6 @@ function cocosTabMachine:_createContext(tab, ...)
         c:ctor(...)
         return c
     end
-end
-
-function cocosTabMachine:_createTimer(callback, interval)
-    if interval == 0 or interval == nil then
-        return  schedulerTime.scheduleUpdateGlobal(callback)
-    else
-        return  schedulerTime.scheduleGlobal(callback, interval)
-    end
-end
-
-function cocosTabMachine:_destroyTimer(handler)
-     schedulerTime.unscheduleGlobal(handler)
 end
 
 function cocosTabMachine:_createException(errorMsg, isTabMachineError)
