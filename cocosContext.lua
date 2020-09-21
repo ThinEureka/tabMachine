@@ -16,39 +16,39 @@ function cocosContext:ctor()
 end
 
 function cocosContext:registerMsg(msg, fun)
-     self._hasMsg = true
-     local pc = self._pc
+    self._hasMsg = true
+    local pc = self._pc
 
-     if pc == nil then
-         pc = self
-     end
+    if pc == nil then
+        pc = self
+    end
 
-     local pcName = self._pcName
-     local pcAction = self._action
+    local pcName = self._pcName
+    local pcAction = self._action
 
-     SoraDAddMessage(self, msg, function(...)
-         pc:_setPc(pc, pcName, pcAction)
-         self.tm:_pcall(fun, ...)
-     end)
+    SoraDAddMessage(self, msg, function(...)
+        pc:_setPc(pc, pcName, pcAction)
+        self.tm:_pcall(fun, ...)
+    end)
 end
 
 function cocosContext:registerMsgs(msgs, fun)
-     self._hasMsg = true
-     local pc = self._pc
+    self._hasMsg = true
+    local pc = self._pc
 
-     if pc == nil then
-         pc = self
-     end
+    if pc == nil then
+        pc = self
+    end
 
-     local pcName = self._pcName
-     local pcAction = self._action
+    local pcName = self._pcName
+    local pcAction = self._action
 
-     for _, msg in ipairs(msgs) do
-         SoraDAddMessage(self, msg, function(...)
-             pc:_setPc(pc, pcName, pcAction)
-             self.tm:_pcall(fun, ...)
-         end)
-     end
+    for _, msg in ipairs(msgs) do
+        SoraDAddMessage(self, msg, function(...)
+            pc:_setPc(pc, pcName, pcAction)
+            self.tm:_pcall(fun, ...)
+        end)
+    end
 
 end
 
@@ -139,14 +139,18 @@ g_t.schedulerCtrl = {
         c.v.actionManager:retain()
 
         c.v.timer = cc.Director:getInstance():getScheduler():scheduleScriptFunc(function(dt)
-                if not c.v.isPaused then
-                    if c.v.timeScale then
-                        dt = dt * c.v.timeScale
-                    end
-                    c.v.cocosScheduler:update(dt)
-                     c.v.actionManager:update(dt)
+            if not c.v.isPaused then
+                if c.v.timeScale then
+                    dt = dt * c.v.timeScale
                 end
-            end, 0, false)
+                if c.v.cocosScheduler then
+                    c.v.cocosScheduler:update(dt)
+                end
+                if c.v.actionManager then
+                    c.v.actionManager:update(dt)
+                end
+            end
+        end, 0, false)
 
         c.v.target = target
         target:setScheduler(c.tm:createScheduler(c.v.cocosScheduler, c.v.animationManager, c))
@@ -165,13 +169,30 @@ g_t.schedulerCtrl = {
         end 
 
         if not tolua.isnull(c.v.cocosScheduler) then
-            c.v.cocosScheduler:release()
+            c.v.toBeDeletedCocosScheduler = c.v.cocosScheduler
             c.v.cocosScheduler = nil
         end
 
         if not tolua.isnull(c.v.actionManager) then
-            c.v.actionManager:release()
+            c.v.toBeDeletedActionManager = c.v.actionManager
             c.v.actionManager = nil
+        end
+
+        if c.v.toBeDeletedActionManager or c.v.toBeDeletedActionManager then
+            --we delete the scheduler at the next frame to avoid the problem that  
+            --context are stopped within the callback of the target scheduler
+            c.v.deleteTimer = cc.Director:getInstance():getScheduler():scheduleScriptFunc(function(dt)
+                if c.v.toBeDeletedCocosScheduler then
+                    c.v.toBeDeletedCocosScheduler:release()
+                    c.v.toBeDeletedCocosScheduler = nil
+                end
+                if c.v.toBeDeletedActionManager then
+                    c.v.toBeDeletedActionManager:release()
+                    c.v.toBeDeletedActionManager = nil
+                end
+                cc.Director:getInstance():getScheduler():unscheduleScriptEntry(c.v.deleteTimer)
+                c.v.deleteTimer = nil
+            end, 0, false)
         end
     end,
 
@@ -211,42 +232,42 @@ g_t.delay = {
                 c.v.timer = nil
                 c:stop() 
             end, totalTime)
-        end
-    end,
+    end
+end,
 
-    final = function (c)
-        if c.v.timer ~= nil then
-            local scheduler = c:getScheduler()
-            scheduler:destroyTimer(c.v.timer)
-        end
-    end,
+final = function (c)
+    if c.v.timer ~= nil then
+        local scheduler = c:getScheduler()
+        scheduler:destroyTimer(c.v.timer)
+    end
+end,
 
-    s1_event = g_t.empty_event,
+s1_event = g_t.empty_event,
 
-    --override 
-    --This is a hack, don't do this in custom code and
-    --don't change scheduler when there are g_t.delays 
-    --running. Usually, we set a scheduler only when 
-    --a part of system is initialized, we don't want to
-    --pay for the price needed to make sure g_t.delay 
-    --work precisely even when the scheduler is changed.
-    --Resarting the timer with original total time is an 
-    --acceptable solution as a compromise between 
-    --efficiency and correctness.
-    setScheduler = function (c, scheduler)
+--override 
+--This is a hack, don't do this in custom code and
+--don't change scheduler when there are g_t.delays 
+--running. Usually, we set a scheduler only when 
+--a part of system is initialized, we don't want to
+--pay for the price needed to make sure g_t.delay 
+--work precisely even when the scheduler is changed.
+--Resarting the timer with original total time is an 
+--acceptable solution as a compromise between 
+--efficiency and correctness.
+setScheduler = function (c, scheduler)
+    local oldScheduler = c:getScheduler()
+    if c.v.timer ~= nil then
         local oldScheduler = c:getScheduler()
-        if c.v.timer ~= nil then
-            local oldScheduler = c:getScheduler()
-            oldScheduler:destroyTimer(c.v.timer)
-        end
-        cocosContext.setScheduler(c, scheduler)
-        if c.v.timer ~= nil then
-            local newScheduler = c:getScheduler()
-            c.v.timer = newScheduler:createTimer(function(dt) 
-                c.v.timer = nil
-                c:stop() 
-            end, c.v.totalTime)
-        end
+        oldScheduler:destroyTimer(c.v.timer)
+    end
+    cocosContext.setScheduler(c, scheduler)
+    if c.v.timer ~= nil then
+        local newScheduler = c:getScheduler()
+        c.v.timer = newScheduler:createTimer(function(dt) 
+            c.v.timer = nil
+            c:stop() 
+        end, c.v.totalTime)
+end
     end,
 }
 
@@ -489,8 +510,8 @@ function g_t.tabForIndex(beginIndex, endIndex, tabLoop)
                 return
             end
 
-             c.v.index = c.v.index + 1
-             c:start("s2")
+            c.v.index = c.v.index + 1
+            c:start("s2")
         end,
     }
 end
@@ -515,8 +536,8 @@ function g_t.tabForIpairs(array, tabLoop)
             if c.v.flowCode == g_t.flowCodeBreak then 
                 return
             end
-             c.v.index = c.v.index + 1
-             c:start("s2")
+            c.v.index = c.v.index + 1
+            c:start("s2")
         end,
     }
 end

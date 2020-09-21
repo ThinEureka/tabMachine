@@ -1,7 +1,7 @@
 --author cs
 --email 04nycs@gmail.com
 --https://github.com/ThinEureka/tabMachine
---created on July 13, 2019 
+--created on July 13, 2019
 --
 local cocosTabMachine = require("app.common.tabMachine.cocosTabMachine")
 local tabDebugger = require("app.common.tabMachine.tabDebugger")
@@ -282,7 +282,7 @@ test.notify = {
 test.join = {
     s1 = function(c)
         local isSameOrder = math.random(2) == 2
-        
+
         if isSameOrder then
             c:call(test.tickPrint, "t1", nil, "Hello World")
             c:call(test.tickPrint, "m1", nil, "HaHaHaHaHa HaHaHa")
@@ -301,7 +301,7 @@ test.join = {
 test.select = {
     s1 = function(c)
         local isSameOrder = math.random(2) == 2
-        
+
         if isSameOrder then
             local a = g_t.bind(test.tickPrint,  "Hello World")
             local b = g_t.bind(test.tickPrint, "HaHaHaHaHa HaHaHa")
@@ -445,7 +445,7 @@ test.tickPrint = {
 test.tabWhile = {
     s1 = function(c)
         c.v.N = 0
-        local function condition() 
+        local function condition()
             return c.v.N < 10
         end
         local loop = {
@@ -469,7 +469,7 @@ test.tabWhile = {
 test.tabDoWhile = {
      s1 = function(c)
         c.v.N = 0
-        local function condition() 
+        local function condition()
             return c.v.N < 10
         end
         local loop = {
@@ -545,7 +545,7 @@ test.tabForPairs = {
 test.tabBreak = {
     s1 = function(c)
         c.v.N = 0
-        local function condition() 
+        local function condition()
             return c.v.N < 10
         end
         local loop = {
@@ -572,7 +572,7 @@ test.tabBreak = {
 
      s3 = function(c)
         c.v.N = 0
-        local function condition() 
+        local function condition()
             return c.v.N < 10
         end
         local loop = {
@@ -659,13 +659,63 @@ test.tabBreak = {
     end,
 }
 
+test.timeScale = {
+    s1 = function(c)
+        --in this example, A will be printed at normal speed,
+        --while B and C, with half and twice speed repectively.
+        c:call(c:tabPrint("A", 20, 1), "A")
+        c:call(c:tabPrint("B", 20, 0.5), "B")
+        c:call(c:tabPrint("C", 20, 2), "C")
+
+        c:call(g_t.delay, "s2", nil, 3)
+    end,
+
+    s3 = function(c)
+        c.v.A = c:getSub("A")
+        print("We pause A now")
+        c.v.A:getScheduler():pause()
+        c:call(g_t.delay, "s4", nil, 2)
+    end,
+
+    s5 = function(c)
+        print("After 2 seconds A is resumed, but is executed at half speed")
+        local scheduler = c.v.A:getScheduler()
+        scheduler:setTimeScale(0.5)
+        scheduler:resume()
+        print("And B is Speed up to twice speed")
+        c:getSub("B"):getScheduler():setTimeScale(2)
+    end,
+
+    tabPrint = function(c, text, times, timeScale)
+        return {
+            s1 = function(c1)
+                c1:call(g_t.schedulerCtrl, "scheduleCtrl", nil, c1)
+                c1:getScheduler():setTimeScale(timeScale)
+                local str = ""
+                for i = 1, times do
+                    str = str .. text
+                end
+                --all contexts under this tab speed ups at the same
+                --scale, as we can see from the execution of the 
+                --following 2 subs  
+                c1:call(test.tickPrint, "s2", nil, str)
+                c1:call(test.tickPrint, "s3", nil, str)
+            end,
+
+            s3 = function(c1)
+                c1:stop()
+            end
+        }
+    end,
+}
+
 
 test.countDown = {
     s1 = function(c, num, tag)
         c.v.num = num
         c.v.tag = tag and tag or "countDown"
     end,
-    
+
     s1_tick = function(c, index)
         print(c.v.tag .. ":" .. c.v.num, " ", index)
         c.v.num = c.v.num - 1
@@ -685,7 +735,7 @@ test.all = {
         print("hello world")
     end,
 
-    t2 = function (c)  
+    t2 = function (c)
         c.v.a = 0
         c.v.t = 0
         print("test next call")
@@ -755,7 +805,7 @@ test.call_all = {
         print("s3 call all return")
     end,
 
-    s5 = function(c) 
+    s5 = function(c)
         print("s5 call all return")
     end
 }
