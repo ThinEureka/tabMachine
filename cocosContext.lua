@@ -229,7 +229,6 @@ g_t.delay = {
             local scheduler = c:getScheduler()
             c.v.totalTime = totalTime
             c.v.timer = scheduler:createTimer(function(dt) 
-                c.v.timer = nil
                 c:stop() 
             end, totalTime)
     end
@@ -239,6 +238,7 @@ final = function (c)
     if c.v.timer ~= nil then
         local scheduler = c:getScheduler()
         scheduler:destroyTimer(c.v.timer)
+        c.v.timer = nil
     end
 end,
 
