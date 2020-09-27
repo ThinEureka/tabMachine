@@ -153,7 +153,7 @@ g_t.schedulerCtrl = {
         end, 0, false)
 
         c.v.target = target
-        target:setScheduler(c.tm:createScheduler(c.v.cocosScheduler, c.v.animationManager, c))
+        target:setScheduler(c.tm:createScheduler(c.v.cocosScheduler, c.v.actionManager, c))
     end,
 
     event = g_t.empty_event,
