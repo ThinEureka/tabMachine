@@ -717,6 +717,7 @@ end
 function context:output(...)
     self._outputValues = {...}
     local proxyInfo = self._headProxyInfo
+
     while proxyInfo ~= nil do
         proxyInfo.proxy:output(...)
         proxyInfo = proxyInfo.nextInfo
@@ -984,25 +985,29 @@ function context:notify(msg, level)
 end
 
 function context:upwardNotify(msg, lvl)
-    local p = self
-    if lvl == nil then
-        lvl = -1
+    if lvl == 0 then
+        return false
+    end
+
+    local realLvl = lvl
+    if realLvl == nil then
+        realLvl = -1
     end
 
     local captured = false
-    while lvl ~= 0 and p ~= nil and not p._isStopped do
-        captured = p:notify(msg, 1)
-        if captured then
-            break
-        end
-        p = p.p
-        lvl = lvl - 1
+    captured = self:notify(msg, 1)
+
+    local p = self.p
+    if not captured and p ~= nil and not p._isStopped then
+        captured = p:upwardNotify(msg, realLvl - 1)
     end
 
-    if self._proxyList ~= nil then
-        for _, proxy in ipairs(self._proxyList) do
-            proxy:upwardNotify(msg, lvl) 
+    local proxyInfo = self._headProxyInfo
+    while proxyInfo ~= nil do
+        if not proxyInfo.detached then
+            proxyInfo.proxy:upwardNotify(msg, lvl)
         end
+        proxyInfo = proxyInfo.nextInfo
     end
 
     return captured
