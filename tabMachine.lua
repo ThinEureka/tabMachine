@@ -13,6 +13,7 @@ g_t.anyOutputVars = {"a1", "a2", "a3", "a4", "a5", "a6", "a7", "a8", "a9", "a10"
 local context = tabMachine.context
 
 tabMachine.event_context_stop = "context_stop"
+tabMachine.event_context_enter = "context_enter"
 
 ----------------- util functions ---------------------
 local function outputValues(env, outputVars, outputValues)
@@ -25,14 +26,6 @@ local function outputValues(env, outputVars, outputValues)
             end
         end
     end
-end
-
-local function isEmptyTable(t)
-    for k, v in pairs(t) do
-        return false
-    end
-
-    return true
 end
 
 ----------------- tabMachine -------------------------
@@ -129,6 +122,9 @@ end
 function tabMachine:_pcall(f, c, ...)
 
     local function on_error(errorMsg)
+        if gVSDebugXpCall then
+            gVSDebugXpCall()
+        end
         local e = self:_createException(errorMsg)
         local i = self._curStackNum
         local catched = true
@@ -226,12 +222,14 @@ function context:ctor()
     -- self._isRoot = false
 
     -- self._isStopped = false
+    -- self._isLifeTimeRelationStopped = false
     -- self._isUpdateTickNotifyStopped = false
     -- self._isSubStopped = false
     -- self._isFinalized = false
     -- self._isDetached = false
     -- self._isDisposed = false
     -- self._isNotifyStopped = false
+    -- self._isProxyStopped = false
 
     --[nil assignment optimization]
     -- self._headSubContext = nil
@@ -242,12 +240,14 @@ function context:ctor()
 
     -- self._eventFun = nil
     -- self._updateFun = nil
+    -- self._updateInterval = nil
     -- self._tickFun = nil
     -- self._finalFun = nil
     -- self._catchFun = nil
     
     -- self._eventFunEx = nil
     -- self._updateFunEx = nil
+    -- self._updateIntervalEx = nil
     -- self._tickFunEx = nil
     -- self._finalFunEx = nil
     -- self._catchFunEx = nil
@@ -258,10 +258,11 @@ function context:ctor()
     --self._updateTimer = nil
     --self._tickTimer = nil
 
-    --self._lifeTimeMinitor = nil
-    --self,._listeningScNames = {}
+    --self._mapHeadListener = nil
+    --self._headListenInfo = {}
 
     --self._scheduler = nil
+    --self._headProxyInfo = nil
 
     self._enterCount = 0
     self.v = {}
@@ -330,6 +331,7 @@ function context:start(scName, ...)
     end
 
     local subUpdateFunEx = self._tab[scName.."_update"]
+    local subUpdateIntevalEx = self._tab[scName.."_updateInterval"]
     local subEventFunEx = self._tab[scName.."_event"]
     local subTickFunEx = self._tab[scName.."_tick"]
     local subFinalFunEx = self._tab[scName.."_final"]
@@ -373,6 +375,7 @@ function context:start(scName, ...)
         subContext._name = scName
 
         subContext._updateFunEx = subUpdateFunEx
+        subContext._updateIntervalEx = subUpdateIntevalEx
         subContext._eventFunEx = subEventFunEx
         subContext._tickFunEx = subTickFunEx
         subContext._finalFunEx = subFinalFunEx
@@ -497,7 +500,7 @@ local function joint_event(c, msg)
         c.v._unTriggeredContexts[msg.name] = nil
     end
 
-    if isEmptyTable(c.v._unTriggeredContexts) then
+    if not next(c.v._unTriggeredContexts) then
         if c.v._callback then
             c.v._callback()
         end
@@ -539,23 +542,92 @@ function context:_pJoin(scNames, scName, callback)
     subContext:_prepareEnter()
 end
 
-function context:registerLifeTimeListener(name, subContext)
-    if self._lifeTimeMinitor == nil then
-        self._lifeTimeMinitor = {}
+function context:registerLifeTimeListener(name, listenningContext)
+    -- stopped contexts are not allowed to listen or be listenned
+    if self._isStopped or listenningContext._isStopped then
+        return
     end
 
-    if subContext._listeningScNames == nil then
-        subContext._listeningScNames = {}
+    local oldHeadListenInfo = listenningContext._headListenInfo
+    oldListenInfo = oldHeadListenInfo
+    while oldListenInfo ~= nil do
+        if oldListenInfo.target == self and oldListenInfo.name == name then
+            --duplicate listenning is not allowed
+            return
+        end
+        oldListenInfo = oldListenInfo.nextInfo
     end
 
-    table.insert(subContext._listeningScNames, name)
-
-    local listeners = self._lifeTimeMinitor[name]
-    if listeners == nil then
-        listeners = {}
-        self._lifeTimeMinitor[name] = listeners
+    local listenInfo = {target = self, name = name}
+    if oldHeadListenInfo ~= nil then
+        oldHeadListenInfo.preInfo = listenInfo
+        listenInfo.nextInfo = oldHeadListenInfo
     end
-    listeners[subContext] = true
+    listenningContext._headListenInfo = listenInfo
+
+    if self._mapHeadListener == nil then
+        self._mapHeadListener = {}
+    end
+
+    local listenter = {context = listenningContext}
+    local oldHeadListener = self._mapHeadListener[name]
+    if oldHeadListener then
+        oldHeadListener.preListener = listenter
+        listenter.nextListener = oldHeadListener
+    end
+    self._mapHeadListener[name] = listenter
+end
+
+function context:unregisterLifeTimeListener(name, listenningContext)
+    if self._mapHeadListener == nil then
+        return
+    end
+
+    local listenInfo = listenningContext._headListenInfo
+    while listenInfo ~= nil do
+       if listenInfo.name == name and listenInfo.target == self then
+            if listenInfo.preInfo ~= nil then
+               listenInfo.preInfo.nextInfo = listenInfo.nextInfo
+            end
+
+            if listenInfo.nextInfo ~= nil then
+                listenInfo.nextInfo.preInfo = listenInfo.preInfo
+            end
+
+            if listenningContext._headListenInfo == listenInfo then
+                listenningContext._headListenInfo = listenInfo.nextInfo
+            end
+
+            break
+        end
+
+        listenInfo = listenInfo.nextInfo
+    end
+
+    local headListener = self._mapHeadListener[name]
+    local listenter = headListener   
+
+    while listenter ~= nil do
+        if listenter.context == listenningContext then
+            listenter.detached = true
+
+            if listenter.preListener ~= nil then
+                listenter.preListener.nextListener = listenter.nextListener
+            end
+
+            if listenter.nextListener ~= nil then
+                listenter.nextListener = listenter.preListener
+            end
+
+            if headListener == listenter then
+                headListener = listenter.nextListener
+                self._mapHeadListener[name] = headListener
+            end
+            break
+        end
+        listenter = listenter.nextListener
+    end
+
 end
 
 function context:tabWait(scNames, scName)
@@ -566,9 +638,68 @@ function context:tabWait(scNames, scName)
                 c:stop() end )
         end,
 
-        s1_event = function() end
+        s1_event = g_t.empty_event
     }
     return t
+end
+
+function context:tabProxy(scName, stopHostWhenStop)
+    return {
+        s1 = function(c)
+            if g_t.debug then
+                c._nickName = "proxy"
+            end
+
+            if self._isStopped then
+                c:stop()
+                return
+            end
+
+            c.v.stopHostWhenStop = stopHostWhenStop
+            if scName == nil then
+                c.v.host = self
+            else
+                local subContext = self:getSub(scName)
+                if subContext ~= nil then
+                    c.v.host = subContext
+                else
+                    c:start("t1")
+                end
+            end
+
+            if c.v.host ~= nil then
+                c.v.host:_addProxy(c)
+            end
+        end,
+
+        t1 = function(c)
+            self:registerLifeTimeListener(scName, c:getSub("t1"))
+        end,
+
+        t1_event = function(c, msg)
+            if type(msg) == "table" and msg.eventType == tabMachine.event_context_enter then
+                c.v.host = msg.target
+                c.v.host:_addProxy(c)
+                return true
+            end
+        end,
+
+        event = g_t.empty_event,
+
+        final = function(c)
+            if c.v.host ~= nil then 
+                c.v.host:_removeProxy(c)
+                if c.v.stopHostWhenStop and  not c.v.host._isStopped then
+                    c.v.host:stop()
+                end
+            end
+        end,
+
+        --public methods
+        getHost = function(c)
+            return c.v.host
+        end,
+    }
 end
 
 function context:hasSub(scName)
@@ -585,6 +716,11 @@ end
 
 function context:output(...)
     self._outputValues = {...}
+    local proxyInfo = self._headProxyInfo
+    while proxyInfo ~= nil do
+        proxyInfo.proxy:output(...)
+        proxyInfo = proxyInfo.nextInfo
+    end
 end
 
 function context:getOutputs()
@@ -853,16 +989,23 @@ function context:upwardNotify(msg, lvl)
         lvl = -1
     end
 
+    local captured = false
     while lvl ~= 0 and p ~= nil and not p._isStopped do
-        local captured = p:notify(msg, 1)
+        captured = p:notify(msg, 1)
         if captured then
-            return true
+            break
         end
         p = p.p
         lvl = lvl - 1
     end
 
-    return false
+    if self._proxyList ~= nil then
+        for _, proxy in ipairs(self._proxyList) do
+            proxy:upwardNotify(msg, lvl) 
+        end
+    end
+
+    return captured
 end
 
 function  context:_installTab(tab)
@@ -876,6 +1019,7 @@ function  context:_installTab(tab)
     self._catchFun = self._tab.catch
     self._tickFun = self._tab.tick
     self._updateFun = self._tab.update
+    self._updateInterval = self._tab.updateInterval
 end
 
 function  context:_enter(...)
@@ -895,6 +1039,10 @@ function context:_prepareEnter()
     end
 
     self:_createTickAndUpdateTimers()
+
+    if self.p and self.p._mapHeadListener then
+        self.p:_notifyLifeTimeEvent(tabMachine.event_context_enter, self._name, self)
+    end
 end
 
 function context:_stopSub(scName)
@@ -923,10 +1071,36 @@ function context:_stopSelf()
     self._isStopped = true
     self:_stopUpdateTickNotify()
     self:_stopSubs()
+    self:_stopLifeTimeRelation()
     self:_finalize()
     self:_detach()
     self:_dispose()
     self:_notifyStop()
+    self:_stopProxy()
+end
+
+function context:_stopLifeTimeRelation()
+    if self._isLifeTimeRelationStopped then
+        return
+    end
+
+    self._isLifeTimeRelationStopped = true
+
+    while self._headListenInfo do
+        local listenInfo = self._headListenInfo
+        listenInfo.target:unregisterLifeTimeListener(listenInfo.name, self)
+        -- after unreigeration, self._headListenInfo should be updated
+    end
+
+    if self._mapHeadListener then
+        for name, headListener in pairs(self._mapHeadListener) do
+            local listenter = headListener
+            while listenter ~= nil do
+                self:unregisterLifeTimeListener(listenter.name, listenter.context)
+                listenter = listenter.nextListener
+            end
+        end
+    end
 end
 
 function context:_stopUpdateTickNotify()
@@ -946,7 +1120,8 @@ function context:_createTickAndUpdateTimers()
     end
     
     if self:_selfNeedUpdate() then
-        self._updateTimer = self._scheduler:createTimer(function (dt) self:_update(dt) end)
+        self._updateTimer = self._scheduler:createTimer(function (dt) self:_update(dt) end,
+            self._updateIntervalEx or self._updateInterval)
     end
 
     if self:_selfNeedTick() then
@@ -1027,23 +1202,6 @@ function context:_detach()
         if self._outputVars then
             outputValues(p.v, self._outputVars, self._outputValues)
         end
-        local scNames = self._listeningScNames
-        if scNames ~= nil then
-            local monitor = p._lifeTimeMinitor
-            if monitor ~= nil then
-                for _, name in ipairs(scNames) do
-                    local listeners = monitor[name]   
-                    listeners[self] = nil
-                    if next(listeners) == nil then
-                        monitor[name] = nil
-                    end
-                end
-
-                if next(p._lifeTimeMinitor) == nil then
-                    p._lifeTimeMinitor = nil
-                end
-            end
-        end
         p:_removeSubContext(self)
     elseif self._isRoot then
         tm:_setOutputs(self._outputVavlues)
@@ -1071,23 +1229,8 @@ function context:_notifyStop()
 
     self:_setPc(self, "self", "notify_stop")
 
-    local addEnter = false
-    if p and p._lifeTimeMinitor and not p._isStopped then
-        local listeners = p._lifeTimeMinitor[self._name]
-        if listeners ~= nil then
-            local msg = {
-                eventType = tabMachine.event_context_stop,
-                p = p,
-                name = self._name
-            }
-
-            addEnter = true
-            p:_addEnterCount()
-
-            for c in pairs(listeners) do
-                c:notify(msg, 1)
-            end
-        end
+    if p and p._mapHeadListener then
+        p:_notifyLifeTimeEvent(tabMachine.event_context_stop, self._name, self)
     end
 
     if p and not p._isStopped then
@@ -1096,9 +1239,36 @@ function context:_notifyStop()
     elseif self._isRoot then
         tm:_onStopped()
     end
+end
 
-    if addEnter then
-         p:_decEnterCount()
+function context:_notifyLifeTimeEvent(eventType, scName, target)
+    local listenter = self._mapHeadListener[scName]
+    while listenter ~= nil do
+        if not listenter.detached then
+            local msg = {
+                eventType = eventType,
+                p = self,
+                name = scName,
+                target = target,
+            }
+            listenter.context:notify(msg, 1)
+        end
+        listenter = listenter.nextListener
+    end
+end
+
+function context:_stopProxy()
+    if self._isProxyStopped then
+        return
+    end
+    self._isProxyStopped = true
+
+    local proxyInfo = self._headProxyInfo
+    while proxyInfo ~= nil do
+        if not proxyInfo.detached then
+            proxyInfo.proxy:stop()
+        end
+        proxyInfo = proxyInfo.nextInfo
     end
 end
 
@@ -1145,6 +1315,7 @@ function context:_throwException(exception)
         -- is stopped, the parent should not
         -- be notified. We ensure stop is atomic
         -- operation.
+        self:_unregisterLifeTimeEventsFromTargets()
         self:_stopUpdateTickNotify()
         self:_stopSubs()
         self:_finalize()
@@ -1216,6 +1387,47 @@ function context:setDebugger(debugger)
     while subContext ~= nil do
         subContext:setDebugger(debugger)
         subContext = subContext._nextContext
+    end
+end
+
+function context:_addProxy(proxy)
+    if self._isStopped then
+        return
+    end
+
+    local proxyInfo = {proxy = proxy}
+    local oldHeadProxyInfo = self._headProxyInfo
+    if oldHeadProxyInfo ~= nil then
+        oldHeadProxyInfo.prevInfo = proxyInfo
+        proxyInfo.nextInfo = oldHeadProxyInfo
+    end
+    self._headProxyInfo = proxyInfo
+end
+
+function context:_removeProxy(proxy)
+    if self._isStopped then
+        return
+    end
+
+    local proxyInfo = self._headProxyInfo
+    while proxyInfo ~= nil do
+        if proxyInfo.proxy == proxy then 
+            proxyInfo.detached = true
+
+            if proxyInfo.prevInfo ~= nil then
+                proxyInfo.prevInfo.nextInfo = proxyInfo.nextInfo
+            end
+
+            if proxyInfo.nextInfo ~= nil then
+                proxyInfo.nextInfo.prevInfo = proxy.prevInfo
+            end
+
+            if self._headProxyInfo == proxyInfo then
+                self._headProxyInfo = proxyInfo.nextInfo
+            end
+
+            break
+        end
     end
 end
 

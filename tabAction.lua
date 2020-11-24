@@ -443,4 +443,118 @@ parseTimeLineData = function ( str, node, eParam)
     return lineData
 end
 
+-- 由于数组起始索引lua和c++有所不同，代码有做适当改动
+-- node：
+--     1.为node时自动改变节点位置
+--     2.为nil时仅作为纯计算用途
+function g_t.catmullRom(node, duration, points, needAutoRotation)
+    assert(type(points) == "table", "points must be array")
+    assert(#points > 1, "point num must greater than 1")
+    assert(duration > 0, "duration must greater than zero!")
+    return {
+        s1 = function(c)
+            if g_t.debug then
+                c._nickName = "catmullRom"
+            end
+            c.v.deltaT = 1 / (#points - 1)
+            c.v.elapsed = 0
+            c.v.dir = cc.p(0, 0)
+            if node and type(node) == "userdata" then
+                local x, y = node:getPosition()
+                c.v.pos = cc.p(x, y)
+            else
+                c.v.pos = points[1]
+            end
+        end,
+
+        update = function(c, deltaTime)
+            local p;
+            local lt;
+            c.v.elapsed = c.v.elapsed + deltaTime
+            local time = c.v.elapsed / (duration > 0 and duration or 1.4e-45)
+            local reached = false
+            if time >= 1 then
+                reached = true
+                time = 1
+            end
+            if (time == 1) then
+                p = #points
+                lt = 1
+            else 
+                p = math.floor(time / c.v.deltaT)
+                lt = (time - c.v.deltaT * p) / c.v.deltaT
+                p = p + 1
+            end
+    
+            -- Interpolate    
+            local pp0 = c:_getControlPointAtIndex(p - 1)
+            local pp1 = c:_getControlPointAtIndex(p + 0)
+            local pp2 = c:_getControlPointAtIndex(p + 1)
+            local pp3 = c:_getControlPointAtIndex(p + 2)
+            local newPos = c:_cardinalSplineAt(pp0, pp1, pp2, pp3, lt)
+            c.v.pos = newPos
+            if node and not tolua.isnull(node) then
+                node:setPosition(newPos)
+            end
+            if time ~= 1 then
+                -- 获取方向
+                if needAutoRotation then
+                    local dir = c:_dirAt(pp0, pp1, pp2, pp3, lt)
+                    c.v.dir = dir
+                    if node and not tolua.isnull(node) then
+                        local angle = math.radian2angle(math.atan2(dir.y, dir.x))
+                        node:setRotation(-angle)
+                    end
+                end
+            end
+            if reached then
+                c:stop()
+            end
+        end,
+
+        getCurPos = function(c)
+            return c.v.pos
+        end,
+
+        getDir = function (c)
+            return c.v.dir
+        end,
+
+        _cardinalSplineAt = function (c, p0, p1, p2, p3, t)
+            local t2 = t * t
+            local t3 = t2 * t
+            --
+            -- Formula: s(-ttt + 2tt - t)P1 + s(-ttt + tt)P2 + (2ttt - 3tt + 1)P2 + s(ttt - 2tt + t)P3 + (-2ttt + 3tt)P3 + s(ttt - tt)P4
+            --
+            local s = (1 - 0.5) / 2
+            
+            local b1 = s * ((-t3 + (2 * t2)) - t)                      -- s(-t3 + 2 t2 - t)P1
+            local b2 = s * (-t3 + t2) + (2 * t3 - 3 * t2 + 1)          -- s(-t3 + t2)P2 + (2 t3 - 3 t2 + 1)P2
+            local b3 = s * (t3 - 2 * t2 + t) + (-2 * t3 + 3 * t2)      -- s(t3 - 2 t2 + t)P3 + (-2 t3 + 3 t2)P3
+            local b4 = s * (t3 - t2)                                   -- s(t3 - t2)P4
+            
+            local x = (p0.x * b1 + p1.x * b2 + p2.x * b3 + p3.x * b4)
+            local y = (p0.y * b1 + p1.y * b2 + p2.y * b3 + p3.y * b4)
+            return cc.p(x,y)
+        end,
+
+        _dirAt = function (c, p0, p1, p2, p3, t)
+            local t2 = t * t
+            local s = (1 - 0.5) / 2
+            local b1 = s * (-3 * t2 + 4 * t - 1)
+            local b2 = s * (-3 * t2 + 2 * t) + (6 * t2 - 6 * t)
+            local b3 = s * (3 * t2 - 4 * t + 1) + (-6 * t2 + 6 * t)
+            local b4 = s * (3 * t2 - 2 * t)
+            local x = (p0.x * b1 + p1.x * b2 + p2.x * b3 + p3.x * b4)
+            local y = (p0.y * b1 + p1.y * b2 + p2.y * b3 + p3.y * b4)
+            return cc.p(x, y)
+        end,
+
+        _getControlPointAtIndex = function (c, index)
+            return points[util.clampf(index, 1, #points)]
+        end,
+
+    }
+end
+
 return cocosContext

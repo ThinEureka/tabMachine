@@ -709,6 +709,55 @@ test.timeScale = {
     end,
 }
 
+test.proxy = {
+    s1 = function(c)
+        c:call(test.tickPrint, "t1", nil, "ttttttttttttttttt")
+        local subT1 = c:getSub("t1") 
+        c:call(subT1:tabProxy(), "s2")
+    end,
+
+    s3 = function(c)
+        c:call(c.m, "m")
+        local subM = c:getSub("m")
+        c:call(subM:tabProxy("s4"), "s4")
+    end,
+
+    s5 = function(c)
+        c:call(test.tickPrint, "s6", nil, "oooooooooooooo")
+    end,
+
+    m = {
+        s1 = function(c)
+            c:call(test.tickPrint, "s2", nil, "mmmmmmmmmmmmm")
+        end,
+
+        s3 = function(c)
+            c:call(test.tickPrint, "s4", nil, "nnnnnnnnnnnnnn")
+        end,
+
+        s5 = function(c)
+            c:call(test.tickPrint, "s6", nil, "pppppppppppppp")
+        end,
+    }
+}
+
+test.updateInterval = {
+    s1 = function(c)
+
+    end,
+
+    s1_update = function(c, dt)
+        print("s1_update", dt)
+    end,
+
+    s1_updateInterval = 2,
+
+    update = function(c, dt)
+        print("self:update", dt)
+    end,
+
+    updateInterval = 0.5
+}
 
 test.countDown = {
     s1 = function(c, num, tag)
