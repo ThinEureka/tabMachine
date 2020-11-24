@@ -1234,7 +1234,10 @@ function context:_notifyStop()
 
     self:_setPc(self, "self", "notify_stop")
 
+    local hasNotify = false
     if p and p._mapHeadListener then
+        p:_addEnterCount()
+        hasNotify = true
         p:_notifyLifeTimeEvent(tabMachine.event_context_stop, self._name, self)
     end
 
@@ -1243,6 +1246,10 @@ function context:_notifyStop()
         p:_checkStop()
     elseif self._isRoot then
         tm:_onStopped()
+    end
+
+    if hasNotify then
+        p:_decEnterCount()
     end
 end
 
