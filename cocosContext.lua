@@ -426,12 +426,12 @@ function g_t.selectWithArray(tabs)
             local s1Sub = c:getSub("s1")
             for k,tab in ipairs(c.v.tabs) do 
                 local name = c.v.prefix..k
-                c:registerLifeTimeListener(name, s1Sub)
+                c:registerLifeTimeListener(name, c)
                 c:call(tab, name, g_t.anyOutputVars)
             end 
         end,
 
-        s1_event = function (c, msg)
+        event = function (c, msg)
             if type(msg) == "table" 
                 and msg.eventType == tabMachine.event_context_stop then
                 if msg.name:find(c.v.prefix) then
