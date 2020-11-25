@@ -14,6 +14,7 @@ local context = tabMachine.context
 
 tabMachine.event_context_stop = "context_stop"
 tabMachine.event_context_enter = "context_enter"
+tabMachine.event_proxy_attached = "proxy_attached"
 
 ----------------- util functions ---------------------
 local function outputValues(env, outputVars, outputValues)
@@ -680,6 +681,14 @@ function context:tabProxy(scName, stopHostWhenStop)
             if type(msg) == "table" and msg.eventType == tabMachine.event_context_enter then
                 c.v.host = msg.target
                 c.v.host:_addProxy(c)
+
+                local msg = {
+                    eventType = tabMachine.event_proxy_attached,
+                    host = c.v.host,
+                    proxy = c.p,
+                }
+                c.p:upwardNotify(msg)
+
                 return true
             end
         end,
@@ -1439,6 +1448,8 @@ function context:_removeProxy(proxy)
             end
 
             break
+        else
+            proxyInfo = proxyInfo.nextInfo
         end
     end
 end
