@@ -685,9 +685,10 @@ function context:tabProxy(scName, stopHostWhenStop)
                 local msg = {
                     eventType = tabMachine.event_proxy_attached,
                     host = c.v.host,
-                    proxy = c.p,
+                    proxy = c,
                 }
-                c.p:upwardNotify(msg)
+                c:upwardNotify(msg)
+                c:stop("t1")
 
                 return true
             end
