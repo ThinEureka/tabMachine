@@ -670,6 +670,7 @@ function context:tabProxy(scName, stopHostWhenStop)
 
             if c.v.host ~= nil then
                 c.v.host:_addProxy(c)
+                c:_notifyAttachEvent()
             end
         end,
 
@@ -681,15 +682,8 @@ function context:tabProxy(scName, stopHostWhenStop)
             if type(msg) == "table" and msg.eventType == tabMachine.event_context_enter then
                 c.v.host = msg.target
                 c.v.host:_addProxy(c)
-
-                local msg = {
-                    eventType = tabMachine.event_proxy_attached,
-                    host = c.v.host,
-                    proxy = c,
-                }
-                c:upwardNotify(msg)
+                c:_notifyAttachEvent()
                 c:stop("t1")
-
                 return true
             end
         end,
@@ -709,7 +703,65 @@ function context:tabProxy(scName, stopHostWhenStop)
         getHost = function(c)
             return c.v.host
         end,
+
+        _notifyAttachEvent = function(c)
+            local msg = {
+                eventType = tabMachine.event_proxy_attached,
+                host = c.v.host,
+                proxy = c,
+            }
+            c:upwardNotify(msg)
+        end,
     }
+end
+
+function context:tabProxyByPath(path, stopHostWhenStop)
+    local beginIndex = 1
+    local endIndex = path:find(".", beginIndex, true)
+    if endIndex == nil then
+        return self:tabProxy(path, stopHostWhenStop)
+    else
+        return {
+            s1 = function(c)
+                c.v.curNodeName = path:sub(beginIndex, endIndex - 1)
+                c.v.remainPath = path:sub(endIndex + 1, #path)
+            end,
+
+            s2 = function(c)
+                c.v.sub = self:getSub(c.v.curNodeName)
+                if c.v.sub ~= nil then
+                    c:call(c.v.sub:tabProxyByPath(c.v.remainPath, stopHostWhenStop), "s3")
+                else
+                    c:start("t1")
+                end
+            end,
+
+            s3_event = function(c, msg)
+                if type(msg) == "table" and
+                    msg.eventType == tabMachine.event_proxy_attached then
+                    c.v.host = msg.host
+                    c:upwardNotify(msg)
+                    return true
+                end
+            end,
+
+            t1 = function(c)
+                self:registerLifeTimeListener(c.v.curNodeName, c:getSub("t1"))
+            end,
+
+            t1_event = function(c)
+                if type(msg) == "table" and msg.eventType == tabMachine.event_context_enter then
+                    c:stop("t1")
+                    c:start("s2")
+                    return true
+                end
+            end,
+
+            getHost = function(c)
+                return c.v.host
+            end,
+        }
+    end
 end
 
 function context:hasSub(scName)
