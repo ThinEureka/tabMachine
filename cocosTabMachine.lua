@@ -164,12 +164,15 @@ function cocosTabMachine:_onUnCaughtException(e)
     --上报
     local eMsg = ""
     local errorMsg = e.errorMsg or "no errorMsg"
+    local reportVals = self:getObject("report") and self:getObject("report"):getTreeMsg() or "no reportVals"
     local tabStacks = e.tabStacks and self:prettyStr(e.tabStacks or {}) or "no tabStacks"
     local luaStackTrace = e.luaStackTrace or "no luaStackTrace"
     local tabTreeInfo = self._rootContext and self._rootContext:getTreeMsg() or ""
 
     local strTop = "==== errorMsg ====\n"
     eMsg = eMsg .. strTop .. errorMsg
+    strTop = "\n\n==== reportVals ====\n"
+    eMsg = eMsg .. strTop .. reportVals
     strTop = "\n\n==== tabStacks ====\n"
     eMsg = eMsg .. strTop .. tabStacks
     strTop = "\n\n==== luaStackTrace ====\n"

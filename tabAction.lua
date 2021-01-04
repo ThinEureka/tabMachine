@@ -32,6 +32,12 @@ g_t.waitForAct = {
         transition.execute(node, act, {onComplete = function()
             c:stop()
         end})
+        if act.getDuration then
+            c:call(g_t.delay, "s2", nil, act:getDuration())
+        end
+    end,
+    s3 = function(c)
+        c:stop()
     end,
     event = g_t.empty_event,
 }

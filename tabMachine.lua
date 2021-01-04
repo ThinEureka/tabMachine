@@ -749,7 +749,7 @@ function context:tabProxyByPath(path, stopHostWhenStop)
                 self:registerLifeTimeListener(c.v.curNodeName, c:getSub("t1"))
             end,
 
-            t1_event = function(c)
+            t1_event = function(c, msg)
                 if type(msg) == "table" and msg.eventType == tabMachine.event_context_enter then
                     c:stop("t1")
                     c:start("s2")
@@ -762,6 +762,39 @@ function context:tabProxyByPath(path, stopHostWhenStop)
             end,
         }
     end
+end
+
+function context:tabWaitStart(scName, ignoreCurSub)
+    return {
+        s1 = function(c)
+            if g_t.debug then
+                c._nickName = "waitStart"
+            end
+
+            if self._isStopped then
+                return
+            end
+
+            local subContext = self:getSub(scName)
+            if not ignoreCurSub and subContext ~= nil then
+                return
+            else
+                c:start("t1")
+            end
+        end,
+
+        t1 = function(c)
+            self:registerLifeTimeListener(scName, c:getSub("t1"))
+        end,
+
+        t1_event = function(c, msg)
+            if type(msg) == "table" and 
+                msg.eventType == tabMachine.event_context_enter then
+                c:stop("t1")
+                return true
+            end
+        end,
+    }
 end
 
 function context:hasSub(scName)

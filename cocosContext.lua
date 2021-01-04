@@ -304,6 +304,25 @@ g_t.waitMessage = {
     event = g_t.empty_event,
 }
 
+g_t.waitMessageWithFilter = {
+    s1 = function(c, msg, filter)
+        if g_t.debug then
+            c._nickName = "waitMessageWithFilter"
+        end
+
+        c:registerMsg(msg, function(target, data)
+            local ok = true
+            ok = filter(data)
+            if ok then
+                c:output(data)
+                c:stop()
+            end
+        end)
+    end,
+
+    event = g_t.empty_event,
+}
+
 g_t.click = {
     s1 = function(c, target, soundId)
         if g_t.debug then
