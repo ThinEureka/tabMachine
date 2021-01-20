@@ -64,9 +64,9 @@ function tabSocket:tabMain()
             if scName == tabSocket.STATE.CONNECTING then
                 return c:tabProxy("s4")
             elseif scName == tabSocket.STATE.CONNECTED then
-                return c:tabProxy("s4")
+                return c:tabProxy("s6")
             elseif scName == tabSocket.STATE.DISCONNECTED then
-                return c:tabProxy("s4")
+                return c:tabProxy("s2")
             end
         end,
     }

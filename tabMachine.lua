@@ -749,7 +749,7 @@ function context:tabProxyByPath(path, stopHostWhenStop)
                 self:registerLifeTimeListener(c.v.curNodeName, c:getSub("t1"))
             end,
 
-            t1_event = function(c)
+            t1_event = function(c, msg)
                 if type(msg) == "table" and msg.eventType == tabMachine.event_context_enter then
                     c:stop("t1")
                     c:start("s2")
