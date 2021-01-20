@@ -231,43 +231,43 @@ g_t.delay = {
             c.v.timer = scheduler:createTimer(function(dt) 
                 c:stop() 
             end, totalTime)
-    end
-end,
+        end
+    end,
 
-final = function (c)
-    if c.v.timer ~= nil then
-        local scheduler = c:getScheduler()
-        scheduler:destroyTimer(c.v.timer)
-        c.v.timer = nil
-    end
-end,
-
-s1_event = g_t.empty_event,
-
---override 
---This is a hack, don't do this in custom code and
---don't change scheduler when there are g_t.delays 
---running. Usually, we set a scheduler only when 
---a part of system is initialized, we don't want to
---pay for the price needed to make sure g_t.delay 
---work precisely even when the scheduler is changed.
---Resarting the timer with original total time is an 
---acceptable solution as a compromise between 
---efficiency and correctness.
-setScheduler = function (c, scheduler)
-    local oldScheduler = c:getScheduler()
-    if c.v.timer ~= nil then
-        local oldScheduler = c:getScheduler()
-        oldScheduler:destroyTimer(c.v.timer)
-    end
-    cocosContext.setScheduler(c, scheduler)
-    if c.v.timer ~= nil then
-        local newScheduler = c:getScheduler()
-        c.v.timer = newScheduler:createTimer(function(dt) 
+    final = function (c)
+        if c.v.timer ~= nil then
+            local scheduler = c:getScheduler()
+            scheduler:destroyTimer(c.v.timer)
             c.v.timer = nil
-            c:stop() 
-        end, c.v.totalTime)
-end
+        end
+    end,
+
+    s1_event = g_t.empty_event,
+
+    --override 
+    --This is a hack, don't do this in custom code and
+    --don't change scheduler when there are g_t.delays 
+    --running. Usually, we set a scheduler only when 
+    --a part of system is initialized, we don't want to
+    --pay for the price needed to make sure g_t.delay 
+    --work precisely even when the scheduler is changed.
+    --Resarting the timer with original total time is an 
+    --acceptable solution as a compromise between 
+    --efficiency and correctness.
+    setScheduler = function (c, scheduler)
+        local oldScheduler = c:getScheduler()
+        if c.v.timer ~= nil then
+            local oldScheduler = c:getScheduler()
+            oldScheduler:destroyTimer(c.v.timer)
+        end
+        cocosContext.setScheduler(c, scheduler)
+        if c.v.timer ~= nil then
+            local newScheduler = c:getScheduler()
+            c.v.timer = newScheduler:createTimer(function(dt) 
+                c.v.timer = nil
+                c:stop() 
+            end, c.v.totalTime)
+        end
     end,
 }
 
@@ -628,12 +628,6 @@ g_t.httpGetJson = function (c, url, timeout)
         event = g_t.empty_event,
     }
 end
-
-function cocosContext:tabEscort(scNames, tab)
-    local tabWait = self:tabWait(scNames, "__escortWait")
-    return g_t.select(tabWait, tab)
-end
-
 
 require("app.common.tabMachine.tabAction")
 
