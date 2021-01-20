@@ -749,7 +749,7 @@ function context:tabProxyByPath(path, stopHostWhenStop)
                 self:registerLifeTimeListener(c.v.curNodeName, c:getSub("t1"))
             end,
 
-            t1_event = function(c, msg)
+            t1_event = function(c)
                 if type(msg) == "table" and msg.eventType == tabMachine.event_context_enter then
                     c:stop("t1")
                     c:start("s2")
@@ -1500,6 +1500,15 @@ end
 function context:_addProxy(proxy)
     if self._isStopped then
         return
+    end
+
+    if self._outputValues == nil then
+        proxy._outputValues = nil
+    else
+        proxy._outputValues = {}
+        for _, output in ipairs(self._outputValues) do
+            table.insert(proxy._outputValues, output)
+        end
     end
 
     local proxyInfo = {proxy = proxy}

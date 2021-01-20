@@ -598,10 +598,42 @@ end
 
 g_t.flowCodeBreak = "break"
 
+g_t.httpGetJson = function (c, url, timeout)
+    return {
+        s1 = function(c)
+            c.v.url = url
+            c.v.timeout = timeout or 15
+            c.v.xhr = cc.XMLHttpRequest:new()
+            xhr.responseType = cc.XMLHTTPREQUEST_RESPONSE_JSON
+            xhr:setRequestHeader("Content-Type","application/json")
+            xhr:open("GET", c.v.url)
+            xhr.timeout = c.v.timeout 
+
+            xhr:registerScriptHandler(handler(c, c._onRespond))
+            xhr:send()
+        end,
+
+        _onRespond = function(c)
+            local retCode = c.v.xhr.status
+            if retCode == 200 then
+                local response = json.decode(c.v.xhr.response)
+                c:output(response)
+                c:stop()
+            else
+                c:output(nil, retCode)
+                c:stop()
+            end
+        end,
+
+        event = g_t.empty_event,
+    }
+end
+
 function cocosContext:tabEscort(scNames, tab)
     local tabWait = self:tabWait(scNames, "__escortWait")
     return g_t.select(tabWait, tab)
 end
+
 
 require("app.common.tabMachine.tabAction")
 
