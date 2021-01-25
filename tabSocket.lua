@@ -175,12 +175,12 @@ function tabSocket:tabConnectted()
 
         s1_update = function(c)
             local body, status, partical = self._tcp:receive("*a")	-- read the package body
-            if body and body:len() > 0 then
-                table.insert(self._buffer, body)
-            end
-
             if partical and partical:len() > 0 then
                 table.insert(self._buffer, partical)
+            else
+                if body and body:len() > 0 then
+                    table.insert(self._buffer, body)
+                end
             end
 
     	    if status == STATUS_CLOSED or status == STATUS_NOT_CONNECTED then
@@ -249,7 +249,7 @@ function tabSocket:tabReadOneSegment(funDecode, updateInterval)
                 c._nickName = "tabSocket#tabReadOneSegment"
             end
 
-            c.v.lastBuffSize = 0
+            c.v.lastBuffLen = 0
             local segment = c:_decode()
             if segment ~= nil then
                 c:output(segment)
@@ -258,10 +258,14 @@ function tabSocket:tabReadOneSegment(funDecode, updateInterval)
         end,
 
         s1_update = function(c, dt)
-            local segment = c:_decode()
-            if segment ~= nil then
-                c:output(segment)
-                c:stop()
+            local newBuffLen = #self._buffer
+            if newBuffLen ~= c.v.lastBuffLen and newBuffLen > 0 then
+                local segment = c:_decode()
+                if segment ~= nil then
+                    c:output(segment)
+                    c:stop()
+                end
+                c.v.lastBuffLen = #self._buffer
             end
         end,
 
@@ -269,7 +273,7 @@ function tabSocket:tabReadOneSegment(funDecode, updateInterval)
 
         _decode = function(c)
             local newBuffLen = #self._buffer
-            if newBuffLen ~= c.v.lastBuffLen and newBuffLen > 0 then
+            if newBuffLen > 0 then
                 local stream
                 if newBuffLen > 1 then
                     stream = table.concat(self._buffer)
@@ -285,9 +289,6 @@ function tabSocket:tabReadOneSegment(funDecode, updateInterval)
 
                 if remain and remain:len() > 0 then
                     table.insert(self._buffer, remain)
-                    c.v.lastBuffLen = 1
-                else
-                    c.v.lastBuffLen = 0
                 end
 
                 return segment
@@ -306,7 +307,7 @@ function tabSocket:tabPullSegments(funDecode, segmentHandler, updateInterval)
                 c._nickName = "tabSocket#tabPullSegments"
             end
 
-            c.v.lastBuffSize = 0
+            c.v.lastBuffLen = 0
             c:_pullSegment()
         end,
 
@@ -318,19 +319,23 @@ function tabSocket:tabPullSegments(funDecode, segmentHandler, updateInterval)
 
         --private:
         _pullSegment = function(c)
-            while true do
-                local segment = c:_decode()
-                if segment ~= nil then
-                    segmentHandler(segment)
-                else
-                    break
+            local newBuffLen = #self._buffer
+            if newBuffLen ~= c.v.lastBuffLen and newBuffLen > 0 then
+                while true do
+                    local segment = c:_decode()
+                    if segment ~= nil then
+                        segmentHandler(segment)
+                    else
+                        break
+                    end
                 end
+                c.v.lastBuffLen = #self._buffer
             end
         end,
 
         _decode = function(c)
             local newBuffLen = #self._buffer
-            if newBuffLen ~= c.v.lastBuffLen and newBuffLen > 0 then
+            if newBuffLen > 0 then
                 local stream
                 if newBuffLen > 1 then
                     stream = table.concat(self._buffer)
@@ -346,9 +351,6 @@ function tabSocket:tabPullSegments(funDecode, segmentHandler, updateInterval)
 
                 if remain and remain:len() > 0 then
                     table.insert(self._buffer, remain)
-                    c.v.lastBuffLen = 1
-                else
-                    c.v.lastBuffLen = 0
                 end
 
                 return segment
