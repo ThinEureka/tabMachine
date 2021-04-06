@@ -28,7 +28,7 @@ function cocosContext:registerMsg(msg, fun)
 
     SoraDAddMessage(self, msg, function(...)
         pc:_setPc(pc, pcName, pcAction)
-        self.tm:_pcall(fun, ...)
+        self.tm:_pcall(self, fun, ...)
     end)
 end
 

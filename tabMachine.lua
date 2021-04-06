@@ -998,7 +998,7 @@ function context:_update(dt)
     end
 
     if self._updateFunEx and self.p then
-        self.tm:_pcallP(self, self._updateFunEx, self.p, dt)
+        self.tm:_pcall(self, self._updateFunEx, self.p, dt)
     end
 
     self:_decEnterCount()
