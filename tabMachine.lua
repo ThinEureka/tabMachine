@@ -342,9 +342,7 @@ function context:start(scName, ...)
         subTickFunEx == nil and
         subEventFunEx == nil then
         if subCatchFunEx == nil then
-            if self._curSubCatchFun == nil then
-                self._curSubCatchFun = subCatchFunEx
-            end
+            self._curSubCatchFun = subCatchFunEx
             self.tm:_pcall(self, sub, self, ...)
             self._curSubCatchFun = nil
 
@@ -368,9 +366,7 @@ function context:start(scName, ...)
             -- to ganrantee that the subcontext is added before execution
             if (sub ~= nil) then
                 subContext:_setPc(subContext, "self", "start")
-                if self._curSubCatchFun == nil then
-                    self._curSubCatchFun = subCatchFunEx
-                end
+                self._curSubCatchFun = subCatchFunEx
                 self.tm:_pcall(self, sub, self, ...)
                 self._curSubCatchFun = nil
             end
@@ -398,11 +394,8 @@ function context:start(scName, ...)
         -- to ganrantee that the subcontext is added before execution
         if (sub ~= nil) then
             subContext:_setPc(subContext, "self", "start")
-            if self._curSubCatchFun == nil then
-                self._curSubCatchFun = subCatchFunEx
-            end
+            self._curSubCatchFun = subCatchFunEx
             self.tm:_pcall(self, sub, self, ...)
-            self._curSubCatchFun = nil
         end
     end
     self:_decEnterCount()
