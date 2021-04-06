@@ -396,6 +396,7 @@ function context:start(scName, ...)
             subContext:_setPc(subContext, "self", "start")
             self._curSubCatchFun = subCatchFunEx
             self.tm:_pcall(self, sub, self, ...)
+            self._curSubCatchFun = nil
         end
     end
     self:_decEnterCount()
