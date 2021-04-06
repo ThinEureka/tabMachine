@@ -120,7 +120,7 @@ function tabMachine:_createContext(...)
     return context.new(...)
 end
 
-function tabMachine:_pcall(f, c, ...)
+function tabMachine:_pcall(target, f, selfParam, ...)
 
     local function on_error(errorMsg)
         if gVSDebugXpCall then
@@ -131,7 +131,7 @@ function tabMachine:_pcall(f, c, ...)
         local catched = true
         while i > 0 do
             local context = self._contextStack[i].context
-            if not context:_throwException(e) then
+            if not target:_throwException(e) then
                 self:_addContextException(e, context)
                 catched = false
             end
@@ -158,18 +158,18 @@ function tabMachine:_pcall(f, c, ...)
     self._curStackNum = self._curStackNum + 1
     if #self._contextStack < self._curStackNum then
         curContextInfo = {}
-        curContextInfo.context = c
+        curContextInfo.context = target
         table.insert(self._contextStack, curContextInfo)
     else
         curContextInfo = self._contextStack[self._curStackNum]
-        curContextInfo.context = c
+        curContextInfo.context = target
     end
 
     local a1, a2, a3, a4, a5, a6, a7, a8, a9, a10 = ...
 
 
     local stat, result = xpcall(function()
-        return f(c, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10)
+        return f(selfParam, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10)
     end, on_error)
 
     curContextInfo.context = nil
@@ -342,10 +342,15 @@ function context:start(scName, ...)
         subTickFunEx == nil and
         subEventFunEx == nil then
         if subCatchFunEx == nil then
-            self.tm:_pcall(sub, self, ...)
+            if self._curSubCatchFun == nil then
+                self._curSubCatchFun = subCatchFunEx
+            end
+            self.tm:_pcall(self, sub, self, ...)
+            self._curSubCatchFun = nil
+
             self:_checkNext(scName)
             if subFinalFunEx ~= nil then
-                self.tm:_pcall(subFinalFunEx, self, ...)
+                self.tm:_pcall(self, subFinalFunEx, self, ...)
             end
         else
             local subContext = self.tm:_createContext()
@@ -363,7 +368,11 @@ function context:start(scName, ...)
             -- to ganrantee that the subcontext is added before execution
             if (sub ~= nil) then
                 subContext:_setPc(subContext, "self", "start")
-                self.tm:_pcall(sub, self, ...)
+                if self._curSubCatchFun == nil then
+                    self._curSubCatchFun = subCatchFunEx
+                end
+                self.tm:_pcall(self, sub, self, ...)
+                self._curSubCatchFun = nil
             end
 
             subContext:stop()
@@ -389,7 +398,11 @@ function context:start(scName, ...)
         -- to ganrantee that the subcontext is added before execution
         if (sub ~= nil) then
             subContext:_setPc(subContext, "self", "start")
-            self.tm:_pcall(sub, self, ...)
+            if self._curSubCatchFun == nil then
+                self._curSubCatchFun = subCatchFunEx
+            end
+            self.tm:_pcall(self, sub, self, ...)
+            self._curSubCatchFun = nil
         end
     end
     self:_decEnterCount()
@@ -981,11 +994,11 @@ function context:_update(dt)
     self:_addEnterCount()
 
     if self._updateFun then 
-        self.tm:_pcall(self._updateFun, self, dt)
+        self.tm:_pcall(self, self._updateFun, self, dt)
     end
 
     if self._updateFunEx and self.p then
-        self.tm:_pcall(self._updateFunEx, self.p, dt)
+        self.tm:_pcallP(self, self._updateFunEx, self.p, dt)
     end
 
     self:_decEnterCount()
@@ -1001,11 +1014,11 @@ function context:_tick(index)
     self:_addEnterCount()
 
     if self._tickFun then 
-        self.tm:_pcall(self._tickFun, self, index)
+        self.tm:_pcall(self, self._tickFun, self, index)
     end
 
     if self._tickFunEx then
-        self.tm:_pcall(self._tickFunEx, self.p, index)
+        self.tm:_pcall(self, self._tickFunEx, self.p, index)
     end
 
     self:_decEnterCount()
@@ -1030,7 +1043,7 @@ function context:notify(msg, level)
     local captured = false
     -- call ex notified first
     if self._eventFunEx and self.p and self._eventFunEx ~= g_t.empty_event then
-        captured = self.tm:_pcall(self._eventFunEx, self.p, msg)
+        captured = self.tm:_pcall(self, self._eventFunEx, self.p, msg)
     end
 
     if captured then
@@ -1044,7 +1057,7 @@ function context:notify(msg, level)
     end
 
     if self._eventFun and self._eventFun ~= g_t.empty_event then
-        captured = self.tm:_pcall(self._eventFun, self, msg)
+        captured = self.tm:_pcall(self, self._eventFun, self, msg)
     end
 
     if captured then
@@ -1147,7 +1160,7 @@ end
 
 function context:_stopSub(scName)
     self:_setPc(self, scName, "stop_sub")
-    self.tm:_pcall(self._pStopSub, self, scName)
+    self.tm:_pcall(self, self._pStopSub, self, scName)
 end
 
 function context:_pStopSub(scName)
@@ -1269,11 +1282,11 @@ function context:_finalize()
 
     -- inner final first
     if self._finalFun ~= nil then
-        self.tm:_pcall(self._finalFun, self)
+        self.tm:_pcall(self, self._finalFun, self)
     end
 
     if self._finalFunEx ~= nil  and self.p then
-        self.tm:_pcall(self._finalFunEx, self.p)
+        self.tm:_pcall(self, self._finalFunEx, self.p)
     end
 end
 
@@ -1422,7 +1435,7 @@ function context:_throwException(exception)
         -- is stopped, the parent should not
         -- be notified. We ensure stop is atomic
         -- operation.
-        self:_unregisterLifeTimeEventsFromTargets()
+        --self:_unregisterLifeTimeEventsFromTargets()
         self:_stopUpdateTickNotify()
         self:_stopSubs()
         self:_finalize()
@@ -1440,11 +1453,15 @@ function context:_throwException(exception)
     end
 
     local isCatched = false
-    if self._catchFun ~= nil then
+    if self._curSubCatchFun ~= nil then
+        isCatched = self._curSubCatchFun(self, exception)
+    end
+
+    if not isCatched and self._catchFun ~= nil then
         isCatched = self._catchFun(self, exception)
     end
 
-    if self._catchFunEx ~= nil and
+    if not isCatched and self._catchFunEx ~= nil and
         self.p and
         not self.p._isStopped then
         isCatched = self._catchFunEx(self.p, exception)

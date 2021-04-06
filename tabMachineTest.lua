@@ -45,6 +45,7 @@ test.except1 = {
         return true
     end,
 
+
     s2 = function(c)
         local a = 5
         -- throw a lua exception
@@ -64,12 +65,15 @@ test.except1 = {
         c.v.m = c.v.m + 1
         print("s3 ", 10 - c.v.m)
         if c.v.m >= 10 then
+            --local x = nil
+            --x = x + 1
             --throw custom error
-            c:throw("error s3")
+            c:getSub("s3"):throw("error s3")
         end
     end,
 
     s3_catch = function(c, e)
+        print("catch s3")
         if e.isCustom then
             --
             return false
@@ -153,7 +157,7 @@ test.except2 = {
             c.v.index = c.v.index + 1
             if c.v.index > 10 then
                 -- throw a custom error
-                c:throw("error e3")
+                c:getSub("s3"):throw("error e3")
             end
         end,
 
@@ -339,6 +343,10 @@ test.final = {
         c:call(c.m1, "m1")
     end,
 
+    t1 = function(c)
+        print("00000")
+    end,
+
     t1_update = function(c, dt)
         if c.v.a == nil then
             c.v.a = 0
@@ -348,11 +356,15 @@ test.final = {
         if c.v.a > 1 then
             c.v.a = c.v.a - 1
             print("tick")
+            c:stop()
         end
     end,
 
     t1_final = function(c)
         print("t1 final")
+        local a = nil
+        a = a + 3
+        print("xxxxx")
     end,
 
     u1 = function(c)
@@ -884,5 +896,6 @@ test.extTrigger = {
         c:start("s1")
     end
 }
+
 
 return test
