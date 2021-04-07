@@ -125,6 +125,7 @@ test.except2 = {
         end,
 
         s1_catch = function(c, e)
+            print("s1 catch")
             c:stop("s1")
             return true
         end,
