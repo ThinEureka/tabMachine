@@ -528,7 +528,7 @@ function context:join(scNames, scName, callback)
     end
 
     self:_setPc(self, scName, "join")
-    self.tm:_pcall(self._pJoin, self, scNames, scName, callback)
+    self.tm:_pcall(self, self._pJoin, self, scNames, scName, callback)
 end
 
 function context:_pJoin(scNames, scName, callback)
