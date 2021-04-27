@@ -7,11 +7,13 @@ g_t = {}
 g_t.anyOutputVars = {"a1", "a2", "a3", "a4", "a5", "a6", "a7", "a8", "a9", "a10"}
 
 local tabMachine = require("app.common.tabMachine.tabMachine")
-local cocosContext = class("cocosContext", tabMachine.context)
+local cocosContext = tabMachine.context
 cocosContext.isTabClass = true
 
+cocosContext.p_ctor = cocosContext.ctor
+
 function cocosContext:ctor()
-    tabMachine.context.ctor(self)
+    cocosContext.p_ctor(self) 
     self._hasMsg = false
 end
 

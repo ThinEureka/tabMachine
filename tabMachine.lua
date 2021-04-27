@@ -29,6 +29,7 @@ local function outputValues(env, outputVars, outputValues)
     end
 end
 
+
 ----------------- tabMachine -------------------------
 
 function tabMachine:ctor()
@@ -41,6 +42,18 @@ function tabMachine:ctor()
     self._debugger = nil
     self._contextStack = {}
     self._curStackNum = 0
+    self._nextSubCache = nil
+end
+
+function tabMachine:addNextSubCache(tag, num)
+    if self._nextSubCache == nil then
+        self._nextSubCache = {}
+    end
+
+    self._nextSubCache[tag] =  tag .. 1
+    for i = 0, num - 1 do
+        self._nextSubCache[tag .. i] = tag .. (i+1)
+    end
 end
 
 function tabMachine:installTab(tab)
@@ -82,7 +95,10 @@ function tabMachine:start(...)
     end
 
     self._isRunning = true
-    self._rootContext:_enter(...)
+
+    --enter
+    self._rootContext:_prepareEnter()
+    self._rootContext:start("s1", ...)
 end
 
 function tabMachine:notify(msg, level)
@@ -231,6 +247,7 @@ function context:ctor()
     -- self._isDisposed = false
     -- self._isNotifyStopped = false
     -- self._isProxyStopped = false
+    -- self._isLightMode = false
 
     --[nil assignment optimization]
     -- self._headSubContext = nil
@@ -317,7 +334,10 @@ function context:start(scName, ...)
         return
     end
 
-    self:_setPc(self, "self", scName)
+    if not self._isLightMode then
+        self:_setPc(self, "self", scName)
+    end
+
 
     self:_addEnterCount()
     local sub = self._tab[scName]
@@ -343,12 +363,22 @@ function context:start(scName, ...)
         subEventFunEx == nil then
         if subCatchFunEx == nil then
             self._curSubCatchFun = subCatchFunEx
-            self.tm:_pcall(self, sub, self, ...)
+            if self._isLightMode then
+                sub(self, ...)
+            else
+                self.tm:_pcall(self, sub, self, ...)
+            end
             self._curSubCatchFun = nil
 
-            self:_checkNext(scName)
+            if not self._isStopped then
+                self:_checkNext(scName)
+            end
             if subFinalFunEx ~= nil then
-                self.tm:_pcall(self, subFinalFunEx, self, ...)
+                if self._isLightMode then
+                    subFinalFunEx(self, ...)
+                else
+                    self.tm:_pcall(self, subFinalFunEx, self, ...)
+                end
             end
         else
             local subContext = self.tm:_createContext()
@@ -365,9 +395,15 @@ function context:start(scName, ...)
 
             -- to ganrantee that the subcontext is added before execution
             if (sub ~= nil) then
-                subContext:_setPc(subContext, "self", "start")
+                if not self._isLightMode then
+                    subContext:_setPc(subContext, "self", "start")
+                end
                 self._curSubCatchFun = subCatchFunEx
-                self.tm:_pcall(self, sub, self, ...)
+                if self._isLightMode then
+                    subFinalFunEx(self, ...)
+                else
+                    self.tm:_pcall(self, subFinalFunEx, self, ...)
+                end
                 self._curSubCatchFun = nil
             end
 
@@ -393,9 +429,15 @@ function context:start(scName, ...)
 
         -- to ganrantee that the subcontext is added before execution
         if (sub ~= nil) then
-            subContext:_setPc(subContext, "self", "start")
+            if not self._isLightMode then
+                subContext:_setPc(subContext, "self", "start")
+            end
             self._curSubCatchFun = subCatchFunEx
-            self.tm:_pcall(self, sub, self, ...)
+            if self._isLightMode then
+                sub(self, ...)
+            else
+                self.tm:_pcall(self, sub, self, ...)
+            end
             self._curSubCatchFun = nil
         end
     end
@@ -412,10 +454,13 @@ function  context:call(tab, scName, outputVars, ...)
         return
     end
 
-    self:_setPc(self, scName, "call")
+    if not self._isLightMode then
+        self:_setPc(self, scName, "call")
+    end
     self:_addEnterCount()
 
     if tab == nil then
+        self:_checkNext(scName)
         self:_decEnterCount()
         return
     end
@@ -445,7 +490,10 @@ function  context:call(tab, scName, outputVars, ...)
 
     subContext._outputVars = outputVars
     self:_addSubContext(subContext)
-    subContext:_enter(...)
+
+    --enter
+    subContext:_prepareEnter()
+    subContext:start("s1", ...)
 
     self:_decEnterCount()
 end
@@ -460,7 +508,9 @@ function  context:_callWithContext(context, tab, scName, outputVars, ...)
         return
     end
 
-    self:_setPc(self, scName, "call")
+    if not self._isLightMode then
+        self:_setPc(self, scName, "call")
+    end
     self:_addEnterCount()
 
     if tab == nil then
@@ -477,7 +527,10 @@ function  context:_callWithContext(context, tab, scName, outputVars, ...)
     subContext:_installTab(tab)
     subContext._outputVars = outputVars
     self:_addSubContext(subContext)
-    subContext:_enter(...)
+
+    --enter
+    subContext:_prepareEnter()
+    subContext:start("s1", ...)
 
     self:_decEnterCount()
 end
@@ -527,8 +580,14 @@ function context:join(scNames, scName, callback)
         return
     end
 
-    self:_setPc(self, scName, "join")
-    self.tm:_pcall(self, self._pJoin, self, scNames, scName, callback)
+    if not self._isLightMode then
+        self:_setPc(self, scName, "join")
+    end
+    if self._isLightMode then
+        self._pJoin(self, scNames, scName, callback)
+    else
+        self.tm:_pcall(self, self._pJoin, self, scNames, scName, callback)
+    end
 end
 
 function context:_pJoin(scNames, scName, callback)
@@ -923,12 +982,31 @@ function context:_removeSubContext(subContext)
     subContext.p = nil
 end
 
+--check stop before call this method
 function context:_checkNext(scName)
-    if self._isStopped then
-        return
+    --print("start next ", self:_getPath().. "." ..scName)
+    local nextSub = nil 
+    local nextSubCache = self.tm._nextSubCache
+    if nextSubCache then
+        nextSub = nextSubCache[scName]
+        if nextSub ~= nil then
+            return self:start(nextSub)
+        end
     end
 
-    self:_startNext(scName) 
+    local tab = self._tab
+    local backwardTable
+    if tab and tab._backwardNextSubTable then
+        backwardTable = tab._backwardNextSubTable
+    else
+        tab = self._backwardNextSubTable
+    end
+    if backwardTable ~= nil then
+        nextSub = backwardTable[scName]
+        if nextSub ~= nil then
+             return self:start(nextSub)
+        end
+    end
 end
 
 function context:_checkStop()
@@ -949,50 +1027,31 @@ function context:_checkStop()
     end
 end
 
-function context:_startNext(scName)
-    --print("start next ", self:_getPath().. "." ..scName)
-    local l = scName:len()
-    local splitPos = l
-    local zero = '0'
-    local nine = '9'
-
-    for i = l, 1, -1 do
-        local code = scName:byte(i)
-        if code < zero:byte() or code > nine:byte()  then
-            splitPos = i
-            break
-        end
-    end
-
-    local num = 0
-
-    local base = scName:sub(1, splitPos)
-    num = scName:sub(splitPos + 1, l)
-    num = tonumber(num)
-
-    if num == nil then
-        num = 0
-    end
-
-    local nextSub = base .. (num + 1)
-    return self:start(nextSub)
-end
-
 function context:_update(dt)
     -- inner update first
     if self._isStopped then
         return
     end
 
-    self:_setPc(self, "self", "update")
+    if not self._isLightMode then
+        self:_setPc(self, "self", "update")
+    end
     self:_addEnterCount()
 
     if self._updateFun then 
-        self.tm:_pcall(self, self._updateFun, self, dt)
+        if self._isFastMode then
+            self._updateFun(self, dt)
+        else
+            self.tm:_pcall(self, self._updateFun, self, dt)
+        end
     end
 
     if self._updateFunEx and self.p then
-        self.tm:_pcall(self, self._updateFunEx, self.p, dt)
+        if self._isFastMode then
+            self._updateFunEx(self.p, dt)
+        else
+            self.tm:_pcall(self, self._updateFunEx, self.p, dt)
+        end
     end
 
     self:_decEnterCount()
@@ -1004,15 +1063,25 @@ function context:_tick(index)
         return false
     end
 
-    self:_setPc(self, "self", "tick")
+    if not self._isLightMode then
+        self:_setPc(self, "self", "tick")
+    end
     self:_addEnterCount()
 
     if self._tickFun then 
-        self.tm:_pcall(self, self._tickFun, self, index)
+        if self._isFastMode then
+            self._tickFun(self, index)
+        else
+            self.tm:_pcall(self, self._tickFun, self, index)
+        end
     end
 
     if self._tickFunEx then
-        self.tm:_pcall(self, self._tickFunEx, self.p, index)
+        if self._isFastMode then
+            self._tickFunEx(self.p, index)
+        else
+            self.tm:_pcall(self, self._tickFunEx, self.p, index)
+        end
     end
 
     self:_decEnterCount()
@@ -1031,13 +1100,19 @@ function context:notify(msg, level)
         return false
     end
 
-    self:_setPc(self, "self", "notify")
+    if not self._isLightMode then
+        self:_setPc(self, "self", "notify")
+    end
     self:_addEnterCount()
 
     local captured = false
     -- call ex notified first
     if self._eventFunEx and self.p and self._eventFunEx ~= g_t.empty_event then
-        captured = self.tm:_pcall(self, self._eventFunEx, self.p, msg)
+        if self._isFastMode then
+            captured = self._eventFunEx(self.p, msg)
+        else
+            captured = self.tm:_pcall(self, self._eventFunEx, self.p, msg)
+        end
     end
 
     if captured then
@@ -1051,7 +1126,11 @@ function context:notify(msg, level)
     end
 
     if self._eventFun and self._eventFun ~= g_t.empty_event then
-        captured = self.tm:_pcall(self, self._eventFun, self, msg)
+        if self._isFastMode then
+            captured = self._eventFun(self, msg)
+        else
+            captured = self.tm:_pcall(self, self._eventFun, self, msg)
+        end
     end
 
     if captured then
@@ -1072,7 +1151,9 @@ function context:notify(msg, level)
     local subContext = self._headSubContext
     while subContext ~= nil do
         if subContext.p and not subContext.p._isStopped then
-            self:_setPc(subContext, subContext._name, "notify_sub")
+            if not self._isLightMode then
+                self:_setPc(subContext, subContext._name, "notify_sub")
+            end
             captured = subContext:notify(msg, level - 1)
             if captured then
                 self:_decEnterCount()
@@ -1121,6 +1202,47 @@ function  context:_installTab(tab)
         return
     end
 
+    if tab._backwardNextSubTable == nil then
+        local target = (tab.class ~= nil or tab.isTabClass) and tab or self
+        for tag, _ in pairs(tab) do
+            if self.tm._nextSubCache[tag] == nil then
+                local l = tag:len()
+                local splitPos = l
+
+                local num = nil
+                local power = 1
+                for i = l, 1, -1 do
+                    local code = tag:byte(i)
+                    if code < 48 or code > 57  then
+                        splitPos = i
+                        break
+                    else
+                        if num == nil then
+                            num = 0
+                        end
+
+                        num = num + (code - 48) * power 
+                        power = power * 10
+                    end
+                end
+
+                if num ~= nil then
+                    local base = tag:sub(1, splitPos)
+                    if base ~= nil then 
+                        if target._backwardNextSubTable == nil then
+                            target._backwardNextSubTable = {}
+                        end
+                        target._backwardNextSubTable[base ..(num - 1)] = tag
+                        if num == 1 then
+                            target._backwardNextSubTable[base] = tag
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+
     self._finalFun = self._tab.final
     self._eventFun = self._tab.event
     self._catchFun = self._tab.catch
@@ -1129,20 +1251,19 @@ function  context:_installTab(tab)
     self._updateInterval = self._tab.updateInterval
 end
 
-function  context:_enter(...)
-    self:_prepareEnter()
-    self:start("s1", ...)
-end
-
 function context:_prepareEnter()
-    self:_setPc(self, "self", "prepare")
+    if not self._isLightMode then
+        self:_setPc(self, "self", "prepare")
+    end
 
     if self.p then
         self._debugger = self.p._debugger
         self._scheduler = self.p._scheduler
+        self._isLightMode = self.p._isLightMode
     else
         self._debugger = self.tm._debugger
         self._scheduler = self.tm._scheduler
+        self._isLightMode = self.tm._isLightMode
     end
 
     self:_createTickAndUpdateTimers()
@@ -1153,15 +1274,23 @@ function context:_prepareEnter()
 end
 
 function context:_stopSub(scName)
-    self:_setPc(self, scName, "stop_sub")
-    self.tm:_pcall(self, self._pStopSub, self, scName)
+    if not self._isLightMode then
+        self:_setPc(self, scName, "stop_sub")
+    end
+    if self._isFastMode then
+        self._pStopSub(self, scName)
+    else
+        self.tm:_pcall(self, self._pStopSub, self, scName)
+    end
 end
 
 function context:_pStopSub(scName)
     local subContext = self._headSubContext
     while subContext ~= nil do
         if subContext.p == self and subContext._name == scName then
-            self:_setPc(self, subContext._name, "stop_sub")
+            if not self._isLightMode then
+                self:_setPc(self, subContext._name, "stop_sub")
+            end
             subContext:stop()
         end
         subContext = subContext._nextContext
@@ -1174,7 +1303,9 @@ function context:_stopSelf()
         debugger:onContextStop(self)
     end
 
-    self:_setPc(self, "self", "stop_self")
+    if not self._isLightMode then
+        self:_setPc(self, "self", "stop_self")
+    end
     self._isStopped = true
     self:_stopUpdateTickNotify()
     self:_stopSubs()
@@ -1215,7 +1346,9 @@ function context:_stopUpdateTickNotify()
         return 
     end
 
-    self:_setPc(self, "self", "stop_update_and_tick")
+    if not self._isLightMode then
+        self:_setPc(self, "self", "stop_update_and_tick")
+    end
     self._isUpdateTickNotifyStopped = true
 
     self:_destroyTickAndUpdateTimers()
@@ -1226,12 +1359,14 @@ function context:_createTickAndUpdateTimers()
         return 
     end
     
-    if self:_selfNeedUpdate() then
+    if self._updateFun ~= nil or
+        self._updateFunEx ~= nil then
         self._updateTimer = self._scheduler:createTimer(function (dt) self:_update(dt) end,
             self._updateIntervalEx or self._updateInterval)
     end
 
-    if self:_selfNeedTick() then
+    if self._tickFun ~= nil or
+        self._tickFunEx ~= nil then
         self._tickTimer = self._scheduler:createTimer(function (dt) self:_tick() end, 1.0)
     end
 end
@@ -1253,7 +1388,9 @@ function context:_stopSubs()
         return
     end
 
-    self:_setPc(self, "self", "stop subs")
+    if not self._isLightMode then
+        self:_setPc(self, "self", "stop subs")
+    end
 
     self._isSubStopped = true
     local subContext = self._tailSubContext
@@ -1272,15 +1409,25 @@ function context:_finalize()
     self._headSubContext = nil
     self._tailSubContext = nil
 
-    self:_setPc(self, "self", "finalize")
+    if not self._isLightMode then
+        self:_setPc(self, "self", "finalize")
+    end
 
     -- inner final first
     if self._finalFun ~= nil then
-        self.tm:_pcall(self, self._finalFun, self)
+        if self._isFastMode then
+            self._finalFun(self)
+        else
+            self.tm:_pcall(self, self._finalFun, self)
+        end
     end
 
     if self._finalFunEx ~= nil  and self.p then
-        self.tm:_pcall(self, self._finalFunEx, self.p)
+        if self._isFastMode then
+            self._finalFunEx(self.p)
+        else
+            self.tm:_pcall(self, self._finalFunEx, self.p)
+        end
     end
 end
 
@@ -1301,7 +1448,9 @@ function context:_detach()
     end
 
     self._isDetached = true
-    self:_setPc(self, "self", "finalize")
+    if not self._isLightMode then
+        self:_setPc(self, "self", "detach")
+    end
 
     local p = self.p
     local tm = self.tm
@@ -1320,7 +1469,9 @@ function context:_dispose()
         return
     end
 
-    self:_setPc(self, "self", "finalize")
+    if not self._isLightMode then
+        self:_setPc(self, "self", "dispose")
+    end
     self._isDisposed = true
     self.tm:_disposeContext(self)
 end
@@ -1334,7 +1485,9 @@ function context:_notifyStop()
     local p = self._pp
     local tm = self.tm
 
-    self:_setPc(self, "self", "notify_stop")
+    if not self._isLightMode then
+        self:_setPc(self, "self", "notify_stop")
+    end
 
     local hasNotify = false
     if p and p._mapHeadListener then
@@ -1402,21 +1555,6 @@ function context:_decEnterCount()
     if self._enterCount <= 0 then
         self:_checkStop()
     end
-end
-
-function context:_selfNeedUpdate()
-    return self._updateFun ~= nil or
-        self._updateFunEx ~= nil
-end
-
-function context:_selfNeedTick()
-    return self._tickFun ~= nil or
-        self._tickFunEx ~= nil
-end
-
-function context:_selfNeedNotify()
-    return self._eventFun ~= nil or
-        self._eventFunEx ~= nil
 end
 
 function context:_throwException(exception)
@@ -1507,6 +1645,16 @@ function context:setDebugger(debugger)
         subContext = subContext._nextContext
     end
 end
+
+function context:setIsLightMode(isLightMode)
+    self._isLightMode = isLightMode
+    local subContext = self._headSubContext
+    while subContext ~= nil do
+        subContext:setIsLightMode(setIsLightMode)
+        subContext = subContext._nextContext
+    end
+end
+ 
 
 function context:_addProxy(proxy)
     if self._isStopped then

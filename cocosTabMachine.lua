@@ -6,14 +6,17 @@
 
 local tabMachine = require("app.common.tabMachine.tabMachine")
 
-local cocosTabMachine = class("cocosTabMachine", tabMachine)
+local cocosTabMachine = tabMachine
 
 local cocosContext = require("app.common.tabMachine.cocosContext")
 
 -------------------------- cocosTabMachine ----------------------
 
+cocosTabMachine.p_ctor = tabMachine.ctor
+cocosTabMachine.p_createException = tabMachine._createException
+
 function cocosTabMachine:ctor()
-    tabMachine.ctor(self)
+    cocosTabMachine.p_ctor(self)
     self._updateTimer = nil
     self._tickTimer = nil
     
@@ -103,11 +106,6 @@ function cocosTabMachine:getObject(path)
     return self._rootContext:getObject(path)
 end
 
-function cocosTabMachine:_onStopped()
-    print("machine stopped")
-    tabMachine._onStopped(self)
-end
-
 function cocosTabMachine:_createContext(tab, ...)
     if tab ~= nil and tab.isTabClass then
         return tab.new(...)
@@ -124,7 +122,7 @@ function cocosTabMachine:_createContext(tab, ...)
 end
 
 function cocosTabMachine:_createException(errorMsg, isTabMachineError)
-    local e = tabMachine._createException(self, errorMsg, isTabMachineError)
+    local e = cocosTabMachine.p_createException(self, errorMsg, isTabMachineError)
     e.luaErrorMsg = errorMsg
     e.luaStackTrace = tostring(debug.traceback("", 2))
     return e
