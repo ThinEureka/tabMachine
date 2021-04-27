@@ -999,7 +999,7 @@ function context:_checkNext(scName)
     if tab and tab._backwardNextSubTable then
         backwardTable = tab._backwardNextSubTable
     else
-        tab = self._backwardNextSubTable
+        backwardTable = self._backwardNextSubTable
     end
     if backwardTable ~= nil then
         nextSub = backwardTable[scName]
