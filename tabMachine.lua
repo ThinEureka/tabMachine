@@ -43,6 +43,7 @@ function tabMachine:ctor()
     self._contextStack = {}
     self._curStackNum = 0
     self._nextSubCache = nil
+    self._commonTags = {}
 end
 
 function tabMachine:addNextSubCache(tag, num)
@@ -53,6 +54,26 @@ function tabMachine:addNextSubCache(tag, num)
     self._nextSubCache[tag] =  tag .. 1
     for i = 0, num - 1 do
         self._nextSubCache[tag .. i] = tag .. (i+1)
+    end
+end
+
+function tabMachine:addCommonTag(tag, num)
+    local name
+    for i = -1, num do
+        if i == -1 then
+            name = tag
+        else
+            name = tag .. i
+        end
+
+        self._commonTags[name] = {
+            update = name .. "_update",
+            updateInterval = name .. "_updateInterval",
+            event = name .. "_event",
+            tick = name .."_tick",
+            final = name .."_final",
+            catch = name .."_catch",
+        }
     end
 end
 
@@ -351,12 +372,29 @@ function context:start(scName, ...)
         debugger:onContextStart(self, scName)
     end
 
-    local subUpdateFunEx = self._tab[scName.."_update"]
-    local subUpdateIntevalEx = self._tab[scName.."_updateInterval"]
-    local subEventFunEx = self._tab[scName.."_event"]
-    local subTickFunEx = self._tab[scName.."_tick"]
-    local subFinalFunEx = self._tab[scName.."_final"]
-    local subCatchFunEx = self._tab[scName.."_catch"]
+    local subUpdateFunEx 
+    local subUpdateIntevalEx
+    local subEventFunEx
+    local subTickFunEx
+    local subFinalFunEx
+    local subCatchFunEx
+
+    local tagSet = self.tm._commonTags[scName]
+    if tagSet then
+        subUpdateFunEx = self._tab[tagSet.update]
+        subUpdateIntevalEx = self._tab[tagSet.updateInterval]
+        subEventFunEx = self._tab[tagSet.event]
+        subTickFunEx = self._tab[tagSet.tick]
+        subFinalFunEx = self._tab[tagSet.final]
+        subCatchFunEx = self._tab[tagSet.catch]
+    else
+        subUpdateFunEx = self._tab[scName.."_update"]
+        subUpdateIntevalEx = self._tab[scName.."_updateInterval"]
+        subEventFunEx = self._tab[scName.."_event"]
+        subTickFunEx = self._tab[scName.."_tick"]
+        subFinalFunEx = self._tab[scName.."_final"]
+        subCatchFunEx = self._tab[scName.."_catch"]
+    end
 
     if subUpdateFunEx == nil and
         subTickFunEx == nil and
@@ -475,11 +513,21 @@ function  context:call(tab, scName, outputVars, ...)
 
     local subUpdateFunEx, subEventFunEx, subTickFunEx, subFinalFunEx, subCatchFunEx
     if self._tab then
-        subUpdateFunEx = self._tab[scName.."_update"]
-        subEventFunEx = self._tab[scName.."_event"]
-        subTickFunEx = self._tab[scName.."_tick"]
-        subFinalFunEx = self._tab[scName.."_final"]
-        subCatchFunEx = self._tab[scName.."_catch"]
+        local tagSet = self.tm._commonTags[scName]
+        if tagSet then
+            subUpdateFunEx = self._tab[tagSet.update]
+            subEventFunEx = self._tab[tagSet.event]
+            subTickFunEx = self._tab[tagSet.tick]
+            subFinalFunEx = self._tab[tagSet.final]
+            subCatchFunEx = self._tab[tagSet.catch]
+        else
+            subUpdateFunEx = self._tab[scName.."_update"]
+            subUpdateIntevalEx = self._tab[scName.."_updateInterval"]
+            subEventFunEx = self._tab[scName.."_event"]
+            subTickFunEx = self._tab[scName.."_tick"]
+            subFinalFunEx = self._tab[scName.."_final"]
+            subCatchFunEx = self._tab[scName.."_catch"]
+        end
     end
 
     subContext._updateFunEx = subUpdateFunEx
