@@ -17,9 +17,6 @@ cocosTabMachine.p_createException = tabMachine._createException
 
 function cocosTabMachine:ctor()
     cocosTabMachine.p_ctor(self)
-    self._updateTimer = nil
-    self._tickTimer = nil
-    
     self._scheduler = self:createSystemScheduler()
 end
 

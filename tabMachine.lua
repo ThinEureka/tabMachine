@@ -16,6 +16,42 @@ tabMachine.event_context_stop = "context_stop"
 tabMachine.event_context_enter = "context_enter"
 tabMachine.event_proxy_attached = "proxy_attached"
 
+tabMachine.labels = {
+    update = true,
+    updateInterval = true,
+    tick = true,
+    event = true,
+    catch = true,
+    final = true,
+}
+
+tabMachine.labelLens = {
+}
+
+for label, _ in pairs(tabMachine.labels) do
+    local len = label:len()
+    if #tabMachine.labelLens == 0 then
+        table.insert(tabMachine.labelLens, len)
+    else
+        local index = 1
+        while index <= #tabMachine.labelLens do
+            local oldLen = tabMachine.labelLens[index] 
+            if len == oldLen then
+                break
+            elseif len < oldLen then
+                table.insert(tabMachine.labelLens, index, len)
+                break
+            else
+                if index == #tabMachine.labelLens then
+                    table.insert(tabMachine.labelLens, len)
+                else
+                    index = index + 1
+                end
+            end
+        end
+    end
+end
+
 ----------------- util functions ---------------------
 local function outputValues(env, outputVars, outputValues)
     for i, var in ipairs(outputVars) do
@@ -42,31 +78,27 @@ function tabMachine:ctor()
     self._debugger = nil
     self._contextStack = {}
     self._curStackNum = 0
-    self._nextSubCache = nil
-    self._commonTags = {}
+    self._nextSubCache = {}
+    self._commonLabelCache = {}
 end
 
-function tabMachine:addNextSubCache(tag, num)
-    if self._nextSubCache == nil then
-        self._nextSubCache = {}
-    end
-
-    self._nextSubCache[tag] =  tag .. 1
+function tabMachine:addNextSubCache(sub, num)
+    self._nextSubCache[sub] =  sub .. 1
     for i = 0, num - 1 do
-        self._nextSubCache[tag .. i] = tag .. (i+1)
+        self._nextSubCache[sub .. i] = sub .. (i+1)
     end
 end
 
-function tabMachine:addCommonTag(tag, num)
+function tabMachine:addCommonLabels(sub, num)
     local name
     for i = -1, num do
         if i == -1 then
-            name = tag
+            name = sub
         else
-            name = tag .. i
+            name = sub .. i
         end
 
-        self._commonTags[name] = {
+        self._commonLabelCache[name] = {
             update = name .. "_update",
             updateInterval = name .. "_updateInterval",
             event = name .. "_event",
@@ -379,21 +411,27 @@ function context:start(scName, ...)
     local subFinalFunEx
     local subCatchFunEx
 
-    local tagSet = self.tm._commonTags[scName]
-    if tagSet then
-        subUpdateFunEx = self._tab[tagSet.update]
-        subUpdateIntevalEx = self._tab[tagSet.updateInterval]
-        subEventFunEx = self._tab[tagSet.event]
-        subTickFunEx = self._tab[tagSet.tick]
-        subFinalFunEx = self._tab[tagSet.final]
-        subCatchFunEx = self._tab[tagSet.catch]
+    local commonLabels = self.tm._commonLabelCache[scName]
+    if commonLabels then
+        subUpdateFunEx = self._tab[commonLabels.update]
+        subUpdateIntevalEx = self._tab[commonLabels.updateInterval]
+        subEventFunEx = self._tab[commonLabels.event]
+        subTickFunEx = self._tab[commonLabels.tick]
+        subFinalFunEx = self._tab[commonLabels.final]
+        subCatchFunEx = self._tab[commonLabels.catch]
     else
-        subUpdateFunEx = self._tab[scName.."_update"]
-        subUpdateIntevalEx = self._tab[scName.."_updateInterval"]
-        subEventFunEx = self._tab[scName.."_event"]
-        subTickFunEx = self._tab[scName.."_tick"]
-        subFinalFunEx = self._tab[scName.."_final"]
-        subCatchFunEx = self._tab[scName.."_catch"]
+        local tagCache = self._tab._lableCache or self._lableCache
+        if tagCache then
+            local labels = tagCache[scName]
+            if labels then
+                subUpdateFunEx = self._tab[labels.update]
+                subUpdateIntevalEx = self._tab[labels.updateInterval]
+                subEventFunEx = self._tab[labels.event]
+                subTickFunEx = self._tab[labels.tick]
+                subFinalFunEx = self._tab[labels.final]
+                subCatchFunEx = self._tab[labels.catch]
+            end
+        end
     end
 
     if subUpdateFunEx == nil and
@@ -513,20 +551,26 @@ function  context:call(tab, scName, outputVars, ...)
 
     local subUpdateFunEx, subEventFunEx, subTickFunEx, subFinalFunEx, subCatchFunEx
     if self._tab then
-        local tagSet = self.tm._commonTags[scName]
-        if tagSet then
-            subUpdateFunEx = self._tab[tagSet.update]
-            subEventFunEx = self._tab[tagSet.event]
-            subTickFunEx = self._tab[tagSet.tick]
-            subFinalFunEx = self._tab[tagSet.final]
-            subCatchFunEx = self._tab[tagSet.catch]
+        local commonLabels = self.tm._commonLabelCache[scName]
+        if commonLabels then
+            subUpdateFunEx = self._tab[commonLabels.update]
+            subEventFunEx = self._tab[commonLabels.event]
+            subTickFunEx = self._tab[commonLabels.tick]
+            subFinalFunEx = self._tab[commonLabels.final]
+            subCatchFunEx = self._tab[commonLabels.catch]
         else
-            subUpdateFunEx = self._tab[scName.."_update"]
-            subUpdateIntevalEx = self._tab[scName.."_updateInterval"]
-            subEventFunEx = self._tab[scName.."_event"]
-            subTickFunEx = self._tab[scName.."_tick"]
-            subFinalFunEx = self._tab[scName.."_final"]
-            subCatchFunEx = self._tab[scName.."_catch"]
+            local labelCache = self._tab._lableCache or self._lableCache
+            if labelCache then
+                local labels = labelCache[scName]
+                if labels then
+                    subUpdateFunEx = self._tab[labels.update]
+                    subUpdateIntevalEx = self._tab[labels.updateInterval]
+                    subEventFunEx = self._tab[labels.event]
+                    subTickFunEx = self._tab[labels.tick]
+                    subFinalFunEx = self._tab[labels.final]
+                    subCatchFunEx = self._tab[labels.catch]
+                end
+            end
         end
     end
 
@@ -1251,7 +1295,7 @@ function  context:_installTab(tab)
     end
 
     if tab._backwardNextSubTable == nil then
-        local target = (tab.class ~= nil or tab.isTabClass) and tab or self
+        local target = tab.reuse and tab or self
         for tag, _ in pairs(tab) do
             if self.tm._nextSubCache[tag] == nil then
                 local l = tag:len()
@@ -1261,6 +1305,7 @@ function  context:_installTab(tab)
                 local power = 1
                 for i = l, 1, -1 do
                     local code = tag:byte(i)
+                    -- '0' = 48, '9' = 57
                     if code < 48 or code > 57  then
                         splitPos = i
                         break
@@ -1290,6 +1335,48 @@ function  context:_installTab(tab)
         end
     end
 
+    if tab._lableCache == nil then
+        local target = tab.reuse and tab or self
+        for tag, _ in pairs(tab) do
+            local l = tag:len()
+            local num = nil
+            local power = 1
+
+            local splitPos = 1
+            for _, labelLen in ipairs(tabMachine.labelLens) do
+                splitPos = l - labelLen
+                if splitPos <= 1 then
+                    break
+                end
+
+                -- '_' == 95
+                if tag:byte(splitPos) == 95 then
+                    break
+                end
+
+                --make sure splitPos is also correct for last iteration 
+                splitPos = 0
+            end
+
+            if splitPos > 1 then
+                local base = tag:sub(1, splitPos - 1)
+                if self.tm._commonLabelCache[base] == nil then
+                    local label = tag:sub(splitPos + 1, -1)
+                    if tabMachine.labels[label] ~= nil then
+                        if target._lableCache == nil then
+                            target._lableCache = {}
+                        end
+
+                        local labelCache = target._lableCache
+                        if labelCache[base] == nil then
+                            labelCache[base] = {}
+                        end
+                        labelCache[base][label] = tag
+                    end
+                end
+            end
+        end
+    end
 
     self._finalFun = self._tab.final
     self._eventFun = self._tab.event

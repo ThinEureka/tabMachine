@@ -9,6 +9,7 @@ g_t.anyOutputVars = {"a1", "a2", "a3", "a4", "a5", "a6", "a7", "a8", "a9", "a10"
 local tabMachine = require("app.common.tabMachine.tabMachine")
 local cocosContext = tabMachine.context
 cocosContext.isTabClass = true
+cocosContext.reuse = true
 
 cocosContext.p_ctor = cocosContext.ctor
 
@@ -246,6 +247,8 @@ g_t.delay = {
 
     s1_event = g_t.empty_event,
 
+    reuse = true,
+
     --override 
     --This is a hack, don't do this in custom code and
     --don't change scheduler when there are g_t.delays 
@@ -289,6 +292,8 @@ g_t.skipFrames = {
             c:stop()
         end
     end,
+
+    reuse = true,
 }
 
 g_t.waitMessage = {
@@ -304,6 +309,8 @@ g_t.waitMessage = {
     end,
 
     event = g_t.empty_event,
+
+    reuse = true,
 }
 
 g_t.waitMessageWithFilter = {
@@ -323,6 +330,8 @@ g_t.waitMessageWithFilter = {
     end,
 
     event = g_t.empty_event,
+
+    reuse = true,
 }
 
 g_t.click = {
@@ -351,6 +360,8 @@ g_t.click = {
             target:addTouchEventListener(g_t.empty_touch)
         end
     end,
+
+    reuse = true,
 }
 
 --------------------wrapped tabs -------------
@@ -590,6 +601,7 @@ function g_t.tabForPairs(map, tabLoop)
             end
             c:start("s2")
         end,
+
     }
 end
 
