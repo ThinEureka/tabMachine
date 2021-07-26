@@ -131,6 +131,7 @@ g_t.empty_fun = function(...) end
 g_t.tabError = {
     s1 = g_t.empty_fun,
     event = g_t.empty_event,
+    reuse = true,
 }
 
 g_t.schedulerCtrl = {
@@ -160,6 +161,7 @@ g_t.schedulerCtrl = {
     end,
 
     event = g_t.empty_event,
+    reuse = true,
 
     final = function(c)
         if c.v.timer then

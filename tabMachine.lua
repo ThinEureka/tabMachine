@@ -8,7 +8,7 @@ local tabMachine = class("tabMachine")
 tabMachine.context = class("context")
 
 g_t = {}
-g_t.anyOutputVars = {"a1", "a2", "a3", "a4", "a5", "a6", "a7", "a8", "a9", "a10"}
+g_t.anyOutputVars = {"a1", "a2", "a3", "a4", "a5", "a6", "a7", "a8", "a9", "a10", "a11", "a12"}
 
 local context = tabMachine.context
 
@@ -234,11 +234,11 @@ function tabMachine:_pcall(target, f, selfParam, ...)
         curContextInfo.context = target
     end
 
-    local a1, a2, a3, a4, a5, a6, a7, a8, a9, a10 = ...
+    local a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12 = ...
 
 
     local stat, result = xpcall(function()
-        return f(selfParam, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10)
+        return f(selfParam, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12)
     end, on_error)
 
     curContextInfo.context = nil
@@ -521,6 +521,7 @@ function context:start(scName, ...)
 end
 
 function  context:call(tab, scName, outputVars, ...)
+    assert(scName ~= nil)
     local debugger = self._debugger
     if debugger then
         debugger:onTabCall(self, scName, tab)
@@ -549,36 +550,28 @@ function  context:call(tab, scName, outputVars, ...)
 
     subContext:_installTab(tab)
 
-    local subUpdateFunEx, subEventFunEx, subTickFunEx, subFinalFunEx, subCatchFunEx
     if self._tab then
         local commonLabels = self.tm._commonLabelCache[scName]
         if commonLabels then
-            subUpdateFunEx = self._tab[commonLabels.update]
-            subEventFunEx = self._tab[commonLabels.event]
-            subTickFunEx = self._tab[commonLabels.tick]
-            subFinalFunEx = self._tab[commonLabels.final]
-            subCatchFunEx = self._tab[commonLabels.catch]
+            subContext._updateFunEx = self._tab[commonLabels.update]
+            subContext._eventFunEx = self._tab[commonLabels.event]
+            subContext._tickFunEx = self._tab[commonLabels.tick]
+            subContext._finalFunEx = self._tab[commonLabels.final]
+            subContext._catchFunEx = self._tab[commonLabels.catch]
         else
             local labelCache = self._tab._lableCache or self._lableCache
             if labelCache then
                 local labels = labelCache[scName]
                 if labels then
-                    subUpdateFunEx = self._tab[labels.update]
-                    subUpdateIntevalEx = self._tab[labels.updateInterval]
-                    subEventFunEx = self._tab[labels.event]
-                    subTickFunEx = self._tab[labels.tick]
-                    subFinalFunEx = self._tab[labels.final]
-                    subCatchFunEx = self._tab[labels.catch]
+                    subContext._updateFunEx = self._tab[labels.update]
+                    subContext._eventFunEx = self._tab[labels.event]
+                    subContext._tickFunEx = self._tab[labels.tick]
+                    subContext._finalFunEx = self._tab[labels.final]
+                    subContext._catchFunEx = self._tab[labels.catch]
                 end
             end
         end
     end
-
-    subContext._updateFunEx = subUpdateFunEx
-    subContext._eventFunEx = subEventFunEx
-    subContext._tickFunEx = subTickFunEx
-    subContext._finalFunEx = subFinalFunEx
-    subContext._catchFunEx = subCatchFunEx
 
     subContext._outputVars = outputVars
     self:_addSubContext(subContext)
@@ -1001,10 +994,9 @@ function context:stop(scName)
     end
 
     if scName == nil then
-        self:_stopSelf(scName)
+        self:_stopSelf()
     else
         self:_stopSub(scName)
-        self:_checkStop()
     end
 end
 
@@ -1101,23 +1093,24 @@ function context:_checkNext(scName)
     end
 end
 
-function context:_checkStop()
-    -- print("checkStop ", self:_getPath(), self._isEntering,
-    --     " ", self._headSubContext, " ",
-    --     self._updateFun, " ", self._tickFun, " ", self._eventFun, " ")
-
-    if self._isStopped then
-        return
-    end
-
-    if self._headSubContext == nil 
-        and self._updateFun == nil
-        and self._tickFun == nil
-        and self._eventFun == nil 
-        and self._enterCount <= 0 then
-        self:_stopSelf() 
-    end
-end
+-- _checkStop is expanded
+-- function context:_checkStop()
+   -- print("checkStop ", self:_getPath(), self._isEntering,
+   -- " ", self._headSubContext, " ",
+     -- self._updateFun, " ", self._tickFun, " ", self._eventFun, " ")
+--
+    -- if self._isStopped then
+        -- return
+    -- end
+--
+    -- if self._headSubContext == nil
+        -- and self._updateFun == nil
+        -- and self._tickFun == nil
+        -- and self._eventFun == nil
+        -- and self._enterCount <= 0 then
+        -- self:_stopSelf()
+    -- end
+-- end
 
 function context:_update(dt)
     -- inner update first
@@ -1633,7 +1626,15 @@ function context:_notifyStop()
 
     if p and not p._isStopped then
         p:_checkNext(self._name)
-        p:_checkStop()
+        --p:_checkStop()
+        --expand checkStop
+        if p._headSubContext == nil 
+            and p._updateFun == nil
+            and p._tickFun == nil
+            and (p._eventFun == nil or p.pureEvent)
+            and p._enterCount <= 0 then
+            p:_stopSelf() 
+        end
     elseif self._isRoot then
         tm:_onStopped()
     end
@@ -1688,7 +1689,15 @@ function context:_decEnterCount()
 
     self._enterCount = self._enterCount - 1
     if self._enterCount <= 0 then
-        self:_checkStop()
+        --self:_checkStop()
+        --expand checkStop
+        if self._headSubContext == nil 
+            and self._updateFun == nil
+            and self._tickFun == nil
+            and (self._eventFun == nil or self.pureEvent)
+            and self._enterCount <= 0 then
+            self:_stopSelf() 
+        end
     end
 end
 

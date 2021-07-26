@@ -163,6 +163,111 @@ g_t.curve.quintEaseInOut = function (k)
     return 0.5 * (k * k * k * k * k + 2)
 end
 
+g_t.curve.easeInQuart = function(k)
+    return k * k * k * k 
+end
+
+g_t.curve.easeOutQuart = function(k)
+    return 1 - math.pow(1 - k, 4)
+end
+
+g_t.curve.easeInOutQuart = function(k)
+    if k < 0.5 then 
+        return 8 * k * k * k * k 
+    end
+    return 1 - math.pow(-2 * k + 2, 4) / 2
+end
+
+g_t.curve.easeInBack = function(k)
+    local k1 = 1.70158
+    local k2 = k1 + 1
+    return k2 * k * k * k - k1 * k * k
+end
+
+g_t.curve.easeOutBack = function(k)
+    local k1 = 1.70158
+    local k2 = k1 + 1
+    return 1 + k2 * math.pow(k - 1, 3) + k1 * math.pow(k - 1, 2)
+end
+
+g_t.curve.easeInOutBack = function(k)
+    local k1 = 1.70158
+    local k2 = k1 * 1.525;
+
+    k = k * 2
+    if k < 1 then 
+        return 0.5 * (k * k  * ((k2 + 1) * k - k2)) 
+    end
+    k = k - 2
+    return 0.5 * (k * k  * ((k2 + 1) * k + k2) + 2)
+end
+
+g_t.curve.easeInElastic = function(k)
+    local k1 = 2 / 3 * math.pi
+
+    if k == 0  then 
+        return 0 
+    elseif k == 1 then 
+        return 1
+    end
+    return -1 * math.pow(2, 10 * k - 10) * math.sin((k * 10 - 10.75) * k1)
+end
+
+g_t.curve.easeOutElastic = function(k)
+    local k1 =  2 / 3 * math.pi
+    if k == 0 then
+        return 0 
+    elseif k == 1 then 
+        return 1
+    end
+    return math.pow(2, -10 * k) * math.sin((k * 10 - 0.75) * k1) + 1
+end
+
+g_t.curve.easeInOutElastic = function(k)
+    local k1 = 4 / 9 * math.pi 
+    if k == 0 then 
+        return 0 
+    elseif k == 1 then 
+        return 1
+    end
+    k = k * 20
+    if k < 10 then 
+        return - 0.5 * (math.pow(2, k - 10) * math.sin((k - 11.125) * k1)) 
+    end
+    return 0.5 * math.pow(2, -k + 10) * math.sin((k - 11.125) * k1)+ 1
+end
+
+g_t.curve.easeOutBounce = function(k)
+    local k1 = 7.5625;
+    local k2 = 2.75;
+    if (k < 1 / k2) then
+        return k1 * k * k;
+    elseif (k < 2 / k2) then
+        local k = k - 1.5/k2
+        return k1 * k * k + 0.75
+    elseif (k < 2.5 / k2) then
+        local k2 = k - 2.25/k2
+        return k1 * k2 * k2 + 0.9375
+    else 
+        local k3 = k - 2.625/k2
+        return k1 * k3 * k3 + 0.984375
+    end
+end
+
+g_t.curve.easeInBounce = function(k)
+    return 1 - g_t.curve.easeOutBounce(1-k)
+end
+
+g_t.curve.easeInOutBounce = function(k)
+    k = k * 2
+    if k < 1 then 
+        return 0.5 - 0.5 * g_t.curve.easeOutBounce(1 -  k)
+    else
+        return 0.5 + 0.5 * g_t.curve.easeOutBounce(k - 1)
+    end
+end
+
+
 g_t.curve.defaultLine = function (k)
     return k
 end
