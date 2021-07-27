@@ -363,14 +363,14 @@ local parseTimeLineData
 local setNodeAttribute
 ------------示例
 --eParams = {e1=function() ,e2 = function()}
---g_t.timeLine(node, "t=0|t=4,x=200,y=200,sx=0,a=1,r=90,e=e1|t=8,+x=300,+y=300,sx=1,a=255,r=0,e=e2", eParams)
+--g_t.timeline(node, "t=0|t=4,x=200,y=200,sx=0,a=1,r=90,e=e1|t=8,+x=300,+y=300,sx=1,a=255,r=0,e=e2", eParams)
 --timeStr参数说明t为时间节点，x,y,+x,+y为位置参数，s,sx,sy,+s,+sx,+sy为缩放参数，r,+r为角度旋转参数，d,+d为弧度旋转参数
 --a,+a为透明参数，e为回调函数或者tab 
-function g_t.timeLine(node, timeStr, eParam)
+function g_t.timeline(node, timeStr, eParam)
     return {
         s1 = function (c)
             if g_t.debug then
-                c._nickName = "timeLine"
+                c._nickName = "timeline"
             end
             if not c.v.lineData then 
                 c.v.lineData = parseTimeLineData(timeStr, node, eParam)
