@@ -795,7 +795,7 @@ function context:tabWait(scNames, scName)
     return t
 end
 
-function context:tabProxy(scName, stopHostWhenStop)
+function context:tabProxy(scName, stopHostWhenStop, enableAttachEvent)
     return {
         s1 = function(c)
             if g_t.debug then
@@ -821,7 +821,9 @@ function context:tabProxy(scName, stopHostWhenStop)
 
             if c.v.host ~= nil then
                 c.v.host:_addProxy(c)
-                c:_notifyAttachEvent()
+                if enableAttachEvent then
+                    c:_notifyAttachEvent()
+                end
             end
         end,
 
@@ -833,7 +835,9 @@ function context:tabProxy(scName, stopHostWhenStop)
             if type(msg) == "table" and msg.eventType == tabMachine.event_context_enter then
                 c.v.host = msg.target
                 c.v.host:_addProxy(c)
-                c:_notifyAttachEvent()
+                if enableAttachEvent then
+                    c:_notifyAttachEvent()
+                end
                 c:stop("t1")
                 return true
             end
