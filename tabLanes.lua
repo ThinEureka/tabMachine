@@ -247,7 +247,6 @@ g_t.asyncRequireBigFiles = function (modules, depth, maxLines)
         c.v.t1 = socket.gettime()
         local function load()
             local index = 1
-            local sendNum = 0
             local m = {}
             while true do
                 local name = modules[index]
@@ -264,7 +263,6 @@ g_t.asyncRequireBigFiles = function (modules, depth, maxLines)
 
             sendMergeTable = function (t, key)
                 linda:send(nil, "m", {cmd = "mergeTable", key = key})
-                sendNum = (sendNum + 1) % 10
 
                 local unit = {}
 
@@ -275,7 +273,6 @@ g_t.asyncRequireBigFiles = function (modules, depth, maxLines)
 
                     if line >= maxLines then
                         linda:send(nil, "m", {value = unit})
-                        sendNum = (sendNum + 1) % 10
                         line = 0
                         unit = {}
                     end
@@ -283,16 +280,13 @@ g_t.asyncRequireBigFiles = function (modules, depth, maxLines)
 
                 if line ~= 0 then
                     linda:send(nil, "m", {value = unit})
-                    sendNum = (sendNum + 1) % 10
                 end
 
                 linda:send(nil, "m", {isEnd = true})
-                sendNum = (sendNum + 1) % 10
             end
 
             sendTable = function(t, key, curDepth)
                 linda:send(nil, "m", {cmd = "table", key = key})
-                sendNum = (sendNum + 1) % 10
                 for k, v in pairs(t) do
                     if type(v) == "table" then
                         if curDepth + 1 >= depth then 
@@ -302,11 +296,9 @@ g_t.asyncRequireBigFiles = function (modules, depth, maxLines)
                         end
                     else
                         linda:send(nil, "m", {key=k, value = v})
-                        sendNum = (sendNum + 1) % 10
                     end
                 end
                 linda:send(nil, "m", {isEnd = true})
-                sendNum = (sendNum + 1) % 10
             end
             sendTable(m, nil, 0)
         end
