@@ -18,6 +18,43 @@ g_t.waitForLastFrame = {
         local act = c.v.act
         if not tolua.isnull(act) then
             act:setLastFrameCallFunc(g_t.empty_frame)
+            if c.v.setFlag then
+                act:setFrameEventCallFunc(g_t.empty_frame)
+            end
+        end
+    end,
+
+    --public:
+    tabProxyKeyFrame = function (c, keyFrame)
+        c:_setFrameEventCall()
+        local sub = c:getSub(keyFrame)
+        if not sub then
+            c:call(c:tabKeyFrame(keyFrame), keyFrame)
+            sub = c:getSub(keyFrame)
+        end
+        return sub:tabProxy()
+    end,
+
+    -- private:
+    tabKeyFrame = function(c, keyFrame)
+        return {
+            s1 = g_t.empty_fun,
+            event = function(c, event)
+                if type(event) == "table" and 
+                    event.name == "keyFrame" and 
+                    keyFrame == event.frame:getEvent() then 
+                    c:stop()
+                end
+            end,
+        }
+    end,
+
+    _setFrameEventCall = function (c)
+        if not c.v.setFlag then 
+            c.v.setFlag = true
+            c.v.act:setFrameEventCallFunc(function(frame)
+                c:notify({name = "keyFrame", frame = frame})
+            end)
         end
     end,
 

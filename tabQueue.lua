@@ -15,6 +15,7 @@ tabQueue.DUPLICATE_ACTION = {
 
 function tabQueue:s1()
     self._queue = {}
+    self.isOpen = false
 end
 
 function tabQueue:add(tab)
@@ -22,7 +23,7 @@ function tabQueue:add(tab)
     if tab.duplicateAction ~= nil and
          tab.duplicateAction ~= tabQueue.DUPLICATE_ACTION.NONE then
         for index, oldTab in ipairs(self._queue) do
-            if oldTab.tag == tab.tag then
+            if oldTab.duplicateTag == tab.duplicateTag then
                 if tab.duplicateAction == tabQueue.DUPLICATE_ACTION.IGNORE then
                     return
                 elseif tab.duplicateAction == tabQueue.DUPLICATE_ACTION.MERGE 
@@ -49,16 +50,33 @@ function tabQueue:add(tab)
         self:_addToQueueByPriority(newTab)
     end
 
-    if self:getCurTask() == nil then
+    if self:getCurTasks() == nil then
         self:_startNextTask()
     end
+end
+
+function tabQueue:addNow(tab)
+    self.v.delayTaskTime = nil
+    self:call(tab, "t1", {"delayTaskTime"})
 end
 
 function tabQueue:removeAllByTag(tag)
     local index = 1
     while index <= #self._queue do 
-        local tab = self._queue
-        if tab.tag == tag then
+        local tab = self._queue[index]
+        if tab.duplicateTag == tag then
+            table.remove(self._queue, index)
+        else
+            index = index + 1
+        end
+    end
+end
+
+function tabQueue:removeByFilter(filter)
+    local index = 1
+    while index <= #self._queue do 
+        local tab = self._queue[index]
+        if filter(tab) then
             table.remove(self._queue, index)
         else
             index = index + 1
@@ -67,20 +85,50 @@ function tabQueue:removeAllByTag(tag)
 end
 
 function tabQueue:_startNextTask()
+    if not self.isOpen then 
+        return
+    end
     local len = #self._queue
     if len > 0 then
         local tab = self._queue[len]
-        tab.remove(self._queue)
-        self:call(tab, "t1")
+        table.remove(self._queue)
+        self.v.delayTaskTime = nil
+        self:call(tab, "t1", {"delayTaskTime"})
     end
 end
 
 function tabQueue:t2()
-    self:_startNextTask()
+    if not self:getSub("t1") then  
+        if self.v.delayTaskTime and self.v.delayTaskTime > 0 then 
+            self:call(g_t.delay, "t3", nil, self.v.delayTaskTime)
+        else 
+            self:_startNextTask()
+        end
+    end
 end
 
-function tabQueue:getCurTask()
+function tabQueue:t4()
+    if not self:getSub("t1") then
+        self:_startNextTask()
+    end
+end
+
+function tabQueue:getCurTasks()
     return self:getSub("t1")
+end
+
+function tabQueue:openQueue()
+    if self.isOpen then 
+        return
+    end
+    self.isOpen = true
+    if self:getCurTasks() == nil then
+        self:_startNextTask()
+    end
+end
+
+function tabQueue:closeQueue()
+    self.isOpen = false
 end
 
 function tabQueue:_addToQueueByPriority(tab)
@@ -89,11 +137,15 @@ function tabQueue:_addToQueueByPriority(tab)
         local oldTab = self._queue[index]
         if tab.priority > oldTab.priority then
             index = index + 1
+        else
+            break
         end
     end
 
-    table.insert(self._queue, tab ,index)
+    table.insert(self._queue, index, tab)
 end
+
+tabQueue.event = g_t.empty_event
 
 return tabQueue
 

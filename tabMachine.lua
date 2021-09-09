@@ -701,7 +701,7 @@ function context:registerLifeTimeListener(name, listenningContext)
     end
 
     local oldHeadListenInfo = listenningContext._headListenInfo
-    oldListenInfo = oldHeadListenInfo
+    local oldListenInfo = oldHeadListenInfo
     while oldListenInfo ~= nil do
         if oldListenInfo.target == self and oldListenInfo.name == name then
             --duplicate listenning is not allowed

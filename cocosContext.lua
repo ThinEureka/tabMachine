@@ -614,19 +614,19 @@ end
 
 g_t.flowCodeBreak = "break"
 
-g_t.httpGetJson = function (c, url, timeout)
+g_t.httpGetJson = function (url, timeout)
     return {
         s1 = function(c)
             c.v.url = url
             c.v.timeout = timeout or 15
             c.v.xhr = cc.XMLHttpRequest:new()
-            xhr.responseType = cc.XMLHTTPREQUEST_RESPONSE_JSON
-            xhr:setRequestHeader("Content-Type","application/json")
-            xhr:open("GET", c.v.url)
-            xhr.timeout = c.v.timeout 
+            c.v.xhr.responseType = cc.XMLHTTPREQUEST_RESPONSE_JSON
+            c.v.xhr:setRequestHeader("Content-Type","application/json")
+            c.v.xhr:open("GET", c.v.url)
+            c.v.xhr.timeout = c.v.timeout 
 
-            xhr:registerScriptHandler(handler(c, c._onRespond))
-            xhr:send()
+            c.v.xhr:registerScriptHandler(handler(c, c._onRespond))
+            c.v.xhr:send()
         end,
 
         _onRespond = function(c)
@@ -645,6 +645,43 @@ g_t.httpGetJson = function (c, url, timeout)
     }
 end
 
+g_t.httpDownload = function (url, path, timeout)
+    return {
+        s1 = function(c)
+            c.v.url = url
+            c.v.timeout = timeout or 15
+            c.v.xhr = cc.XMLHttpRequest:new()
+            c.v.xhr.responseType = cc.XMLHTTPREQUEST_RESPONSE_STRING
+            c.v.xhr:setRequestHeader("Content-Type","application/json")
+            c.v.xhr:open("GET", c.v.url)
+            c.v.xhr.timeout = c.v.timeout
+
+            c.v.xhr:registerScriptHandler(handler(c, c._onRespond))
+            c.v.xhr:send()
+        end,
+
+        _onRespond = function(c)
+            local writablePath = cc.FileUtils:getInstance():getWritablePath()
+            local retCode = c.v.xhr.status
+            if retCode == 200 then
+                local response = c.v.xhr.response
+                local fullFileName = writablePath .. path
+                local file = io.open(fullFileName, "wb")
+                file:write(response)
+                file:close()
+                c:output(fullFileName)
+                c:stop()
+            else
+                c:output(nil, retCode)
+                c:stop()
+            end
+        end,
+
+        event = g_t.empty_event,
+    }
+end
+
 require("app.common.tabMachine.tabAction")
+require("app.common.tabMachine.tabLanes")
 
 return cocosContext
