@@ -241,10 +241,9 @@ g_t.asyncRequireBigFiles = function (modules, depth, maxLines)
         local linda = lanes.linda()
         c.v.linda = linda
 
-        depth = 1
+        depth = depth or 1
         maxLines = maxLines or 100
 
-        c.v.t1 = socket.gettime()
         local function load()
             local index = 1
             local m = {}
