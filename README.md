@@ -3,5 +3,5 @@ My new solution to high level hierarchical multiple code flows. It aims to supor
 
 A brief introduction in Chinese: [tabMachine简介](https://docs.google.com/document/d/1BM3E1nftmVgsuXWBvm119YKA_Aru3Ko6D-8_9A-HMKI/edit?usp=sharing). 
 
-A detailed introduction to 2.0 version(yet openned) in Chinese [tabMachine 2.0 编程](https://docs.google.com/document/d/1BM3E1nftmVgsuXWBvm119YKA_Aru3Ko6D-8_9A-HMKI/edit?usp=sharing). 
+A detailed introduction to 2.0 version(yet openned) in Chinese ([tabMachine 2.0 编程](https://docs.google.com/document/d/1Lma2r7A-3kHvZAWP7lNTLhfZoQaY2jclpIXb39P68do/edit?usp=sharing)). 
 
