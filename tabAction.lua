@@ -1,32 +1,144 @@
 --author lch
 
 -------------------------------actions -------------------
-
-g_t.waitForLastFrame = {
-    s1 = function(c, act)
-        if g_t.debug then
-            c._nickName = "waitForLastFrame"
-        end
-
-        c.v.act = act
-        act:setLastFrameCallFunc(function()
-            c:stop()
-        end)
+g_t.waitAnimatorStatusChange = _({
+    s1 = function(c, animator, statusName)
+        c._nickName = "waitAnimatorStatusChange"
+        c.animator = animator
+        c.statusName = statusName
+        c.normalizedTimeList = {}
     end,
-
-    final = function(c)
-        local act = c.v.act
-        if not tolua.isnull(act) then
-            act:setLastFrameCallFunc(g_t.empty_frame)
-            if c.v.setFlag then
-                act:setFrameEventCallFunc(g_t.empty_frame)
+    s1_update = function(c)
+        local nextAnimatorStatusInfo = c.animator:GetNextAnimatorStateInfo(0)
+        if not nextAnimatorStatusInfo:IsName(c.statusName) then
+            c:stop("s1")
+        end
+    end,
+    s2 = g_t.empty_fun,
+    s2_update = function(c)
+        local animatorStatusInfo = c.animator:GetCurrentAnimatorStateInfo(0)
+        if not animatorStatusInfo:IsName(c.statusName) then
+            c:stop()
+        end
+        if animatorStatusInfo.normalizedTime >= 1 then
+            c:stop()
+        end
+        for _,normalizedTime in ipairs(c.normalizedTimeList) do
+            if animatorStatusInfo.normalizedTime > normalizedTime then
+                c:stop(normalizedTime + "normalizedTime")
             end
         end
     end,
 
-    --public:
+    tabProxyForNormalizedTime = function(c, normalizedTime)
+        if not c:getSub(normalizedTime + "normalizedTime") then
+            table.insert(c.normalizedTimeList, normalizedTime)
+            c:call(_({
+                s1 = g_t.empty_fun,
+                event = g_t.empty_event,
+            }), normalizedTime + "normalizedTime")
+        end
+        return c:tabProxy(normalizedTime + "normalizedTime")
+    end,
+
+    --public
     tabProxyKeyFrame = function (c, keyFrame)
-        c:_setFrameEventCall()
+        if not c.frameEvent then
+            c.animator:SetFrameEventCallFunc(handler(c, c.keyFrameEventCall))
+            c.frameEvent = true
+        end
+        if not c:getSub(keyFrame) then
+            c:call(c:tabKeyFrame(keyFrame), keyFrame)
+        end
+        return c:tabProxy(keyFrame)
+    end,
+    -- private:
+    tabKeyFrame = function(c)
+        return _({
+            s1 = g_t.empty_fun,
+            event = g_t.empty_event,
+        })
+    end,
+
+    keyFrameEventCall = function(c, keyFrame)
+        c:stop(keyFrame)
+    end,
+})
+
+g_t.waitAniChangeByFrame  = _({
+    s1 = function(c, animator, clipName)
+        c._nickName = "waitAnimatorStatusChange"
+        c.animator = animator
+        c.clipName = clipName
+        c.normalizedTimeList = {}
+        c.animator:AddLastFrameEvent(c.clipName)
+        -- c.animator:SetFrameEventCallFunc(handler(c, c.keyFrameEventCall))
+    end,
+
+    event = g_t.empty_event,
+
+    --public
+    tabProxyKeyFrame = function (c, keyFrame, frameTime)
+        if not c:getSub(keyFrame) then
+            if frameTime then
+                c.animator.AddFrameEvent(c.clipName, keyFrame, frameTime)
+            end
+            c:call(c:tabKeyFrame(keyFrame), keyFrame)
+        end
+        return c:tabProxy(keyFrame)
+    end,
+
+    -- private:
+    tabKeyFrame = function(c)
+        return _({
+            s1 = g_t.empty_fun,
+            event = g_t.empty_event,
+        })
+    end,
+
+    keyFrameEventCall = function(c, keyFrame)
+        if keyFrame == "lastFrame" then
+            c:stop()
+        else
+            c:stop(keyFrame)
+        end
+    end,
+})
+g_t.waitForNormalizedTime = _({
+    s1 = function(c, animator, statusName, normalizedTime)
+        c.normalizedTime = normalizedTime
+        c.animator = animator
+        c.statusName = statusName
+    end,
+    s1_update = function(c)
+        local animatorStatusInfo = c.animator:GetCurrentAnimatorStateInfo(0)
+        if animatorStatusInfo:IsName(c.statusName) then 
+            c:stop("s1")
+        end
+    end,
+    s2 = g_t.empty_fun,
+    s2_update = function(c)
+        local animatorStatusInfo = c.animator:GetCurrentAnimatorStateInfo(0)
+        if not animatorStatusInfo:IsName(c.statusName) or animatorStatusInfo.normalizedTime >= c.normalizedTime then
+            c:stop("s2")
+        end
+    end,
+})
+
+g_t.waitForLastFrame = _({
+    s1 = function(c, animation)
+        c._nickName = "waitForLastFrame"
+        c.animation = animation
+    end,
+
+    s1_update = function(c)
+        if not c.animation.isPlaying then 
+            c:stop()
+        end
+    end,
+
+    --public
+    tabProxyKeyFrame = function (c, keyFrame)
         local sub = c:getSub(keyFrame)
         if not sub then
             c:call(c:tabKeyFrame(keyFrame), keyFrame)
@@ -34,34 +146,28 @@ g_t.waitForLastFrame = {
         end
         return sub:tabProxy()
     end,
-
     -- private:
     tabKeyFrame = function(c, keyFrame)
-        return {
+        return _({
             s1 = g_t.empty_fun,
-            event = function(c, event)
-                if type(event) == "table" and 
-                    event.name == "keyFrame" and 
-                    keyFrame == event.frame:getEvent() then 
-                    c:stop()
+            event = {
+                keyFrame = function(c, frame)
+                    if keyFrame == frame then
+                        c:stop()
+                    end
                 end
-            end,
-        }
+            },
+        })
     end,
 
-    _setFrameEventCall = function (c)
-        if not c.v.setFlag then 
-            c.v.setFlag = true
-            c.v.act:setFrameEventCallFunc(function(frame)
-                c:notify({name = "keyFrame", frame = frame})
-            end)
-        end
+    keyFrameEventCall = function(c, keyFrame)
+        c:notify("keyFrame", keyFrame)
     end,
 
     event = g_t.empty_event,
-}
+})
 
-g_t.waitForAct = {
+g_t.waitForAct = _({
     s1 = function (c, node, act)
         if g_t.debug then
             c._nickName = "waitForAct"
@@ -77,11 +183,11 @@ g_t.waitForAct = {
         c:stop()
     end,
     event = g_t.empty_event,
-}
+})
 
-g_t.playSpineAnimation = {
+g_t.playSpineAnimation = _({
     s1 = function(c, spine, animationName)
-        c.v.spine = spine
+        c.spine = spine
         spine:registerSpineEventHandler(function (data)
             if data.type == spEventTypeString.SP_ANIMATION_COMPLETE 
                 and animationName == data.animation then
@@ -92,13 +198,14 @@ g_t.playSpineAnimation = {
     end,
 
     final = function(c)
-        local spine = c.v.spine
+        local spine = c.spine
         if not tolua.isnull(spine) then
             spine:unregisterSpineEventHandler(sp.EventType.ANIMATION_COMPLETE)
         end
     end,
     event = g_t.empty_event,
-}
+})
+local math_pow = math.pow or function(x, y) return x^y end
 
 g_t.curve = {}
 g_t.curve.circleEaseOut = function(k)
@@ -171,7 +278,7 @@ g_t.curve.sineEaseInOut = function (k)
 end
 
 g_t.curve.expoEaseIn = function (k)
-    return math.pow(2, 10*(k-1))
+    return math_pow(2, 10*(k-1))
 end
 
 g_t.curve.expoEaseOut = function (k)
@@ -205,14 +312,14 @@ g_t.curve.easeInQuart = function(k)
 end
 
 g_t.curve.easeOutQuart = function(k)
-    return 1 - math.pow(1 - k, 4)
+    return 1 - math_pow(1 - k, 4)
 end
 
 g_t.curve.easeInOutQuart = function(k)
     if k < 0.5 then 
         return 8 * k * k * k * k 
     end
-    return 1 - math.pow(-2 * k + 2, 4) / 2
+    return 1 - (-2 * k + 2)^ 4 / 2
 end
 
 g_t.curve.easeInBack = function(k)
@@ -224,7 +331,7 @@ end
 g_t.curve.easeOutBack = function(k)
     local k1 = 1.70158
     local k2 = k1 + 1
-    return 1 + k2 * math.pow(k - 1, 3) + k1 * math.pow(k - 1, 2)
+    return 1 + k2 * math_pow(k - 1, 3) + k1 * math_pow(k - 1, 2)
 end
 
 g_t.curve.easeInOutBack = function(k)
@@ -247,17 +354,17 @@ g_t.curve.easeInElastic = function(k)
     elseif k == 1 then 
         return 1
     end
-    return -1 * math.pow(2, 10 * k - 10) * math.sin((k * 10 - 10.75) * k1)
+    return -1 * math_pow(2, 10 * k - 10) * math.sin((k * 10 - 10.75) * k1)
 end
 
 g_t.curve.easeOutElastic = function(k)
     local k1 =  2 / 3 * math.pi
     if k == 0 then
         return 0 
-    elseif k == 1 then 
+    elseif k == 1 then
         return 1
     end
-    return math.pow(2, -10 * k) * math.sin((k * 10 - 0.75) * k1) + 1
+    return math_pow(2, -10 * k) * math.sin((k * 10 - 0.75) * k1) + 1
 end
 
 g_t.curve.easeInOutElastic = function(k)
@@ -269,9 +376,9 @@ g_t.curve.easeInOutElastic = function(k)
     end
     k = k * 20
     if k < 10 then 
-        return - 0.5 * (math.pow(2, k - 10) * math.sin((k - 11.125) * k1)) 
+        return - 0.5 * (math_pow(2, k - 10) * math.sin((k - 11.125) * k1)) 
     end
-    return 0.5 * math.pow(2, -k + 10) * math.sin((k - 11.125) * k1)+ 1
+    return 0.5 * math_pow(2, -k + 10) * math.sin((k - 11.125) * k1)+ 1
 end
 
 g_t.curve.easeOutBounce = function(k)
@@ -304,45 +411,44 @@ g_t.curve.easeInOutBounce = function(k)
     end
 end
 
-
 g_t.curve.defaultLine = function (k)
     return k
 end
 
-g_t.tween =  {
+g_t.tween = _({
     s1 = function(c, fun, v1, v2, duration, curve)
         if g_t.debug then
             c._nickName =  "tween"
         end
         fun(v1)
-        c.v.time = 0
-        c.v.duration = duration
-        c.v.v1 = v1
-        c.v.v2 = v2
-        c.v.fun = fun
-        c.v.curve = curve
+        c.time = 0
+        c.duration = duration
+        c.v1 = v1
+        c.v2 = v2
+        c.fun = fun
+        c.curve = curve
     end,
 
     s1_update = function(c, dt)
-        c.v.time = c.v.time + dt
-        if c.v.time > c.v.duration then
+        c.time = c.time + dt
+        if c.time > c.duration then
             c:stop("s1")
             return
         end
 
-        local rate = c.v.time / c.v.duration
+        local rate = c.time / c.duration
         local v
-        if c.v.curve and type(c.v.curve) == "function" then
-            local tempRate = c.v.curve(rate)
-            v = (c.v.v2 - c.v.v1)*tempRate + c.v.v1
+        if c.curve and type(c.curve) == "function" then
+            local tempRate = c.curve(rate)
+            v = (c.v2 - c.v1)*tempRate + c.v1
         else
-            v = c.v.v1 * (1.0 - rate) + c.v.v2 * rate
+            v = c.v1 * (1.0 - rate) + c.v2 * rate
         end
-        c.v.fun(v)
+        c.fun(v)
     end,
 
     s2 = function(c)
-        c.v.fun(c.v.v2)
+        c.fun(c.v2)
     end,
 
     _preCal = function(v1, v2, curDuration, duration, curve)
@@ -356,44 +462,197 @@ g_t.tween =  {
         end
         return v
     end
-}
+})
 
-g_t.printText = {
-    s1 = function(c,labNode,word,interval)
+--二阶
+g_t.curve.bezierOnePoint = function(t, p0, p1, p2)
+    local p0p1 = p0 * (1 - t) + p1 * t
+    local p1p2 = p1 * (1 - t) + p2 * t
+    local result = p0p1 * (1 - t) + p1p2 * t
+    return result
+end
+
+--三阶
+g_t.curve.bezierTwoPoint = function(k)
+    local p0_1 = Vector3.Lerp(p0,p1,t)
+    local p1_2 = Vector3.Lerp(p1,p2,t)
+    local p2_3 = Vector3.Lerp(p2,p3,t)
+    local p0_1_1_2 = Vector3.Lerp(p0_1,p1_2,t)
+    local p1_2_2_3 = Vector3.Lerp(p1_2,p2_3,t)
+    local p0_1_1_2_1_2_2_3 = Vector3.Lerp(p0_1_1_2,p1_2_2_3,t)
+    return p0_1_1_2_1_2_2_3
+end
+
+g_t.bezier = _({
+    s1 = function(c, fun, v1, v2, duration, curve, points)
+        if g_t.debug then
+            c._nickName =  "bezier"
+        end
+        fun(v1)
+        c.time = 0
+        c.duration = duration
+        c.v1 = v1
+        c.v2 = v2
+        c.fun = fun
+        c.curve = curve
+        c.points = points
+    end,
+
+    s1_update = function(c, dt)
+        c.time = c.time + dt
+        if c.time > c.duration then
+            c:stop("s1")
+            return
+        end
+
+        local rate = c.time / c.duration
+        local v
+        if c.curve and type(c.curve) == "function" and type(c.points) == "table" then
+            if (#c.points == 1) then
+                v = c.curve(rate, c.v1, c.points[1], c.v2)
+            elseif (#point == 2) then
+                v = c.curve(rate, c.v1, c.points[1], c.points[2], c.v2)
+            end
+        else
+            printError("bezier param is error")
+        end
+        c.fun(v)
+    end,
+
+    s2 = function(c)
+        c.fun(c.v2)
+    end,
+})
+
+g_t.printText = _({
+    s1 = function(c, labNode, word, interval)
         print("tabPrintText==========", word, interval)
-        c.v.word = word or ""
-        c.v.index = 0
-        c.v.t = 0
-        c.v.interval = interval or 0.1
-        c.v.wordCount = SubStringGetTotalIndex(word)
-        c.v.labelNode = labNode
-        dump(c.v.wordCount,"c.v.wordCountc.v.wordCount")
-        if c.v.wordCount > 1 then
-            local subWord = SubStringUTF8(c.v.word, 1, 1)
-              c.v.labelNode:setString(subWord)
+        c.word = word or ""
+        c.index = 0
+        c.t = 0
+        c.interval = interval or 0.1
+        c.wordCount = str_util.subStringGetTotalIndex(word)
+        c.labelNode = labNode
+        if c.wordCount > 1 then
+            local subWord = str_util.subStringUTF8(c.word, 1, 1)
+              c.labelNode:setString(subWord)
         end
     end,
     s1_update = function(c, dt)
-        c.v.t = c.v.t + dt
-        if c.v.t >= c.v.interval then
-            c.v.t = c.v.t - c.v.interval
-            c.v.index = c.v.index + 1
-            print(c.v.index ,"c.v.index c.v.index ")
-            if c.v.index <= c.v.wordCount then
-                local subWord = SubStringUTF8(c.v.word, 1, c.v.index)
-
-                if not tolua.isnull(  c.v.labelNode) then
-                      c.v.labelNode:setString(subWord)
-                end
-            else
-                c:stop()
+        c.index = c.index + 1
+        if c.index <= c.wordCount then
+            local subWord = str_util.subStringUTF8(c.word, 1, c.index)
+            if not tolua.isnull(c.labelNode) then
+                c.labelNode:setString(subWord)
             end
+        else
+            c:stop()
         end
     end,
+    s1_updateInterval = interval,
     final = function(c)
        -- labNode = nil
     end
-}
+})
+
+g_t.printTextEx = _({
+    s1 = function(c, labNode, word, interval, needUpwardNotify)
+        labNode:setData(word)
+        c.labCom = labNode:com(ct.text)
+        c.curCount = 0
+        c.labCom.maxVisibleCharacters = c.curCount
+        c.needUpwardNotify = needUpwardNotify
+        c:setDynamics("s3", "updateInterval", interval or 0.1)
+        c:call(g_t.skipFrames, "s2", nil, 1)
+    end,
+    s3 = function(c)
+        c.maxCount = c.labCom.textInfo.characterCount
+        if (c.needUpwardNotify) then
+            c:upwardNotify("onLabSizeFix")
+        end
+    end,
+    s3_update = function(c)
+        if c.curCount > c.maxCount then
+            c:stop("s3")
+            return
+        end
+        c.curCount = c.curCount + 1
+        c.labCom.maxVisibleCharacters = c.curCount
+    end,
+    --overwrite in s1 setDynamics(s3)
+    s3_updateInterval = nil,
+    final = function(c)
+        if (c.maxCount) then
+            c.labCom.maxVisibleCharacters = c.maxCount
+        end
+    end
+})
+
+g_t.timeline_anim = _({
+    s1 = function(c, nodeList, timeLineConfig, anim)
+        require("gameFlow.timeline.timeline_util")
+        if g_t.debug then
+            c._nickName = "timeline_anim"
+        end
+        local fps = timeLineConfig.fps
+        local animConfigs = timeLineConfig[anim]
+        for _, v in pairs(nodeList) do
+            local name = v.name
+            local go = v.go
+            local animConfig = animConfigs[name]
+            local loop = animConfigs.loop
+            for key, attrCfg in pairs(animConfig) do
+                c:call(c.playNode(key, attrCfg, go, loop, fps), "playNode" .. name .. key)
+            end
+        end
+    end,
+
+    playNode = _({
+        s1 = function(c, key, attrCfg, go, loop, fps)
+            c.key = key
+            c.object = go
+            c.loop = loop
+            c.frameDatas = timeline_util.parseFrameNodeConfig(attrCfg)
+            c.totalCount = #c.frameDatas
+            c.index = 1
+            c.nextIndex = c.index + 1
+            c.time = 0
+        end,
+        s2 = function(c)
+            c.curFrame = c.frameDatas[c.index]
+            c.nextFrame = c.frameDatas[c.nextIndex]
+            c.beginTime = c.curFrame.time
+            c.beginValue = c.curFrame.value
+            c.endTime = c.nextFrame.time
+            c.endValue = c.nextFrame.value
+            c.curveType = c.curFrame.curve and g_t.curve[c.curFrame.curve] or g_t.curve.defaultLine
+        end,
+        s2_update = function(c, deltaTime)
+            c.time = c.time + deltaTime
+            local progress = math.min(1, (c.time - c.beginTime)/(c.endTime - c.beginTime))
+            progress = c.curveType(progress)
+            local value = (c.endValue - c.beginValue) * progress + c.beginValue
+            timeline_util.setObjectClipFrame(c.key, c.object, value)
+            if c.time >= c.endTime then
+                c:stop("s2")
+            end
+        end,
+        s3 = function(c)
+            c.index = c.index + 1
+            c.nextIndex = c.index + 1
+            if c.nextIndex <= c.totalCount then
+                c:start("s2")
+            elseif c.loop and c.loop == 1 then
+                c.index = 1
+                c.nextIndex = c.index + 1
+                c.time = 0
+                c:start("s2")
+            else
+                c:stop()
+            end
+        end,
+    })
+})
 
 local getNodeAttribute
 local parseTimeLineData
@@ -403,149 +662,195 @@ local setNodeAttribute
 --g_t.timeline(node, "t=0|t=4,x=200,y=200,sx=0,a=1,r=90,e=e1|t=8,+x=300,+y=300,sx=1,a=255,r=0,e=e2", eParams)
 --timeStr参数说明t为时间节点，x,y,+x,+y为位置参数，s,sx,sy,+s,+sx,+sy为缩放参数，r,+r为角度旋转参数，d,+d为弧度旋转参数
 --a,+a为透明参数，e为回调函数或者tab 
-function g_t.timeline(node, timeStr, eParam)
-    return {
-        s1 = function (c)
+
+-- {x y +x +y lx, ly +lx, +ly 未位置参数， s,sx,sy,+s,+sx,+sy}
+function g_t.timeline(goTable, operateTable)
+    return _({
+        s1 = function(c)
             if g_t.debug then
                 c._nickName = "timeline"
             end
-            if not c.v.lineData then 
-                c.v.lineData = parseTimeLineData(timeStr, node, eParam)
-            end 
-            if not c.v.time then 
-                c.v.time = 0
-            end
-            c.v.curData = table.remove(c.v.lineData, 1)
-            if not c.v.curData then 
+            c.time = 0
+            c.lineData = parseTimeLineData(operateTable)
+        end,
+        s2 = function(c)
+            c.curData = table.remove(c.lineData, 1)
+            if not c.curData then 
                 c:stop()
             end
         end,
-
-        s2 = function (c)
-            c.v.nodeAttribute = getNodeAttribute(node, c.v.curData)
+        s3 = function(c)
+            c.nodeAttribute = getNodeAttribute(goTable, c.curData.animation)
         end,
-
-        s2_update = function (c, dt)
-            c.v.time = c.v.time + dt
-            setNodeAttribute(node, c.v.nodeAttribute, c.v.curData, c.v.time)
-            if c.v.time >= c.v.curData.t then 
-                if c.v.curData.e then 
-                    if type(c.v.curData.e) == "function" then 
-                        c.v.curData.e()
-                    elseif type(c.v.curData.e) == "table" then 
-                        c:call(c.v.curData.e, "e")
+        s3_update = function(c, dt)
+            c.time = c.time + dt
+            setNodeAttribute(goTable, c.nodeAttribute, c.curData, operateTable, c.time)
+            if c.time >= c.curData.animation.t then 
+                if c.curData.animation.f then 
+                    if type(c.curData.animation.f) == "function" then 
+                        c.curData.animation.f(c, goTable)
+                    elseif type(c.curData.animation.f) == "table" then 
+                        c:call(c.curData.animation.f(goTable), "f")
                     end 
                 end 
-                c:stop("s2")
-            end 
+                c:stop("s3")
+            end
         end,
-
-        s3 = function (c)
-            c:start("s1")
+        s4 = function(c)
+            c:start("s2")
         end,
-    }
+    })
 end
 
-setNodeAttribute = function (node, oldAttribute, finalAttribute, curTime)
-    local rate = 1
-    if finalAttribute.time > 0 then 
-        rate = (finalAttribute.time - math.max(finalAttribute.t - curTime,0)) / finalAttribute.time
-        if finalAttribute.curve then
-            if g_t.curve[finalAttribute.curve] then 
-                rate = g_t.curve[finalAttribute.curve](rate)
+parseTimeLineData = function(operateTable)
+    local count = 1
+    local list = {}
+    local custom = {}
+    local preValue = 0 
+    for index, v in ipairs(operateTable) do
+        if not v.curve then 
+            list[count] = {
+                animation = v,
+            }
+            custom = {}
+            for type, value in pairs(v) do
+                if operateTable[type] then 
+                    preValue = 0
+                    for i = math.max(index - 1, 1), 1, -1 do 
+                        if operateTable[i][type] then 
+                            preValue = operateTable[i][type]
+                            break
+                        end
+                    end
+                    custom[type] = {preValue = preValue, value = value }
+                end
             end
+            list[count].custom = custom
+            if operateTable[index + 1] and operateTable[index + 1].curve then 
+                list[count].curve = operateTable[index + 1].curve 
+            end
+            count = count + 1
+        end
+    end
+    for i, v in ipairs(list) do
+        v.timeInterval = list[i - 1] and v.animation.t - list[i - 1].animation.t or v.animation.t
+    end
+    return list
+end
+
+getNodeAttribute = function (goTable, curData, operateTable, custom)
+    local data = {}
+    if curData.x or curData["+x"] then 
+        data.x = goTable:getLocalPositionX()
+    end 
+    if curData.y or curData["+y"] then 
+        data.y = goTable:getLocalPositionY()
+    end
+    if curData.s or curData["+s"] then 
+        data.s = goTable:getScale()
+    end
+    -- if curData.r or curData["+r"] then 
+    --     data.r = node:getRotation()
+    -- end 
+    if curData.a or curData["+a"] then 
+        data.a = goTable:getOpacity()
+    end 
+    -- if curData.d or curData["+d"] then 
+    --     data.d = node:getRotation()*3.1415/180
+    -- end
+    if curData.sx or curData["+sx"] then 
+        data.sx = goTable:getScaleX()
+    end
+    if curData.sy or curData["+sy"] then 
+        data.sy = goTable:getScaleY()
+    end
+    if curData.w then
+        data.w, data.h = goTable:getSizeDelta()
+    end
+    -- if curData.cr then
+    --     local color = node:getColor()
+    --     data.cr = color.r
+    -- end
+    -- if curData.cg then
+    --     local color = node:getColor()
+    --     data.cg = color.g
+    -- end
+    -- if curData.cb then
+    --     local color = node:getColor()
+    --     data.cb = color.b
+    -- end
+    return data
+end
+
+
+setNodeAttribute = function(goTable, oldAttribute, operateData, operateTable, curTime)
+    local rate = 1
+    local finalAttribute = operateData.animation
+    if finalAttribute.t > 0 then 
+        rate = (operateData.timeInterval - math.max(finalAttribute.t - curTime,0)) / operateData.timeInterval
+        if operateData and operateData.curve then
+            rate = operateData.curve(rate)
         end
     end
     if finalAttribute.x or finalAttribute["+x"] then 
         local addX = finalAttribute.x and (finalAttribute.x - oldAttribute.x) or finalAttribute["+x"]
         local x = oldAttribute.x + addX * rate
-        node:setPositionX(x)
+        goTable:setLocalPositionX(x)
     end
     if finalAttribute.y or finalAttribute["+y"] then 
         local addY = finalAttribute.y and (finalAttribute.y - oldAttribute.y ) or finalAttribute["+y"]
         local y = oldAttribute.y + addY * rate
-        node:setPositionY(y)
+        goTable:setLocalPositionY(y)
     end 
     if finalAttribute.s or finalAttribute["+s"] then 
         local addS = finalAttribute.s and (finalAttribute.s - oldAttribute.s ) or finalAttribute["+s"]
         local s = oldAttribute.s + addS * rate 
-        node:setScale(s)
+        goTable:setScale(s)
     end 
-    if finalAttribute.r or finalAttribute["+r"] then 
-        local addR = finalAttribute.r and (finalAttribute.r - oldAttribute.r ) or finalAttribute["+r"]
-        local r = oldAttribute.r + addR * rate
-        node:setRotation(r)
-    end 
+    -- if finalAttribute.r or finalAttribute["+r"] then 
+    --     local addR = finalAttribute.r and (finalAttribute.r - oldAttribute.r ) or finalAttribute["+r"]
+    --     local r = oldAttribute.r + addR * rate
+    --     node:setRotation(r)
+    -- end 
     if finalAttribute.a or finalAttribute["+a"] then
         local addA = finalAttribute.a and (finalAttribute.a - oldAttribute.a ) or finalAttribute["+a"]
         local a = oldAttribute.a + addA * rate
-        node:setOpacity(a)
+        goTable:setOpacity(a)
     end 
-    if finalAttribute.d or finalAttribute["+d"] then 
-        local addD = finalAttribute.d and (finalAttribute.d - oldAttribute.d ) or finalAttribute["+d"]
-        local d = oldAttribute.d + addD * rate
-        node:setRotation(d*180/3.1415)
-    end
+    -- if finalAttribute.d or finalAttribute["+d"] then 
+    --     local addD = finalAttribute.d and (finalAttribute.d - oldAttribute.d ) or finalAttribute["+d"]
+    --     local d = oldAttribute.d + addD * rate
+    --     node:setRotation(d*180/3.1415)
+    -- end
     if finalAttribute.sx or finalAttribute["+sx"] then 
         local addSx = finalAttribute.sx and (finalAttribute.sx - oldAttribute.sx ) or finalAttribute["+sx"]
         local sx = oldAttribute.sx + addSx * rate
-        node:setScaleX(sx)
+        goTable:setScaleX(sx)
     end 
     if finalAttribute.sy or finalAttribute["+sy"] then 
         local addSy = finalAttribute.sy and (finalAttribute.sy - oldAttribute.sy ) or finalAttribute["+sy"]
         local sy = oldAttribute.sy + addSy * rate
-        node:setScaleY(sy)
+        goTable:setScaleY(sy)
     end 
-    if finalAttribute.cr and finalAttribute.cg and finalAttribute.cb then
-        local addR = finalAttribute.cr and (finalAttribute.cr - oldAttribute.cr )
-        local addG = finalAttribute.cg and (finalAttribute.cg - oldAttribute.cg )
-        local addB = finalAttribute.cb and (finalAttribute.cb - oldAttribute.cb )
-        local cr = oldAttribute.cr + addR * rate
-        local cg = oldAttribute.cg + addG * rate
-        local cb = oldAttribute.cb + addB * rate
-        node:setColor(cc.c3b(cr, cg, cb))
+    if finalAttribute.w then
+        local addW = finalAttribute.w and (finalAttribute.w - oldAttribute.w )
+        local sw = oldAttribute.w + addW * rate
+        goTable:setSizeDelta(sw, oldAttribute.h)
     end
-end
-
-getNodeAttribute = function (node, curData)
-    local data = {}
-    if curData.x or curData["+x"] then 
-        data.x = node:getPositionX()
-    end 
-    if curData.y or curData["+y"] then 
-        data.y = node:getPositionY()
+    -- if finalAttribute.cr and finalAttribute.cg and finalAttribute.cb then
+    --     local addR = finalAttribute.cr and (finalAttribute.cr - oldAttribute.cr )
+    --     local addG = finalAttribute.cg and (finalAttribute.cg - oldAttribute.cg )
+    --     local addB = finalAttribute.cb and (finalAttribute.cb - oldAttribute.cb )
+    --     local cr = oldAttribute.cr + addR * rate
+    --     local cg = oldAttribute.cg + addG * rate
+    --     local cb = oldAttribute.cb + addB * rate
+    --     node:setColor(cc.c3b(cr, cg, cb))
+    -- end
+    for type, customValue in pairs(operateData.custom) do
+        local addCustom = customValue.value - customValue.preValue
+        local addValue = customValue.preValue + addCustom * rate
+        operateTable[type](addValue)
     end
-    if curData.s or curData["+s"] then 
-        data.s = node:getScale()
-    end
-    if curData.r or curData["+r"] then 
-        data.r = node:getRotation()
-    end 
-    if curData.a or curData["+a"] then 
-        data.a = node:getOpacity()
-    end 
-    if curData.d or curData["+d"] then 
-        data.d = node:getRotation()*3.1415/180
-    end
-    if curData.sx or curData["+sx"] then 
-        data.sx = node:getScaleX()
-    end
-    if curData.sy or curData["+sy"] then 
-        data.sy = node:getScaleY()
-    end
-    if curData.cr then
-        local color = node:getColor()
-        data.cr = color.r
-    end
-    if curData.cg then
-        local color = node:getColor()
-        data.cg = color.g
-    end
-    if curData.cb then
-        local color = node:getColor()
-        data.cb = color.b
-    end
-    return data
 end
 
 local function splitStr(inputstr, sep)
@@ -557,40 +862,6 @@ local function splitStr(inputstr, sep)
     return t
 end
 
-parseTimeLineData = function ( str, node, eParam)
-    local tempData = splitStr(str, "|")
-    local lineData = {}
-    for k,v in ipairs(tempData) do
-        local result = {}
-        local data = splitStr(v, ",")
-        for _,str in ipairs(data) do 
-            local pos = string.find(str, "=")
-            local key = string.sub(str, 1, pos - 1)
-            local value = string.sub(str, pos+1, string.len(str))
-            if key == "curve" then
-                value = value
-            elseif key ~= "e" then 
-                value = tonumber(value)
-            else 
-                value = eParam[value]
-            end  
-            result[key] = value
-        end 
-        table.insert(lineData,result)
-    end 
-
-    for k,v in ipairs(lineData) do 
-        local key = k - 1
-        if lineData[key] then
-            v.time = v.t - lineData[key].t 
-        else 
-            v.time = v.t
-        end
-    end
-    -- dump(lineData,"g_t.parseTimeLineData") 
-    return lineData
-end
-
 -- 由于数组起始索引lua和c++有所不同，代码有做适当改动
 -- node：
 --     1.为node时自动改变节点位置
@@ -599,27 +870,27 @@ function g_t.catmullRom(node, duration, points, needAutoRotation)
     assert(type(points) == "table", "points must be array")
     assert(#points > 1, "point num must greater than 1")
     assert(duration > 0, "duration must greater than zero!")
-    return {
+    return _({
         s1 = function(c)
             if g_t.debug then
                 c._nickName = "catmullRom"
             end
-            c.v.deltaT = 1 / (#points - 1)
-            c.v.elapsed = 0
-            c.v.dir = cc.p(0, 0)
+            c.deltaT = 1 / (#points - 1)
+            c.elapsed = 0
+            c.dir = cc.p(0, 0)
             if node and type(node) == "userdata" then
                 local x, y = node:getPosition()
-                c.v.pos = cc.p(x, y)
+                c.pos = cc.p(x, y)
             else
-                c.v.pos = points[1]
+                c.pos = points[1]
             end
         end,
 
         update = function(c, deltaTime)
             local p;
             local lt;
-            c.v.elapsed = c.v.elapsed + deltaTime
-            local time = c.v.elapsed / (duration > 0 and duration or 1.4e-45)
+            c.elapsed = c.elapsed + deltaTime
+            local time = c.elapsed / (duration > 0 and duration or 1.4e-45)
             local reached = false
             if time >= 1 then
                 reached = true
@@ -629,8 +900,8 @@ function g_t.catmullRom(node, duration, points, needAutoRotation)
                 p = #points
                 lt = 1
             else 
-                p = math.floor(time / c.v.deltaT)
-                lt = (time - c.v.deltaT * p) / c.v.deltaT
+                p = math.floor(time / c.deltaT)
+                lt = (time - c.deltaT * p) / c.deltaT
                 p = p + 1
             end
     
@@ -640,7 +911,7 @@ function g_t.catmullRom(node, duration, points, needAutoRotation)
             local pp2 = c:_getControlPointAtIndex(p + 1)
             local pp3 = c:_getControlPointAtIndex(p + 2)
             local newPos = c:_cardinalSplineAt(pp0, pp1, pp2, pp3, lt)
-            c.v.pos = newPos
+            c.pos = newPos
             if node and not tolua.isnull(node) then
                 node:setPosition(newPos)
             end
@@ -648,7 +919,7 @@ function g_t.catmullRom(node, duration, points, needAutoRotation)
                 -- 获取方向
                 if needAutoRotation then
                     local dir = c:_dirAt(pp0, pp1, pp2, pp3, lt)
-                    c.v.dir = dir
+                    c.dir = dir
                     if node and not tolua.isnull(node) then
                         local angle = math.radian2angle(math.atan2(dir.y, dir.x))
                         node:setRotation(-angle)
@@ -661,11 +932,11 @@ function g_t.catmullRom(node, duration, points, needAutoRotation)
         end,
 
         getCurPos = function(c)
-            return c.v.pos
+            return c.pos
         end,
 
         getDir = function (c)
-            return c.v.dir
+            return c.dir
         end,
 
         _cardinalSplineAt = function (c, p0, p1, p2, p3, t)
@@ -702,7 +973,7 @@ function g_t.catmullRom(node, duration, points, needAutoRotation)
             return points[util.clampf(index, 1, #points)]
         end,
 
-    }
+    })
 end
 
 return cocosContext

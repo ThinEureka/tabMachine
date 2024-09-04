@@ -5,54 +5,82 @@
 
 local tabDebugger = class("tabDebugger")
 
-function tabDebugger:ctor()
+function tabDebugger:ctor(traceback)
+    self._traceback =  traceback
 end
 
 function tabDebugger:onMachineStart(machine, scName)
-    print("start machine")
+    local msg = g_frameIndex .. " tab start machine"  
+    if self._traceback then
+        msg = msg .. "\n" .. debug.traceback()
+    end
+    print(msg)
 end
 
 function tabDebugger:onContextStart(context, scName)
-    print("start ",  self:_getContextPath(context).. "." ..scName)
+    local msg = g_frameIndex .. " tab start " ..  context:getDetailedPath(context) .. "." .. scName
+    if self._traceback then
+        msg = msg .. "\n" .. debug.traceback()
+    end
+    print(msg)
+end
+
+function tabDebugger:onContextQuit(context)
+    local msg = g_frameIndex .. " tab quit " ..  context:getDetailedPath(context)
+    if self._traceback then
+        msg = msg .. "\n" .. debug.traceback()
+    end
+    print(msg)
 end
 
 function tabDebugger:onContextStop(context)
-    print("stop ",  self:_getContextPath(context))
+    local msg = g_frameIndex .. " tab stop " ..  context:getDetailedPath(context)
+    if self._traceback then
+        msg = msg .. "\n" .. debug.traceback()
+    end
+    print(msg)
 end
 
 function tabDebugger:onContextException(context, exception)
-    print("throw exception ",  self:_getContextPath(context))
+    local msg = g_frameIndex .. " tab throw exception " ..  context:getDetailedPath(context)
+    if self._traceback then
+        msg = msg .. "\n" .. debug.traceback()
+    end
+    print(msg)
 end
 
 function tabDebugger:onTabCall(context, scName, tabName)
-    print("call ",  self:_getContextPath(context).. "." ..scName)
-end
-
-function tabDebugger:_getContextPath(context)
-    local c = context
-    local name = nil
-    while c do
-        local partName = c._name
-
-        if c.__cname and c.__cname ~= "cocosContext" then
-            partName = partName .. "(" .. c.__cname .. ")"
-        end
-
-        if c._nickName then
-            partName = partName .. "[" .. c._nickName .. "]"
-        end
-
-        if name == nil then
-            name = partName
-        else
-            name = partName .. "." .. name
-        end
-
-        c = c._pp
+    local msg = g_frameIndex .. " tab call " ..  context:getDetailedPath(context) .. "." .. scName
+    if self._traceback then
+        msg = msg .. "\n" .. debug.traceback()
     end
-
-    return name
+    print(msg)
 end
 
+function tabDebugger:onTabJoin(context, scName, scNames)
+    local joins = table.concat(scNames, "")
+    local msg = g_frameIndex .. " tab join " .. context:getDetailedPath(context) .. "." .. scName .. " " .. joins
+    if self._traceback then
+        msg = msg .. "\n" .. debug.traceback()
+    end
+    print(msg)
+end
+
+function tabDebugger:onTabSuspend(context, scName)
+    local msg = g_frameIndex .. " tab suspend " ..  context:getDetailedPath(context) .. "." .. scName
+    if self._traceback then
+        msg = msg .. "\n" .. debug.traceback()
+    end
+    print(msg)
+end
+
+function tabDebugger:onTabResume(context, scName)
+    -- TODO
+    local msg = g_frameIndex .. " tab resume " ..  context:getDetailedPath(context) .. "." .. scName
+    if self._traceback then
+        msg = msg .. "\n" .. debug.traceback()
+    end
+    print(msg)
+end
 
 return tabDebugger

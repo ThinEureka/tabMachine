@@ -9,12 +9,12 @@
 -- With conf, you can share data between 2 lua states reducing the 
 -- overhead of cloning data.
 g_t.asyncRequireWithShareData = function (modules)
-    return {
+    return _({
     s1 = function(c)
         c._nickName = "asyncRequireWithShareData" .. #modules  
         local lanes = require("lanes")
         local linda = lanes.linda()
-        c.v.linda = linda
+        c.linda = linda
         local function load()
             local index = 1
             local sendNum = 0
@@ -32,26 +32,26 @@ g_t.asyncRequireWithShareData = function (modules)
             end
         end
 
-        c.v.a = lanes.gen( "package", "table", load)()
-        c.v.index = 1
+        c.a = lanes.gen( "package", "table", load)()
+        c.index = 1
     end,
 
     s1_update = function(c)
-        local key, t = c.v.linda:receive(0, "m")    -- timeout in seconds
+        local key, t = c.linda:receive(0, "m")    -- timeout in seconds
         if t == nil then
             return
         end
 
         local box = conf.box(t)
-        package.loaded[modules[c.v.index]] = box
+        package.loaded[modules[c.index]] = box
 
 
-        c.v.index = c.v.index + 1
-        if c.v.index >= #modules then
+        c.index = c.index + 1
+        if c.index >= #modules then
             c:stop()
         end
     end,
-    }
+    })
 end
 
 -- Without conf, you need to disassemble big tables in the working thread
@@ -99,10 +99,10 @@ end
 
 g_t.tabReceiveStreamedTable = function (linda, frameTimeout)
     frameTimeout = frameTimeout or 0
-    return {
+    return _({
     s1 = function(c)
         -- c:s1_update()
-        c.v.receiveNum = 0
+        c.receiveNum = 0
     end,
 
     s1_update = function(c)
@@ -116,26 +116,26 @@ g_t.tabReceiveStreamedTable = function (linda, frameTimeout)
                 return
             end
 
-            c.v.receiveNum = (c.v.receiveNum  + 1) % 10
+            c.receiveNum = (c.receiveNum  + 1) % 10
 
 
-            if c.v.lastBuilder ~= nil then
+            if c.lastBuilder ~= nil then
                 if not v.isEnd then
                     if v.cmd == nil then
-                        c.v.lastBuilder:append(v.key, v.value)
+                        c.lastBuilder:append(v.key, v.value)
                     else
                         local builder = c:_createBuilder(v.cmd)
-                        builder.parentBuilder = c.v.lastBuilder
+                        builder.parentBuilder = c.lastBuilder
                         builder.parentKey = v.key
-                        c.v.lastBuilder = builder
+                        c.lastBuilder = builder
                     end
                 else
-                    local value = c.v.lastBuilder:complete()
-                    local key = c.v.lastBuilder.parentKey
-                    c.v.lastBuilder = c.v.lastBuilder.parentBuilder
+                    local value = c.lastBuilder:complete()
+                    local key = c.lastBuilder.parentKey
+                    c.lastBuilder = c.lastBuilder.parentBuilder
 
-                    if c.v.lastBuilder ~= nil then
-                        c.v.lastBuilder:append(key, value)
+                    if c.lastBuilder ~= nil then
+                        c.lastBuilder:append(key, value)
                     else
                         c:output(value)
                         c:stop()
@@ -148,8 +148,8 @@ g_t.tabReceiveStreamedTable = function (linda, frameTimeout)
                     c:stop()
                     return
                 end
-                c.v.lastBuilder = c:_createBuilder(v.cmd)
-                c.v.rootBuilder = c.v.lastBuilder
+                c.lastBuilder = c:_createBuilder(v.cmd)
+                c.rootBuilder = c.lastBuilder
             end
 
 
@@ -168,15 +168,15 @@ g_t.tabReceiveStreamedTable = function (linda, frameTimeout)
             return builderMergeTable.new()
         end
     end,
-    }
+    })
 end
 
 g_t.asyncRequireByStep = function (modules, depth, frameTimeout)
-    return {
+    return _({
     s1 = function(c)
         local lanes = require("lanes")
         local linda = lanes.linda()
-        c.v.linda = linda
+        c.linda = linda
 
 
         local function load()
@@ -223,11 +223,11 @@ g_t.asyncRequireByStep = function (modules, depth, frameTimeout)
             sendTable(m, nil, depth)
         end
 
-        c.v.a = lanes.gen( "package", "table", load)()
+        c.a = lanes.gen( "package", "table", load)()
 
         c:call(g_t.tabReceiveStreamedTable(linda, frameTimeout), "s2", {"result"})
     end,
-    }
+    })
 end
 
 g_t.asyncRequireFileOneByOne = function (modules, frameTimeout)
@@ -235,17 +235,19 @@ g_t.asyncRequireFileOneByOne = function (modules, frameTimeout)
 end
 
 g_t.asyncRequireBigFiles = function (modules, depth, maxLines)
-    return {
+    return _({
     s1 = function(c)
         local lanes = require("lanes")
         local linda = lanes.linda()
-        c.v.linda = linda
+        c.linda = linda
 
-        depth = depth or 1
+        depth = 1
         maxLines = maxLines or 100
 
+        c.t1 = socket.gettime()
         local function load()
             local index = 1
+            local sendNum = 0
             local m = {}
             while true do
                 local name = modules[index]
@@ -262,6 +264,7 @@ g_t.asyncRequireBigFiles = function (modules, depth, maxLines)
 
             sendMergeTable = function (t, key)
                 linda:send(nil, "m", {cmd = "mergeTable", key = key})
+                sendNum = (sendNum + 1) % 10
 
                 local unit = {}
 
@@ -272,6 +275,7 @@ g_t.asyncRequireBigFiles = function (modules, depth, maxLines)
 
                     if line >= maxLines then
                         linda:send(nil, "m", {value = unit})
+                        sendNum = (sendNum + 1) % 10
                         line = 0
                         unit = {}
                     end
@@ -279,13 +283,16 @@ g_t.asyncRequireBigFiles = function (modules, depth, maxLines)
 
                 if line ~= 0 then
                     linda:send(nil, "m", {value = unit})
+                    sendNum = (sendNum + 1) % 10
                 end
 
                 linda:send(nil, "m", {isEnd = true})
+                sendNum = (sendNum + 1) % 10
             end
 
             sendTable = function(t, key, curDepth)
                 linda:send(nil, "m", {cmd = "table", key = key})
+                sendNum = (sendNum + 1) % 10
                 for k, v in pairs(t) do
                     if type(v) == "table" then
                         if curDepth + 1 >= depth then 
@@ -295,16 +302,18 @@ g_t.asyncRequireBigFiles = function (modules, depth, maxLines)
                         end
                     else
                         linda:send(nil, "m", {key=k, value = v})
+                        sendNum = (sendNum + 1) % 10
                     end
                 end
                 linda:send(nil, "m", {isEnd = true})
+                sendNum = (sendNum + 1) % 10
             end
             sendTable(m, nil, 0)
         end
 
-        c.v.a = lanes.gen( "package", "table", load)()
+        c.a = lanes.gen( "package", "table", load)()
         c:call(g_t.tabReceiveStreamedTable(linda, 0), "s2", {"result"})
     end,
-    }
+    })
 end
 
