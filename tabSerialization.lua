@@ -1,6 +1,6 @@
 
 --author cs
---
+--email 04nycs@gmail.com
 --
 --https://github.com/ThinEureka/tabMachine
 --created on Oct 26, 2023
