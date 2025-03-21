@@ -324,3 +324,52 @@ g_t.urlClick = _({
 })
 
 
+g_t.dropdownClick = _({
+    s1 = function(c, target, monitor) 
+        if monitor ~= nil then
+            c.monitorRef = g_t.aliveRef(monitor)
+        end
+
+        if g_t.debug then
+            c._nickName = "dropdownClick<" .. (target.name or "")  .. ">"
+        end
+
+        if type(target) == "table" then 
+            c.target = target.coms[ct.custom_toggles]
+        else
+            c.target = target
+        end
+
+        c.clickHandler = function(index)
+            local monitor = nil
+            if c.monitorRef then
+                monitor = c.monitorRef:getTarget()
+            end
+
+            if monitor == nil or monitor:isIdle() then
+                c:_onClick(index)
+            end
+        end
+
+        c.target:SetValueListener(c.clickHandler)
+    end,
+
+    __addNickName = function(c)
+        c._nickName = "click<" .. (c.target.name or "")  .. ">"
+    end,
+
+    event = g_t.empty_event,
+
+    final = function(c)
+        c.target.onValueChanged:RemoveAllListeners()
+        c.target = nil
+    end,
+
+    _onClick = function(c, index)
+        -- body
+        c:output(index)
+        c:stop()
+    end,
+})
+
+

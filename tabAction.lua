@@ -44,7 +44,6 @@ g_t.waitAnimatorStatusChange = _({
     --public
     tabProxyKeyFrame = function (c, keyFrame)
         if not c.frameEvent then
-            c.animator:SetFrameEventCallFunc(handler(c, c.keyFrameEventCall))
             c.frameEvent = true
         end
         if not c:getSub(keyFrame) then
@@ -72,7 +71,6 @@ g_t.waitAniChangeByFrame  = _({
         c.clipName = clipName
         c.normalizedTimeList = {}
         c.animator:AddLastFrameEvent(c.clipName)
-        -- c.animator:SetFrameEventCallFunc(handler(c, c.keyFrameEventCall))
     end,
 
     event = g_t.empty_event,

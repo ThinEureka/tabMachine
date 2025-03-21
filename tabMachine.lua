@@ -208,7 +208,7 @@ __contextTreeRecyclePool = {}
 local __contextTreeRecyclePool = __contextTreeRecyclePool
 
 g_frameIndex = 1
-local g_frameIndex = g_frameIndex
+-- local g_frameIndex = g_frameIndex
 
 __bindTabPool = {}
 local __bindTabPool = __bindTabPool
@@ -1226,12 +1226,13 @@ context_call = function (self, tab, scName, outputVars, ...)
     --inline optimization
     -- self:_addEnterCount()
     -- self.__enterCount = self.__enterCount + 1
-    if tab == nil then
+    -- if tab == nil then
         -- context_checkNext(self, scName)
-        local nextSub = __nextSubCache[scName]
-        if nextSub ~= nil then
-            context_start(self, nextSub)
-        end
+        -- local nextSub = __nextSubCache[scName]
+        -- if nextSub ~= nil then
+            -- context_start(self, nextSub)
+        -- end
+
         --inline optimization
         -- self:_decEnterCount()
         -- local enterCount = self.__enterCount
@@ -1245,8 +1246,8 @@ context_call = function (self, tab, scName, outputVars, ...)
                 -- context_stopSelf(self)
             -- end
         -- end
-        return
-    end
+        -- return
+    -- end
 
     local wrappedTab = tab.__wrappedTab 
     local wrappedParams = nil

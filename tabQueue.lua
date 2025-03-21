@@ -228,7 +228,7 @@ function tabQueue:add(tab, tabParams, isWait, queueParams)
         waitTab = self:waitTabCompleted(queueData.uid, queueData.dontStopHostWhenStop)
     end
 
-    if self.firstRunInFrame then
+    if self.firstRunInFrame or self:checkCanRun(queueData) then
         self:startNextTask()
     elseif not self:getSub("tabStartTaskNextFrame") then
         self:call(tabQueue.tabStartTaskNextFrame(), "tabStartTaskNextFrame")
