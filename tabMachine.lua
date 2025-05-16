@@ -2,7 +2,8 @@
 --email 04nycs@gmail.com
 --
 --https://github.com/ThinEureka/tabMachine
---created on July 11, 2019 
+--created on July 11, 2019
+local socket = require("socket")
 
 local table = table
 local table_insert = table.insert
@@ -4490,6 +4491,36 @@ g_t.delay = _({
     end,
 
     event = g_t.empty_event,
+})
+
+g_t.delayRealTime = _({
+    s1 = function(c, totalTime, updateInterval)
+        if g_t.debug then
+            if totalTime == nil then
+                c._nickName = "delayRealTime"
+            else
+                c._nickName = "delayRealTime<"..totalTime.. ">"
+            end
+        end
+        if totalTime == nil then
+            c:stop()
+            return
+        end
+
+        c.endTime = socket.gettime() + totalTime
+        c:setDynamics("s2", "updateInterval", updateInterval)
+    end,
+
+    s2 = g_t.empty_fun,
+    s2_update = function(c)
+        local currentTime = socket.gettime()
+        if currentTime >= c.endTime then
+            c:stop()
+        end
+    end,
+
+    --s2_updaeInteral is overrided by setDynamics in s1
+    s2_updateInteral = nil,
 })
 
 context_meta_call = g_t_rebind
