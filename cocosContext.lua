@@ -5,7 +5,6 @@
 
 
 local tabMachine = require("tabMachine.tabMachine")
-local tabCoroutine = require("tabMachine.tabCoroutine")
 local socket = require("socket")
 
 local cocosContext = tabMachine.context

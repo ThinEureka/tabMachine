@@ -24,6 +24,13 @@ local select = select
 local str_byte = string.byte
 local str_len = string.len
 
+local co_yield = coroutine.yield
+local co_create = coroutine.create
+local co_resume = coroutine.resume
+local co_status = coroutine.status
+local co_close =  coroutine.close 
+local co_running = coroutine.running
+
 
 local tabMachine = class("tabMachine")
 
@@ -83,6 +90,12 @@ tabMachine.tabKeywords = {
     __scheduler = true,
 
     p = true,
+    inner = true,
+
+    co = true,
+    __co = true,
+    __coFun = true,
+
     --current not used
     __pp = true,
 
@@ -260,11 +273,17 @@ local context_getSub = nil
 local context_getSubByLifeId = nil
 local context_getContextByLifeId = nil
 local context_hasAnySub = nil
+
 local context_start = nil
 local context_call = nil
 local context_throw = nil
 local context_join = nil
 local context_select = nil
+
+local context_co_call = nil
+local context_co_join = nil
+local context_co_select = nil
+
 local context_registerLifeTimeListener = nil
 local context_unregisterLifeTimeListener = nil
 local context_tabProxy = nil
@@ -316,7 +335,71 @@ local context_meta_bor = nil
 local context_meta_band = nil
 local context_meta_concat = nil
 
+local tabJoin = nil
+local tabSelect = nil
+
 local g_t_rebind = nil
+
+local tabMachine_onUnCaughtException  = nil
+local tabMachine_addContextException  = nil
+local cocosTabMachine_prettyStr = nil
+local tabMachine_throwError = nil
+
+local co_sig_quit = {"co_signal_quit"}
+
+__co_pools = {}
+local __co_pools = __co_pools
+
+local __co_traceback
+local __co_error
+local __co_on_error = function(err)
+    __co_error = err
+    __co_traceback = debug.traceback("", 2)
+end
+
+local __co_fun = function()
+    while true do
+        local f, c, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10 = co_yield()
+        local stat = xpcall(f, __co_on_error, c, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10)
+        local co = c.__co
+        c.__co = nil
+        if not stat then
+            local err = __co_error
+            __co_error = nil
+            if err == co_sig_quit then
+                c:stop()
+            else
+                c.__co_error = err
+                tabMachine_throwError(c, err, __co_traceback)
+            end
+        else
+            c:stop()
+        end
+
+        --co_checkin
+        table_insert(__co_pools, co)
+    end
+end
+
+local co_checkout = function ()
+    local co = table_remove(__co_pools)
+    if co ~= nil then
+        return co
+    else
+        co = co_create(__co_fun)
+        co_resume(co)
+    end
+    return co
+end
+
+local co_interupt = function(co)
+    local status = co_status(co)
+    if status == "running" then
+        error(co_sig_quit)
+    elseif status == "suspended" then
+        co_resume(co, co_sig_quit)
+    end
+end
 
 ----------------- util functions ---------------------
 local function outputValues(env, outputVars, outputValues)
@@ -627,39 +710,18 @@ tabMachine.compileTab = tabMachine_compileTab
 -- return context.new(...)
 -- end
 
-local tabMachine_onUnCaughtException  = nil
-local tabMachine_addContextException  = nil
-local cocosTabMachine_prettyStr = nil
 
-local function tabMachine_throwError(target, errorMsg, traceback)
+tabMachine_throwError = function (target, errorMsg, traceback)
     local e = {}
     e.errorMsg = errorMsg
     e.luaStackTrace = traceback
     e.isCustom = nil
 
-    local i = __curStackNum
     local catched = false
-    local contextStack = __contextStack
-    while i > 0 do
-        local context = contextStack[i].context
 
-        if context == nil then
-            break
-        end
-
-        if not context_throwException(target, e) then
-            if e.errorTabStatcks == nil then
-                e.errorTabStatcks = {}
-            end
-
-            table_insert(e.errorTabStatcks, context:getDetailedPath())
-        else
-            catched = true
-        end
-
-        i = i - 1
-        local lastContext = context
-
+    if __curStackNum > 0 then
+        local i = __curStackNum
+        local contextStack = __contextStack
         while i > 0 do
             local context = contextStack[i].context
 
@@ -667,12 +729,43 @@ local function tabMachine_throwError(target, errorMsg, traceback)
                 break
             end
 
-            if context == lastContext.p or context == lastContext then
-                lastContext = context
-                i = i - 1
+            if not context_throwException(context, e) then
+                if e.errorTabStatcks == nil then
+                    e.errorTabStatcks = {}
+                end
+
+                table_insert(e.errorTabStatcks, context:getDetailedPath())
             else
-                break
+                catched = true
             end
+
+            i = i - 1
+            local lastContext = context
+
+            while i > 0 do
+                local context = contextStack[i].context
+
+                if context == nil then
+                    break
+                end
+
+                if context == lastContext.p or context == lastContext then
+                    lastContext = context
+                    i = i - 1
+                else
+                    break
+                end
+            end
+        end
+    else
+        if not context_throwException(target, e) then
+            if e.errorTabStatcks == nil then
+                e.errorTabStatcks = {}
+            end
+
+            table_insert(e.errorTabStatcks, target:getDetailedPath())
+        else
+            catched = true
         end
     end
 
@@ -748,6 +841,10 @@ tabMachine_pcall = function (target, f, selfParam, ...)
         curContextInfo.context = nil
         return result
     else
+        if __perror == co_sig_quit then
+            error(co_sig_quit)
+            return
+        end
         tabMachine_throwError(target, __perror, __traceback)
         __curStackNum = curStackNum -1
         curContextInfo.context = nil
@@ -1280,6 +1377,8 @@ context_call = function (self, tab, scName, outputVars, ...)
     -- context_installTab(subContext, tabToInstall)
     local subEnterCount = 0
     local needTimer = false
+    
+
     if tabToInstall ~= nil then 
         subContext.__tab = tabToInstall
 
@@ -1321,10 +1420,18 @@ context_call = function (self, tab, scName, outputVars, ...)
             subContext.__updateTimerMgr = updateTimerMgr
         end
 
+        local co = tabToInstall.co
+        if co ~= nil then
+            subContext.__coFun = co
+            subEnterCount = nil
+        end
+
+
         local labelCache = rawget(tabToInstall, "__isLabelCached")
         if not labelCache then
             tabMachine_compileTab(tabToInstall)
         end
+
     end
     --end of installTab optimization
 
@@ -1441,6 +1548,17 @@ context_call = function (self, tab, scName, outputVars, ...)
         end
     end
 
+    if not subContext.__isStopped and subContext.__coFun ~= nil then
+        local co = co_checkout()
+        subContext.__co = co
+        if wrappedTab == nil then
+            co_resume(co, subContext.__coFun, subContext, ...)
+        else
+            co_resume(co, subContext.__coFun, subContext, table_unpack(wrappedParams))
+        end
+    end
+
+
     --inline optimization
     -- self:_decEnterCount()
     -- local enterCount = self.__enterCount
@@ -1466,6 +1584,45 @@ context_call = function (self, tab, scName, outputVars, ...)
     return subContext
 end
 
+context_co_call = function (self, tab,  ...)
+    local co = self.__co
+    assert(co ~= nil and co_running() == co)
+    local sc = context_call(self, tab, "__co", nil, ...) 
+    -- if sc.__lifeState >= lifeState.stopped then
+    if sc.__lifeState >= 40  then
+        -- self.__lifeState >= lifeState.quitting
+        if self.__lifeState >= 20  then
+            error(co_sig_quit)
+            return
+        else
+            local outputs = sc.__outputValues
+            if outputs ~= nil then
+                return table_unpack(outputs)
+            else
+                return nil
+            end
+        end
+    end
+
+    local ret = co_yield()
+    if ret == co_sig_quit then
+        error(co_sig_quit)
+    end
+
+    -- self.__lifeState >= lifeState.quitting
+    if self.__lifeState >= 20  then
+        error(co_sig_quit)
+        return
+    else
+        local outputs = sc.__outputValues
+        if outputs ~= nil then
+            return table_unpack(outputs)
+
+        end
+    end
+end
+
+
 context_throw = function (self, e)
     local exception = {}
     exception.isCustom = true
@@ -1483,14 +1640,20 @@ context_throw = function (self, e)
     context_throwException(c, exception)
 end
 
-local tabJoin = nil
 context_join = function (self, scNames, scName, callback, joinFuture)
     return context_call(self, tabJoin, scName, nil, self, scNames, callback, joinFuture)
 end
 
-local tabSelect = nil
+context_co_join = function(self, ...)
+    return context_co_call(self, tabJoin, self, ...)
+end
+
 context_select = function(self, scNames, scName, outputVars, selectFuture)
     return context_call(self, tabSelect, scName, outputVars, self, scNames, selectFuture)
+end
+
+context_co_select = function(self, ...)
+    return context_co_call(self, tabSelect, self, ...)
 end
 
 context_registerLifeTimeListener = function (self, name, listenningContext)
@@ -2768,6 +2931,12 @@ context_stopSelf = function (self)
         -- self.__isNotifyStopped = true
         -- context_notifyStop(self)
     -- end
+
+    local co = self.__co
+    if co then
+        co_interupt(co)
+    end
+
     context_notifyStop(self)
 
     -- if not self.__isProxyStopped then
@@ -2780,6 +2949,7 @@ context_stopSelf = function (self)
             proxyInfo = proxyInfo.nextInfo
         end
     -- end
+
 
     -- self.tm:_recycleContext(self)
     -- inline optimization
@@ -2962,6 +3132,11 @@ context_stopTree = function (treeArray)
             local finalFunEx = c.__finalFunEx
             if finalFunEx ~= nil and p then
                 tabMachine_pcall(c, finalFunEx, p)
+            end
+
+            local co = c.__co
+            if co then
+                co_interupt(co)
             end
 
             local proxyInfo = c.__headProxyInfo
@@ -3191,6 +3366,10 @@ context_notifyStop = function(self)
     -- elseif self.__isRoot then
         -- tm:_onStopped()
         -- return
+        local pco = p.__co
+        if pco and self.__name == "__co" then
+            co_resume(pco, self)
+        end
     end
 
     if hasNotify then
@@ -3985,6 +4164,11 @@ context.call = context_call
 context.throw = context_throw
 context.join = context_join
 context.select = context_select
+
+context.co_call = context_co_call
+context.co_join = context_co_join
+context.co_select = context_co_select
+
 context.registerLifeTimeListener = context_registerLifeTimeListener
 context.unregisterLifeTimeListener = context_unregisterLifeTimeListener
 context.tabProxy = context_tabProxy
@@ -4281,7 +4465,7 @@ function g_t.precompile(tab)
     __compileCount = __compileCount + 1
     if __tabCompilationStat then
         local file, line = g_t.getTabCodeLocation(tab)
-        local locaion = nil
+        local location = nil
         if file ~= nil and line ~= nil then
             location = file .. " " .. line 
         else
@@ -4769,7 +4953,11 @@ tabSelect = _({
                     end
                 end
 
-                context_output(c, stoppedIndex)
+                if target.__outputValues ~= nil then 
+                    context_output(c, stoppedIndex, table_unpack(target.__outputValues))
+                else
+                    context_output(c, stoppedIndex)
+                end
                 context_stopSelf(c)
             end
         end,
