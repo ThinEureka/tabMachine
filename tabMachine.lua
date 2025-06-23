@@ -1860,7 +1860,33 @@ context_getDetailedPath = function (self)
         if c._nickName then
             partName = partName .. "[" .. c._nickName .. "]"
         end
-
+        
+        if c.__co then
+            local co = c.__co
+            local str = debug.traceback(co)
+            local strs = string.split(str, "\n")
+            local _str = nil
+            for i, v in ipairs(strs) do
+                if string.find(v, "tabMachine.cocosContext.co_call") then
+                    _str = strs[i + 1] or v
+                    break
+                end
+            end
+            if _str then
+                local _name = nil
+                local _strs = string.split(_str, "in function")
+                for i, v in ipairs(_strs) do
+                    local paths = string.split(v, "/")
+                    if #paths > 1 then
+                        _name = paths[#paths]
+                        break
+                    end
+                end
+                if _name then
+                    partName = partName .. "{" .. _name .. "}"
+                end
+            end
+        end
         if name == nil then
             name = partName
         else
@@ -3035,7 +3061,6 @@ function __getContextPath(context)
         if c._nickName then
             partName = partName .. "[" .. c._nickName .. "]"
         end
-
         if name == nil then
             name = partName
         else
