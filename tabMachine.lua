@@ -350,27 +350,22 @@ local co_sig_quit = {"co_signal_quit"}
 __co_pools = {}
 local __co_pools = __co_pools
 
-local __co_traceback
-local __co_error
 local __co_on_error = function(err)
-    __co_error = err
-    __co_traceback = debug.traceback("", 2)
+    return err, debug.traceback("", 2)
 end
 
 local __co_fun = function()
     while true do
         local f, c, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10 = co_yield()
-        local stat = xpcall(f, __co_on_error, c, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10)
+        local stat, err, traceback = xpcall(f, __co_on_error, c, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10)
         local co = c.__co
         c.__co = nil
         if not stat then
-            local err = __co_error
-            __co_error = nil
             if err == co_sig_quit then
                 c:stop()
             else
                 c.__co_error = err
-                tabMachine_throwError(c, err, __co_traceback)
+                tabMachine_throwError(c, err, traceback)
             end
         else
             c:stop()
@@ -812,11 +807,8 @@ cocosTabMachine_prettyStr = function (arr)
     return str
 end
 
-local __perror
-local __traceback
-local function on_error(error)
-    __perror = error
-    __traceback = debug.traceback("", 2)
+local function on_error(err)
+     return err, debug.traceback("", 2)
 end
 
 tabMachine_pcall = function (target, f, selfParam, ...)
@@ -834,18 +826,20 @@ tabMachine_pcall = function (target, f, selfParam, ...)
         curContextInfo.context = target
     end
 
-    local stat, result = xpcall(f, on_error, selfParam, ...)
+    local stat, result, traceback = xpcall(f, on_error, selfParam, ...)
 
     if stat then
         __curStackNum = curStackNum -1
         curContextInfo.context = nil
         return result
     else
-        if __perror == co_sig_quit then
+        -- result is err
+        if result == co_sig_quit then
             error(co_sig_quit)
-            return
         end
-        tabMachine_throwError(target, __perror, __traceback)
+
+        -- result is err
+        tabMachine_throwError(target, result, traceback)
         __curStackNum = curStackNum -1
         curContextInfo.context = nil
     end
@@ -1539,13 +1533,6 @@ context_call = function (self, tab, scName, outputVars, ...)
         end
 
         context_start(subContext, "s1", table_unpack(wrappedParams))
-
-        if bindFrameIndex then
-            for i = wrappedParams.__numParams, 1, -1 do
-                wrappedParams[i] = nil
-            end
-            __bindTabPool[tab] = tab
-        end
     end
 
     if not subContext.__isStopped and subContext.__coFun ~= nil then
@@ -1556,6 +1543,13 @@ context_call = function (self, tab, scName, outputVars, ...)
         else
             co_resume(co, subContext.__coFun, subContext, table_unpack(wrappedParams))
         end
+    end
+
+    if wrappedTab ~= nil and bindFrameIndex then
+        for i = wrappedParams.__numParams, 1, -1 do
+            wrappedParams[i] = nil
+        end
+        __bindTabPool[tab] = tab
     end
 
 
