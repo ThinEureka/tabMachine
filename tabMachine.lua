@@ -1638,8 +1638,12 @@ context_join = function (self, scNames, scName, callback, joinFuture)
     return context_call(self, tabJoin, scName, nil, self, scNames, callback, joinFuture)
 end
 
-context_co_join = function(self, ...)
-    return context_co_call(self, tabJoin, self, ...)
+context_co_join = function(self, scNames, ...)
+    if scNames == nil then
+        return context_co_call(self, g_t.tabSubLessEqual, self, 1)
+    else
+        return context_co_call(self, tabJoin, self, scNames, ...)
+    end
 end
 
 context_select = function(self, scNames, scName, outputVars, selectFuture)
