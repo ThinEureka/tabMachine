@@ -350,8 +350,10 @@ local co_sig_quit = {"co_signal_quit"}
 __co_pools = {}
 local __co_pools = __co_pools
 
+local __co_traceback
 local __co_on_error = function(err)
-    return err, debug.traceback("", 2)
+    __co_traceback = debug.traceback("", 2)
+    return err 
 end
 
 local __co_fun = function()
@@ -365,7 +367,7 @@ local __co_fun = function()
                 c:stop()
             else
                 c.__co_error = err
-                tabMachine_throwError(c, err, traceback)
+                tabMachine_throwError(c, err, __co_traceback)
             end
         else
             c:stop()
@@ -807,8 +809,10 @@ cocosTabMachine_prettyStr = function (arr)
     return str
 end
 
+local __tab_traceback
 local function on_error(err)
-     return err, debug.traceback("", 2)
+    __tab_traceback = debug.traceback("", 2)
+     return err
 end
 
 tabMachine_pcall = function (target, f, selfParam, ...)
@@ -839,7 +843,7 @@ tabMachine_pcall = function (target, f, selfParam, ...)
         end
 
         -- result is err
-        tabMachine_throwError(target, result, traceback)
+        tabMachine_throwError(target, result, __tab_traceback)
         __curStackNum = curStackNum -1
         curContextInfo.context = nil
     end
