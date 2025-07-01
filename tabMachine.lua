@@ -4034,7 +4034,11 @@ context_meta_bor = function(t1, t2)
 
     if normalTab ~= nil then
         local tabs = hostTab.__wrappedParams[1]
-        table_insert(tabs, normalTab)
+        if hostTab == t1 then
+            table_insert(tabs, normalTab)
+        else
+            table_insert(tabs, 1, normalTab)
+        end
         return hostTab
     end
 
