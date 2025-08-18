@@ -3,7 +3,7 @@
 --https://github.com/ThinEureka/tabMachine
 --created on August 23, 2019 
 
-g_t.mouse_click_event = _({
+g_t.mouse_click_event = _{
     s1 = function(c, target, callBack)
         if g_t.debug then
             c._nickName = "click<" .. (target.name or "")  .. ">"
@@ -25,9 +25,9 @@ g_t.mouse_click_event = _({
     final = function(c)
         c.target:RemoveMouseClickedListener(c.callBack)
     end,
-})
+}
 
-g_t.click = _({
+g_t.click = _{
     s1 = function(c, target, soundId, monitor) 
         if monitor ~= nil then
             c.monitorRef = g_t.aliveRef(monitor)
@@ -74,9 +74,9 @@ g_t.click = _({
         c:output(true)
         c:stop()
     end,
-})
+}
 
-g_t.clickTextLink = _({
+g_t.clickTextLink = _{
     s1 = function(c, target, monitor) 
         if g_t.debug then
             c._nickName = "click<" .. tostring(target.name) .. ">"
@@ -115,9 +115,9 @@ g_t.clickTextLink = _({
     __addNickName = function(c)
         c._nickName = "clickTextLink<" .. (c.target.name or "")  .. ">"
     end,
-})
+}
 
-g_t.toggle = _({
+g_t.toggle = _{
     s1 = function(c, target, soundId, monitor) 
         if g_t.debug then
             c._nickName = "toggle<" .. (target.name or "")  .. ">"
@@ -170,9 +170,9 @@ g_t.toggle = _({
     __addNickName = function(c)
         c._nickName = "toggle<" .. (c.target.name or "")  .. ">"
     end,
-})
+}
 
-g_t.bookmarkPageClick = _({
+g_t.bookmarkPageClick = _{
     s1 = function(c, target, monitor) 
         c.target = target
         if monitor ~= nil then
@@ -202,9 +202,9 @@ g_t.bookmarkPageClick = _({
         c:output(index)
         c:stop()
     end,
-})
+}
 
-g_t.UISwitchClick = _({
+g_t.UISwitchClick = _{
     s1 = function(c, uiSwitchGoTable, monitor)
         c.target = uiSwitchGoTable:com(ct.uiSwitch)
         if monitor ~= nil then
@@ -234,9 +234,9 @@ g_t.UISwitchClick = _({
     end,
 
     event = g_t.empty_event,
-})
+}
 
-g_t.toggleGroup = _({
+g_t.toggleGroup = _{
     s1 = function(c, target, soundId, monitor) 
         if type(target) == "table" then 
             c.target = target:com(ct.custom_toggles)
@@ -281,9 +281,9 @@ g_t.toggleGroup = _({
     __addNickName = function(c)
         c._nickName = "toggleGroup<" .. (c.target.name or "")  .. ">"
     end,
-})
+}
 
-g_t.urlClick = _({
+g_t.urlClick = _{
     s1 = function(c, target, monitor)
         if type(target) == "table" then 
             c.target = target:com(ct.text)
@@ -321,10 +321,10 @@ g_t.urlClick = _({
     __addNickName = function(c)
         c._nickName = "urlClick<" .. (c.target.name or "")  .. ">"
     end,
-})
+}
 
 
-g_t.dropdownClick = _({
+g_t.dropdownClick = _{
     s1 = function(c, target, monitor) 
         if monitor ~= nil then
             c.monitorRef = g_t.aliveRef(monitor)
@@ -370,6 +370,6 @@ g_t.dropdownClick = _({
         c:output(index)
         c:stop()
     end,
-})
+}
 
 

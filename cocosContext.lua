@@ -271,37 +271,37 @@ end
 
 
 
-g_t.tabError = _({
+g_t.tabError = _{
     s1 = g_t.empty_fun,
     event = g_t.empty_event,
-})
+}
 
-g_t.tabSuccess = _({
+g_t.tabSuccess = _{
     s1 = function (c, skipFrame)
         c:output(true)
         if skipFrame then
             c:call(g_t.skipFrames(1), "s2")
         end
     end,
-})
+}
 
-g_t.tabFail = _({
+g_t.tabFail = _{
     s1 = function (c, skipFrame)
         c:output(false)
         if skipFrame then
             c:call(g_t.skipFrames(1), "s2")
         end
     end,
-})
+}
 
 
-g_t.tabForward = _({
+g_t.tabForward = _{
     s1 = function(c, ...)
         c:output(...)
     end
-})
+}
 
-g_t.skipFrames = _({
+g_t.skipFrames = _{
     s1 = function (c, totalFrames, tab)
         if g_t.debug then
             c._nickName = "skipFrames"
@@ -322,9 +322,9 @@ g_t.skipFrames = _({
         c._nickName = "skipFrames<" .. (c.totalFrames)  .. ">"
     end,
 
-})
+}
 
-g_t.waitMessage = _({
+g_t.waitMessage = _{
     s1 = function(c, msg)
         if g_t.debug then
             c._nickName = "waitMessage"
@@ -342,9 +342,9 @@ g_t.waitMessage = _({
     end,
 
     event = g_t.empty_event,
-})
+}
 
-g_t.waitMessageWithFilter = _({
+g_t.waitMessageWithFilter = _{
     s1 = function(c, msg, filter)
         if g_t.debug then
             c._nickName = "waitMessageWithFilter"
@@ -366,9 +366,9 @@ g_t.waitMessageWithFilter = _({
     end,
 
     event = g_t.empty_event,
-})
+}
 
-g_t.pageViewChange = _({
+g_t.pageViewChange = _{
     s1 = function(c, goTable, callBack)
         c.goTable = goTable
         c.isPage = goTable:com(ct.custom_pageView) ~= nil
@@ -390,9 +390,9 @@ g_t.pageViewChange = _({
     __addNickName = function(c)
         c._nickName = "pageViewChange"
     end,
-})
+}
 
-g_t.tabPageViewChange = _({
+g_t.tabPageViewChange = _{
     s1 = function(c, goTable)
         c.goTable = goTable
         c.isPage = goTable:com(ct.custom_pageView) ~= nil
@@ -417,8 +417,8 @@ g_t.tabPageViewChange = _({
     __addNickName = function(c)
         c._nickName = "pageViewChange"
     end,
-})
-g_t.eventTrigger = _({
+}
+g_t.eventTrigger = _{
     s1 = function(c, go, callback)
         c.trigger = go:GetComponent(typeof(EventTrigger))
         if isNil(c.trigger) then
@@ -477,11 +477,11 @@ g_t.eventTrigger = _({
         c._nickName = "eventTrigger<" .. (c.trigger.name)  .. ">"
     end,
 
-})
+}
 
 -- compete中所有tab的第一个返回值必须是boolean, 并返回首个返回true的tab的索引及其返回值。若所有的tab执行结果都为false则返回nil
 function g_t.compete(tabs)
-    return _({
+    return _{
         s1 = function(c)
             if g_t.debug then
                 c._nickName = "compete"
@@ -525,11 +525,11 @@ function g_t.compete(tabs)
         __addNickName = function(c)
             c._nickName = "compete<" .. (#c.tabs)  .. ">"
         end,
-    })
+    }
 end
 
 
-g_t.tabCS = _({
+g_t.tabCS = _{
     s1 = function(c, csTab, reuse)
         c.csTab = csTab
         if reuse then
@@ -564,9 +564,9 @@ g_t.tabCS = _({
     __addNickName = function(c)
         c._nickName = "tabCS"
     end,
-})
+}
 
-g_t.tabUnityCoroutine = _({
+g_t.tabUnityCoroutine = _{
     s1 = function (c, asyncOperation, activeOnLoad)
         c._nickName = "asyncOperation"
         c.asyncOperation = asyncOperation
@@ -617,9 +617,9 @@ g_t.tabUnityCoroutine = _({
     __addNickName = function(c)
         c._nickName = "asyncOperation"
     end,
-})
+}
 
-g_t.tabRequire = _({
+g_t.tabRequire = _{
     s1 = function(c, luaFiles, frameTime)
         c.index = 1
         c.luaFiles = luaFiles
@@ -641,28 +641,28 @@ g_t.tabRequire = _({
         end
         c:stop()
     end,
-})
+}
 
-g_t.empty_tab = _({
+g_t.empty_tab = _{
     s1 = function()
     end,
-})
+}
 
-g_t.tabContainer = _({
+g_t.tabContainer = _{
     s1 = g_t.empty_fun,
     event = g_t.empty_event,
 
     __addNickName = function(c)
         c._nickName = "tabContainer"
     end,
-})
+}
 
-g_t.tabRefCount = _({
+g_t.tabRefCount = _{
     s1 = function(c)
         c.refMap = {}
     end,
 
-    tabRef = _({
+    tabRef = _{
         s1 = function(c, key)
             c.key = key
             c.count = 0
@@ -683,7 +683,7 @@ g_t.tabRefCount = _({
                 c:stop()
             end
         end,
-    }),
+    },
 
     --public:
     acquire = function(c, context, key)
@@ -707,7 +707,7 @@ g_t.tabRefCount = _({
 
 
     event = g_t.empty_event,
-})
+}
 
 local aliveRefMetatable = nil
 aliveRefMetatable = {
@@ -731,7 +731,7 @@ aliveRefMetatable = {
     getTarget = function(self)
         local c = rawget(self, "c")
         if c == nil then
-            return false
+            return nil
         end
 
         local lifeId = rawget(c, "__lifeId")
@@ -763,7 +763,7 @@ function g_t.aliveRef(c)
     return t
 end
 
-g_t.tabAliveMap = _({
+g_t.tabAliveMap = _{
     s1 = function(c, keepRunning)
         c.keepRunning = keepRunning
         c._map = {}
@@ -850,11 +850,11 @@ g_t.tabAliveMap = _({
             map[k] = nil
         end
     end,
-})
+}
 
 g_t.tabRunningMap = #g_t.tabAliveMap(true)
 
-g_t.tabAliveList = _({
+g_t.tabAliveList = _{
     s1 = function(c, keepRunning)
         c._keepRunning = keepRunning
         c._array = {}
@@ -971,7 +971,7 @@ g_t.tabAliveList = _({
             table.remove(array)
         end
     end,
-})
+}
 
 g_t.tabRunningList = #g_t.tabAliveList(true)
 
@@ -1035,7 +1035,7 @@ function g_t.isInstructionTag(name)
     return false
 end
 
-g_t.tabMonitor = _({
+g_t.tabMonitor = _{
     s1 = function(c)
         if g_t.debug then
             c:__addNickName()
@@ -1065,7 +1065,7 @@ g_t.tabMonitor = _({
         c._nickName = "tabMonitor"
     end,
 
-    tabWaitIdle = _({
+    tabWaitIdle = _{
         s1 = function(c, target)
             c.target = target 
         end,
@@ -1075,10 +1075,10 @@ g_t.tabMonitor = _({
                 c:stop()
             end
         end,
-    })
-})
+    }
+}
 
-g_t.tabSimpleRequest = _({
+g_t.tabSimpleRequest = _{
     s1 = function(c, ip, port, reqMsg, respDecodeFunc, timeout)
         c.ip = ip
         c.port = port
@@ -1124,9 +1124,9 @@ g_t.tabSimpleRequest = _({
         c:output(nil, "Disconnected")
         c:stop()
     end,
-})
+}
 
-g_t.tabWaitEmpty = _({
+g_t.tabWaitEmpty = _{
     s1 = function(c, target)
         c.target = target
         c:update()
@@ -1138,9 +1138,9 @@ g_t.tabWaitEmpty = _({
             c:stop()
         end
     end,
-})
+}
 
-g_t.tabSubLessEqual = _({
+g_t.tabSubLessEqual = _{
     s1 = function(c, target, count)
         c.count = count
         c.targetRef = g_t.aliveRef(target)
@@ -1156,7 +1156,7 @@ g_t.tabSubLessEqual = _({
             c:stop()
         end
     end,
-})
+}
 
 require("tabMachine.tabClicks")
 require("tabMachine.tabAction")

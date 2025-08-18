@@ -9,7 +9,7 @@
 -- With conf, you can share data between 2 lua states reducing the 
 -- overhead of cloning data.
 g_t.asyncRequireWithShareData = function (modules)
-    return _({
+    return _{
     s1 = function(c)
         c._nickName = "asyncRequireWithShareData" .. #modules  
         local lanes = require("lanes")
@@ -51,7 +51,7 @@ g_t.asyncRequireWithShareData = function (modules)
             c:stop()
         end
     end,
-    })
+    }
 end
 
 -- Without conf, you need to disassemble big tables in the working thread
@@ -99,7 +99,7 @@ end
 
 g_t.tabReceiveStreamedTable = function (linda, frameTimeout)
     frameTimeout = frameTimeout or 0
-    return _({
+    return _{
     s1 = function(c)
         -- c:s1_update()
         c.receiveNum = 0
@@ -168,11 +168,11 @@ g_t.tabReceiveStreamedTable = function (linda, frameTimeout)
             return builderMergeTable.new()
         end
     end,
-    })
+    }
 end
 
 g_t.asyncRequireByStep = function (modules, depth, frameTimeout)
-    return _({
+    return _{
     s1 = function(c)
         local lanes = require("lanes")
         local linda = lanes.linda()
@@ -227,7 +227,7 @@ g_t.asyncRequireByStep = function (modules, depth, frameTimeout)
 
         c:call(g_t.tabReceiveStreamedTable(linda, frameTimeout), "s2", {"result"})
     end,
-    })
+    }
 end
 
 g_t.asyncRequireFileOneByOne = function (modules, frameTimeout)
@@ -235,7 +235,7 @@ g_t.asyncRequireFileOneByOne = function (modules, frameTimeout)
 end
 
 g_t.asyncRequireBigFiles = function (modules, depth, maxLines)
-    return _({
+    return _{
     s1 = function(c)
         local lanes = require("lanes")
         local linda = lanes.linda()
@@ -314,6 +314,6 @@ g_t.asyncRequireBigFiles = function (modules, depth, maxLines)
         c.a = lanes.gen( "package", "table", load)()
         c:call(g_t.tabReceiveStreamedTable(linda, 0), "s2", {"result"})
     end,
-    })
+    }
 end
 

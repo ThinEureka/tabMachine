@@ -159,8 +159,6 @@ tabMachine.tabKeywords = {
     __needDispose = true,
 
     _hasMsg = true,
-
-    __banRecycleOutputVars = true,
 }
 
 
@@ -226,9 +224,6 @@ g_frameIndex = 1
 
 __bindTabPool = {}
 local __bindTabPool = __bindTabPool
-
-__outputVarsPool = {}
-local __outputVarsPool = __outputVarsPool
 
 local tabMachine_compileTab = nil
 
@@ -1482,10 +1477,6 @@ context_call = function (self, tab, scName, outputVars, ...)
         end
     else
         subContext.__outputVars = tab.__outputVars or outputVars
-    end
-
-    if outputVars then
-        subContext.__banRecycleOutputVars = true
     end
 
     --inline optimization
@@ -3873,12 +3864,12 @@ end
 context_postpone = function (self, scName)
     context_suspend(self, scName)
 
-    return _({
+    return _{
         s1 = function(c)
             context_resume(self, scName)
             context_call(c, self:tabProxy(scName), "s2")
         end,
-    })
+    }
 end
 
 context_resume = function (self, scName, ...)
@@ -3909,7 +3900,7 @@ context_hasSuspend = function (self, scName)
 end
 
 context_tabSuspend = function (self, scName, target)
-    return _({
+    return _{
         s1 = function(c)
             local suspends = self.__suspends
             if suspends == nil or suspends[scName] == nil then
@@ -3930,7 +3921,7 @@ context_tabSuspend = function (self, scName, target)
                 end
             end
         },
-    })
+    }
 end
 
 context_hasInner = function(self, name, ...)
@@ -4270,16 +4261,11 @@ local metaWrappedParams = {
 local metaBind = nil
 metaBind = {
     __shr = function(t, outputVar)
-        local outputVars = t.__outputVars
-        if outputVars == nil then
-            outputVars = table_remove(__outputVarsPool)
-            if outputVars == nil then
-                t.__outputVars = {outputVar}
-                return t
-            end
-            t.__outputVars = outputVars
+        if t.__outputVars == nil then
+            t.__outputVars = {outputVar}
+        else
+            table.insert(t.__outputVars, outputVar)
         end
-        table_insert(t.__outputVars, outputVar)
         return t
     end,
 
@@ -4563,7 +4549,7 @@ function g_t.seq(...)
     return g_t.seqWithArray(tabs)
 end
 
-g_t.seqWithArray = _({
+g_t.seqWithArray = _{
     tabName = "__seq",
 
     s1 = function (c, tabs)
@@ -4592,14 +4578,14 @@ g_t.seqWithArray = _({
     __addNickName = function(c)
         c._nickName = "seqWithArray<" .. (#c.tabs)  .. ">"
     end,
-})
+}
 
 function g_t.join(...)
     local tabs = {...}
     return g_t.joinWithArray(tabs)
 end
 
-g_t.joinWithArray = _({ 
+g_t.joinWithArray = _{ 
     tabName = "__join",
 
     s1 = function(c, tabs)
@@ -4614,7 +4600,7 @@ g_t.joinWithArray = _({
     __addNickName = function(c)
         c._nickName = "joinWithArray<" .. (#c.tabs)  .. ">"
     end,
-})
+}
 
 
 function g_t.select(...)
@@ -4622,7 +4608,7 @@ function g_t.select(...)
     return g_t.selectWithArray(tabs)
 end
 
-g_t.selectWithArray = _({
+g_t.selectWithArray = _{
     tabName = "__select",
 
     s1 = function (c, tabs)
@@ -4650,9 +4636,9 @@ g_t.selectWithArray = _({
     __addNickName = function(c)
         c._nickName = "selectWithArray<" .. (#c.tabs)  .. ">"
     end,
-})
+}
 
-g_t.delay = _({
+g_t.delay = _{
     s1 = function(c, totalTime)
         if g_t.debug then
             if totalTime == nil then
@@ -4706,9 +4692,9 @@ g_t.delay = _({
     end,
 
     event = g_t.empty_event,
-})
+}
 
-g_t.delayRealTime = _({
+g_t.delayRealTime = _{
     s1 = function(c, totalTime, updateInterval)
         if g_t.debug then
             if totalTime == nil then
@@ -4736,12 +4722,12 @@ g_t.delayRealTime = _({
 
     --s2_updaeInteral is overrided by setDynamics in s1
     s2_updateInteral = nil,
-})
+}
 
 context_meta_call = g_t_rebind
 context.__call = context_meta_call
 
-context.tabProxy = _({
+context.tabProxy = _{
         s1 = function(c, self, scName, stopHostWhenStop, proxyFuture, proxyEvent)
             if g_t.debug then
                 if scName then
@@ -4848,9 +4834,9 @@ context.tabProxy = _({
         getHost = function(c)
             return c.host
         end
-})
+}
 
-tabJoin = _({
+tabJoin = _{
     tabName = "join",
 
     s1 = function(c, self, scNames, joinFuture)
@@ -4917,9 +4903,9 @@ tabJoin = _({
         nickName = nickName  .. ">"
         c._nickName = nickName
     end,
-})
+}
 
-tabSelect = _({
+tabSelect = _{
     tabName = "select",
 
     s1 = function(c, self, scNames, selectFuture)
@@ -5001,7 +4987,7 @@ tabSelect = _({
         nickName = nickName  .. ">"
         c._nickName = nickName
     end,
-})
+}
 
 return tabMachine
 

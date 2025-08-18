@@ -8,7 +8,7 @@ local socket = require "socket"
 local tabMachine = require("tabMachine.tabMachine")
 local tabSimpleServer = nil
 
-tabSimpleServer = _({
+tabSimpleServer = _{
     s1 = function(c, isUsingIpV6)
         c._isUsingIpV6 = isUsingIpV6
     end,
@@ -73,9 +73,9 @@ tabSimpleServer = _({
     forEachService = function(c, callback)
         return c._serviceGroup:forEachService(callback)
     end,
-})
+}
 
-tabSimpleServer.tabServiceGroup = _({
+tabSimpleServer.tabServiceGroup = _{
     s1 = function(c, tabService, serviceParams)
         c.tabService = tabService
         c.serviceParams = serviceParams
@@ -128,9 +128,9 @@ tabSimpleServer.tabServiceGroup = _({
         end)
     end,
 
-})
+}
 
-tabSimpleServer.tabAccept = _({
+tabSimpleServer.tabAccept = _{
     tabName = "tabSimpleServer:tabAccept",
 
     s1 = function(c, socket)
@@ -144,7 +144,7 @@ tabSimpleServer.tabAccept = _({
             c:stop()
         end
     end,
-})
+}
 
 return tabSimpleServer
 

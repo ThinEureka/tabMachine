@@ -5,7 +5,8 @@
 local tabSocket = require("tabMachine.tabSocket")
 local tabSimpleService = nil
 
-tabSimpleService = _({
+tabSimpleService = _{
+
     tabName = "tabSimpleService",
 
     s1 = function(c, socket, serviceId, serviceParams)
@@ -60,7 +61,7 @@ tabSimpleService = _({
         return c._tabCmdHandler:sendRequest(...)
     end,
 
-})
+}
 
 --------------------------------------------------------------------------------
 -- public:

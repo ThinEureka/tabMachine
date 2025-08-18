@@ -18,7 +18,7 @@ local STATUS_TIMEOUT = "timeout"
 --------------------------------------------------------------------------------
 -- main flow 
 -- private:
-tabSocket = _({
+tabSocket = _{
     tabName = "tabSocket",
 
     STATE = {
@@ -136,7 +136,7 @@ tabSocket = _({
     end,
 
     --the progress when socket is the specified state
-    tabInState = _({
+    tabInState = _{
         s1 = function(c, self, state)
             c._nickName = "tabSocket#tabInState->".. state
             if self._state ~= state then
@@ -145,7 +145,7 @@ tabSocket = _({
                 c:call(self:tabState(state), "s2")
             end
         end,
-    }),
+    },
 
     --private:
     tabState = function(c, scName)
@@ -157,11 +157,11 @@ tabSocket = _({
             return c:tabSuspend("s2")
         end
     end,
-})
+}
 
 --private:
 -- 2nd level flow
-tabSocket.tabConnectting = _({
+tabSocket.tabConnectting = _{
     tabName = "tabConnectting",
 
     s1 = function(c, ip, port, timeout)
@@ -240,9 +240,9 @@ tabSocket.tabConnectting = _({
 
         return isSuccess
     end,
-})
+}
 
-tabSocket.tabConnectted = _({
+tabSocket.tabConnectted = _{
     tabName = "tabConnectted",
 
     s1 = function(c)
@@ -323,13 +323,13 @@ tabSocket.tabConnectted = _({
             return nil, err, sent
         end
     end,
-})
+}
 
 --------------------------------------------------------------------------------
 --public:
 
 --read a segment of which the boundary is determined by funDecode 
-tabSocket.tabReadOneSegment = _({
+tabSocket.tabReadOneSegment = _{
     tabName =  "tabSocket#tabReadOneSegment",
 
     s1 = function(c, self, funDecode, updateInterval, timeout, disconnectWhenTimeout)
@@ -411,10 +411,10 @@ tabSocket.tabReadOneSegment = _({
             return nil
         end
     end,
-})
+}
 
 --pull msgs repeatly 
-tabSocket.tabPullSegments = _({
+tabSocket.tabPullSegments = _{
     tabName =  "tabSocket#tabPullSegments",
 
     s1 = function(c, self, funDecode, segmentHandler, updateInterval)
@@ -493,7 +493,7 @@ tabSocket.tabPullSegments = _({
             return nil
         end
     end,
-})
+}
 
 
 --------------------------------------------------------------------------------

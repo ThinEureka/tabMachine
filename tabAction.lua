@@ -1,7 +1,7 @@
 --author lch
 
 -------------------------------actions -------------------
-g_t.waitAnimatorStatusChange = _({
+g_t.waitAnimatorStatusChange = _{
     s1 = function(c, animator, statusName)
         c._nickName = "waitAnimatorStatusChange"
         c.animator = animator
@@ -33,10 +33,10 @@ g_t.waitAnimatorStatusChange = _({
     tabProxyForNormalizedTime = function(c, normalizedTime)
         if not c:getSub(normalizedTime + "normalizedTime") then
             table.insert(c.normalizedTimeList, normalizedTime)
-            c:call(_({
+            c:call(_{
                 s1 = g_t.empty_fun,
                 event = g_t.empty_event,
-            }), normalizedTime + "normalizedTime")
+            }, normalizedTime + "normalizedTime")
         end
         return c:tabProxy(normalizedTime + "normalizedTime")
     end,
@@ -53,18 +53,18 @@ g_t.waitAnimatorStatusChange = _({
     end,
     -- private:
     tabKeyFrame = function(c)
-        return _({
+        return _{
             s1 = g_t.empty_fun,
             event = g_t.empty_event,
-        })
+        }
     end,
 
     keyFrameEventCall = function(c, keyFrame)
         c:stop(keyFrame)
     end,
-})
+}
 
-g_t.waitAniChangeByFrame  = _({
+g_t.waitAniChangeByFrame  = _{
     s1 = function(c, animator, clipName)
         c._nickName = "waitAnimatorStatusChange"
         c.animator = animator
@@ -88,10 +88,10 @@ g_t.waitAniChangeByFrame  = _({
 
     -- private:
     tabKeyFrame = function(c)
-        return _({
+        return _{
             s1 = g_t.empty_fun,
             event = g_t.empty_event,
-        })
+        }
     end,
 
     keyFrameEventCall = function(c, keyFrame)
@@ -101,8 +101,8 @@ g_t.waitAniChangeByFrame  = _({
             c:stop(keyFrame)
         end
     end,
-})
-g_t.waitForNormalizedTime = _({
+}
+g_t.waitForNormalizedTime = _{
     s1 = function(c, animator, statusName, normalizedTime)
         c.normalizedTime = normalizedTime
         c.animator = animator
@@ -121,9 +121,9 @@ g_t.waitForNormalizedTime = _({
             c:stop("s2")
         end
     end,
-})
+}
 
-g_t.waitForLastFrame = _({
+g_t.waitForLastFrame = _{
     s1 = function(c, animation)
         c._nickName = "waitForLastFrame"
         c.animation = animation
@@ -146,7 +146,7 @@ g_t.waitForLastFrame = _({
     end,
     -- private:
     tabKeyFrame = function(c, keyFrame)
-        return _({
+        return _{
             s1 = g_t.empty_fun,
             event = {
                 keyFrame = function(c, frame)
@@ -155,7 +155,7 @@ g_t.waitForLastFrame = _({
                     end
                 end
             },
-        })
+        }
     end,
 
     keyFrameEventCall = function(c, keyFrame)
@@ -163,9 +163,9 @@ g_t.waitForLastFrame = _({
     end,
 
     event = g_t.empty_event,
-})
+}
 
-g_t.waitForAct = _({
+g_t.waitForAct = _{
     s1 = function (c, node, act)
         if g_t.debug then
             c._nickName = "waitForAct"
@@ -181,9 +181,9 @@ g_t.waitForAct = _({
         c:stop()
     end,
     event = g_t.empty_event,
-})
+}
 
-g_t.playSpineAnimation = _({
+g_t.playSpineAnimation = _{
     s1 = function(c, spine, animationName)
         c.spine = spine
         spine:registerSpineEventHandler(function (data)
@@ -202,7 +202,7 @@ g_t.playSpineAnimation = _({
         end
     end,
     event = g_t.empty_event,
-})
+}
 local math_pow = math.pow or function(x, y) return x^y end
 
 g_t.curve = {}
@@ -413,7 +413,7 @@ g_t.curve.defaultLine = function (k)
     return k
 end
 
-g_t.tween = _({
+g_t.tween = _{
     s1 = function(c, fun, v1, v2, duration, curve)
         if g_t.debug then
             c._nickName =  "tween"
@@ -460,7 +460,7 @@ g_t.tween = _({
         end
         return v
     end
-})
+}
 
 --二阶
 g_t.curve.bezierOnePoint = function(t, p0, p1, p2)
@@ -481,7 +481,7 @@ g_t.curve.bezierTwoPoint = function(k)
     return p0_1_1_2_1_2_2_3
 end
 
-g_t.bezier = _({
+g_t.bezier = _{
     s1 = function(c, fun, v1, v2, duration, curve, points)
         if g_t.debug then
             c._nickName =  "bezier"
@@ -520,9 +520,9 @@ g_t.bezier = _({
     s2 = function(c)
         c.fun(c.v2)
     end,
-})
+}
 
-g_t.printText = _({
+g_t.printText = _{
     s1 = function(c, labNode, word, interval)
         print("tabPrintText==========", word, interval)
         c.word = word or ""
@@ -551,9 +551,9 @@ g_t.printText = _({
     final = function(c)
        -- labNode = nil
     end
-})
+}
 
-g_t.printTextEx = _({
+g_t.printTextEx = _{
     s1 = function(c, labNode, word, interval, needUpwardNotify)
         labNode:setData(word)
         c.labCom = labNode:com(ct.text)
@@ -584,9 +584,9 @@ g_t.printTextEx = _({
             c.labCom.maxVisibleCharacters = c.maxCount
         end
     end
-})
+}
 
-g_t.timeline_anim = _({
+g_t.timeline_anim = _{
     s1 = function(c, nodeList, timeLineConfig, anim)
         require("gameFlow.timeline.timeline_util")
         if g_t.debug then
@@ -605,7 +605,7 @@ g_t.timeline_anim = _({
         end
     end,
 
-    playNode = _({
+    playNode = _{
         s1 = function(c, key, attrCfg, go, loop, fps)
             c.key = key
             c.object = go
@@ -649,8 +649,8 @@ g_t.timeline_anim = _({
                 c:stop()
             end
         end,
-    })
-})
+    }
+}
 
 local getNodeAttribute
 local parseTimeLineData
@@ -663,7 +663,7 @@ local setNodeAttribute
 
 -- {x y +x +y lx, ly +lx, +ly 未位置参数， s,sx,sy,+s,+sx,+sy}
 function g_t.timeline(goTable, operateTable)
-    return _({
+    return _{
         s1 = function(c)
             if g_t.debug then
                 c._nickName = "timeline"
@@ -697,7 +697,7 @@ function g_t.timeline(goTable, operateTable)
         s4 = function(c)
             c:start("s2")
         end,
-    })
+    }
 end
 
 parseTimeLineData = function(operateTable)
@@ -868,7 +868,7 @@ function g_t.catmullRom(node, duration, points, needAutoRotation)
     assert(type(points) == "table", "points must be array")
     assert(#points > 1, "point num must greater than 1")
     assert(duration > 0, "duration must greater than zero!")
-    return _({
+    return _{
         s1 = function(c)
             if g_t.debug then
                 c._nickName = "catmullRom"
@@ -971,7 +971,7 @@ function g_t.catmullRom(node, duration, points, needAutoRotation)
             return points[util.clampf(index, 1, #points)]
         end,
 
-    })
+    }
 end
 
 return cocosContext

@@ -375,7 +375,7 @@ function tabSerialization.addSnapshotTabTree(parentContext, tabTree, name)
 end
 
 
-tabSerialization.tabRecordTabClip = _({
+tabSerialization.tabRecordTabClip = _{
     tabName = "recordSnapshots",
 
     s1 = function (c, rootContext, totalFrame, frameInterval)
@@ -418,6 +418,6 @@ tabSerialization.tabRecordTabClip = _({
         c:output(c.clip)
     end,
 
-})
+}
 
 return tabSerialization

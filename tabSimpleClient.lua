@@ -5,7 +5,7 @@
 local tabSocket = require("tabMachine.tabSocket")
 local tabSimpleClient = nil
 
-tabSimpleClient = _({
+tabSimpleClient = _{
     tabName = "tabSimpleClient",
 
     s1 = function(c, params)
@@ -77,9 +77,9 @@ tabSimpleClient = _({
     sendRequest = function(c, ...)
         return c._tabCmdHandler:sendRequest(...)
     end,
-})
+}
 
-tabSimpleClient.tabWorking = _({
+tabSimpleClient.tabWorking = _{
     s1 = function(c)
         c:call(c:_("tabSocket"):tabInState(tabSocket.STATE.CONNECTED), "s2")
         local tabCmdHandler = c:_("tabCmdHandler")
@@ -93,7 +93,7 @@ tabSimpleClient.tabWorking = _({
     end,
 
     event = g_t.empty_event,
-})
+}
 
 return tabSimpleClient
 

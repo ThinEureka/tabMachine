@@ -6,7 +6,7 @@
 local tabQueue = nil
 
 -- tabQueue currently does not support bind tab
-tabQueue = _({
+tabQueue = _{
     tabName = "tabQueue",
 
     DUPLICATE_ACTION = {
@@ -132,7 +132,7 @@ tabQueue = _({
         return false
     end,
 
-    _tabRunning = _({
+    _tabRunning = _{
         s1 = function(c, config)
             c.cfg = config
             c._nickName = "running_"..c.cfg.uid
@@ -155,11 +155,11 @@ tabQueue = _({
         getTarget = function(c)
             return c.targetTab
         end,
-    })
-})
+    }
+}
 
 
-tabQueue.tabStartTaskNextFrame =_({
+tabQueue.tabStartTaskNextFrame =_{
     s1 = function(c)
         c:call(g_t.skipFrames(1), "s2")
     end,
@@ -170,7 +170,7 @@ tabQueue.tabStartTaskNextFrame =_({
             queue:startNextTask()
         end
     end
-})
+}
 
 --public:
 function tabQueue:add(tab, tabParams, isWait, queueParams)
@@ -421,7 +421,7 @@ function tabQueue:waitTabCompleted(uid, dontStopHostWhenStop)
     return waitTabMgr:getWatiTabProxy(uid, not dontStopHostWhenStop)
 end
 
-tabQueue._tabWaitTabCompletedMgr = _({
+tabQueue._tabWaitTabCompletedMgr = _{
     s1 = function(c, uid)
         c.aliveMap = c:call(g_t.tabAliveMap, "aliveMap")
         c.refCount = c:call(g_t.tabRefCount, "refCount")
@@ -478,9 +478,9 @@ tabQueue._tabWaitTabCompletedMgr = _({
         c.aliveMap:validate()
         return nil
     end,
-})
+}
 
-tabQueue._tabMonitor = _({
+tabQueue._tabMonitor = _{
     s1 = function(c, uid)
         c._uid = uid
         c._nickName = "monitor_".. c._uid
@@ -523,6 +523,6 @@ tabQueue._tabMonitor = _({
         return c._uid
     end,
 
-})
+}
 
 return tabQueue

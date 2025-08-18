@@ -1,5 +1,5 @@
 
-g_t.httpGetJson = _({
+g_t.httpGetJson = _{
     s1 = function(c, uri, timeout)
         c.uri = uri
         c.requestId = CS.Utils.HttpRequestGet(uri, timeout or 10, function(status, downloadText)
@@ -34,9 +34,9 @@ g_t.httpGetJson = _({
     __addNickName = function(c)
         c._nickName = "httpGetJson<" .. (c.uri)  .. ">"
     end,
-})
+}
 
-g_t.httpGetJsonWithCompete = _({
+g_t.httpGetJsonWithCompete = _{
     s1 = function(c, urls, timeout)
         local tabs = {}
         for _, url in ipairs(urls) do
@@ -53,9 +53,9 @@ g_t.httpGetJsonWithCompete = _({
     __addNickName = function(c)
         c._nickName = "httpGetJsonWithCompete"
     end,
-})
+}
 
-g_t.httpGetData = _({
+g_t.httpGetData = _{
     s1 = function(c, uri, timeout)
         c.requestId = CS.Utils.HttpRequestGet(uri, timeout or 10, function(status, downloadText, data)
             c:_onRespond(status, downloadText, data)
@@ -83,10 +83,10 @@ g_t.httpGetData = _({
     __addNickName = function(c)
         c._nickName = "httpGetData"
     end,
-})
+}
 
 
-g_t.httpPost = _({
+g_t.httpPost = _{
     s1 = function(c, uri, postData, contentType, timeout)
         c.uri = uri
         c.requestId = CS.Utils.HttpRequestPost(uri, postData, contentType or "application/json", timeout or 10,function(status, downloadText)
@@ -111,9 +111,9 @@ g_t.httpPost = _({
     end,
 
     s1_event = g_t.empty_event,
-})
+}
 
-g_t.httpPostFormData = _({
+g_t.httpPostFormData = _{
     s1 = function(c, uri, fromData, timeout)
         c.uri = uri
         c.requestId = CS.Utils.HttpRequestPostFormData(uri, fromData, timeout or 10, function(status, downloadText)
@@ -138,7 +138,7 @@ g_t.httpPostFormData = _({
     end,
 
     s1_event = g_t.empty_event,
-})
+}
 
 
 g_t.httpError = {
@@ -149,7 +149,7 @@ g_t.httpError = {
 
 -- if fileSize is not nil, check the tmp file size first then continue from where last time aborted
 -- if you do not need this behavior, delete the tmp file by yourself.
-g_t.httpSafeDownload = _({
+g_t.httpSafeDownload = _{
     s1 = function(c, url, savePath, enableProgressEvent, fileSize, md5, tmpPath, progressInterval)
         c.startTime = require("socket").gettime()
         local downloadedSize = 0
@@ -255,9 +255,9 @@ g_t.httpSafeDownload = _({
     moveFile = function(c, oldPath, newPath)
         CS.System.IO.File.Move(oldPath, newPath)
     end,
-})
+}
 
-g_t.tabGetFileSize = _({
+g_t.tabGetFileSize = _{
     s1 = function(c, url)
         local csTab = CS.TabHttp.TabGetFileSize(url)
         c:call(g_t.tabCS(csTab) >> "result", "s2")
@@ -270,4 +270,4 @@ g_t.tabGetFileSize = _({
             c:output(-1, c.result)
         end
     end,
-})
+}
