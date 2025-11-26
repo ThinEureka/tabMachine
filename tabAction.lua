@@ -464,20 +464,20 @@ g_t.tween = _{
 
 --二阶
 g_t.curve.bezierOnePoint = function(t, p0, p1, p2)
-    local p0p1 = p0 * (1 - t) + p1 * t
-    local p1p2 = p1 * (1 - t) + p2 * t
-    local result = p0p1 * (1 - t) + p1p2 * t
+    local p0p1 = mathLib.lerpVec3(p0, p1, t)
+    local p1p2 = mathLib.lerpVec3(p1, p2, t)
+    local result = mathLib.lerpVec3(p0p1, p1p2, t)
     return result
 end
 
 --三阶
-g_t.curve.bezierTwoPoint = function(k)
-    local p0_1 = Vector3.Lerp(p0,p1,t)
-    local p1_2 = Vector3.Lerp(p1,p2,t)
-    local p2_3 = Vector3.Lerp(p2,p3,t)
-    local p0_1_1_2 = Vector3.Lerp(p0_1,p1_2,t)
-    local p1_2_2_3 = Vector3.Lerp(p1_2,p2_3,t)
-    local p0_1_1_2_1_2_2_3 = Vector3.Lerp(p0_1_1_2,p1_2_2_3,t)
+g_t.curve.bezierTwoPoint = function(t, p0, p1, p2, p3)
+    local p0_1 = mathLib.lerpVec3(p0,p1,t)
+    local p1_2 = mathLib.lerpVec3(p1,p2,t)
+    local p2_3 = mathLib.lerpVec3(p2,p3,t)
+    local p0_1_1_2 = mathLib.lerpVec3(p0_1,p1_2,t)
+    local p1_2_2_3 = mathLib.lerpVec3(p1_2,p2_3,t)
+    local p0_1_1_2_1_2_2_3 = mathLib.lerpVec3(p0_1_1_2,p1_2_2_3,t)
     return p0_1_1_2_1_2_2_3
 end
 
@@ -494,6 +494,7 @@ g_t.bezier = _{
         c.fun = fun
         c.curve = curve
         c.points = points
+        c.rate = {}
     end,
 
     s1_update = function(c, dt)
@@ -504,12 +505,15 @@ g_t.bezier = _{
         end
 
         local rate = c.time / c.duration
+        c.rate.x = rate
+        c.rate.y = rate
+        c.rate.z = rate
         local v
         if c.curve and type(c.curve) == "function" and type(c.points) == "table" then
             if (#c.points == 1) then
-                v = c.curve(rate, c.v1, c.points[1], c.v2)
-            elseif (#point == 2) then
-                v = c.curve(rate, c.v1, c.points[1], c.points[2], c.v2)
+                v = c.curve(c.rate, c.v1, c.points[1], c.v2)
+            elseif (#c.point == 2) then
+                v = c.curve(c.rate, c.v1, c.points[1], c.points[2], c.v2)
             end
         else
             printError("bezier param is error")
@@ -662,43 +666,43 @@ local setNodeAttribute
 --a,+a为透明参数，e为回调函数或者tab 
 
 -- {x y +x +y lx, ly +lx, +ly 未位置参数， s,sx,sy,+s,+sx,+sy}
-function g_t.timeline(goTable, operateTable)
-    return _{
-        s1 = function(c)
-            if g_t.debug then
-                c._nickName = "timeline"
-            end
-            c.time = 0
-            c.lineData = parseTimeLineData(operateTable)
-        end,
-        s2 = function(c)
-            c.curData = table.remove(c.lineData, 1)
-            if not c.curData then 
-                c:stop()
-            end
-        end,
-        s3 = function(c)
-            c.nodeAttribute = getNodeAttribute(goTable, c.curData.animation)
-        end,
-        s3_update = function(c, dt)
-            c.time = c.time + dt
-            setNodeAttribute(goTable, c.nodeAttribute, c.curData, operateTable, c.time)
-            if c.time >= c.curData.animation.t then 
-                if c.curData.animation.f then 
-                    if type(c.curData.animation.f) == "function" then 
-                        c.curData.animation.f(c, goTable)
-                    elseif type(c.curData.animation.f) == "table" then 
-                        c:call(c.curData.animation.f(goTable), "f")
-                    end 
+g_t.timeline = _{
+    s1 = function(c, gameObject, operateTable)
+        if g_t.debug then
+            c._nickName = "timeline"
+        end
+        c.time = 0
+        c.gameObject = gameObject
+        c.operateTable = operateTable
+        c.lineData = parseTimeLineData(operateTable)
+    end,
+    s2 = function(c)
+        c.curData = table.remove(c.lineData, 1)
+        if c.curData then 
+            c:start("s4")
+        end
+    end,
+    s4 = function(c)
+        c.nodeAttribute = getNodeAttribute(c.gameObject, c.curData.animation)
+    end,
+    s4_update = function(c, dt)
+        c.time = c.time + dt
+        setNodeAttribute(c.gameObject, c.nodeAttribute, c.curData, c.operateTable, c.time)
+        if c.time >= c.curData.animation.t then 
+            if c.curData.animation.f then 
+                if type(c.curData.animation.f) == "function" then 
+                    c.curData.animation.f(c, c.gameObject)
+                elseif type(c.curData.animation.f) == "table" then 
+                    c:call(c.curData.animation.f(c.gameObject), "f")
                 end 
-                c:stop("s3")
-            end
-        end,
-        s4 = function(c)
-            c:start("s2")
-        end,
-    }
-end
+            end 
+            c:stop("s4")
+        end
+    end,
+    s5 = function(c)
+        c:start("s2")
+    end,
+}
 
 parseTimeLineData = function(operateTable)
     local count = 1
@@ -736,34 +740,33 @@ parseTimeLineData = function(operateTable)
     return list
 end
 
-getNodeAttribute = function (goTable, curData, operateTable, custom)
+getNodeAttribute = function (gameObject, curData, operateTable, custom)
     local data = {}
     if curData.x or curData["+x"] then 
-        data.x = goTable:getLocalPositionX()
+        data.x = CS.GameObjUtil.GetLocalPositionX(gameObject)
     end 
     if curData.y or curData["+y"] then 
-        data.y = goTable:getLocalPositionY()
+        data.y = CS.GameObjUtil.GetLocalPositionY(gameObject)
     end
     if curData.s or curData["+s"] then 
-        data.s = goTable:getScale()
+        data.s = CS.GameObjUtil.GetScale(gameObject)
     end
-    -- if curData.r or curData["+r"] then 
-    --     data.r = node:getRotation()
-    -- end 
     if curData.a or curData["+a"] then 
-        data.a = goTable:getOpacity()
+        local canvasGroup = gameObject:GetComponentInChildren("CanvasGroup")
+        local alpha = 1
+        if not isNil(canvasGroup) then
+            alpha = canvasGroup.alpha
+        end
+        data.a = alpha
     end 
-    -- if curData.d or curData["+d"] then 
-    --     data.d = node:getRotation()*3.1415/180
-    -- end
     if curData.sx or curData["+sx"] then 
-        data.sx = goTable:getScaleX()
+        data.sx = CS.GameObjUtil.GetScaleX(gameObject)
     end
     if curData.sy or curData["+sy"] then 
-        data.sy = goTable:getScaleY()
+        data.sy = CS.GameObjUtil.GetScaleY(gameObject)
     end
     if curData.w then
-        data.w, data.h = goTable:getSizeDelta()
+        data.w, data.h = CS.GameObjUtil.GetSizeDelta(gameObject.rectTransform)
     end
     -- if curData.cr then
     --     local color = node:getColor()
@@ -781,7 +784,7 @@ getNodeAttribute = function (goTable, curData, operateTable, custom)
 end
 
 
-setNodeAttribute = function(goTable, oldAttribute, operateData, operateTable, curTime)
+setNodeAttribute = function(gameObject, oldAttribute, operateData, operateTable, curTime)
     local rate = 1
     local finalAttribute = operateData.animation
     if finalAttribute.t > 0 then 
@@ -793,57 +796,41 @@ setNodeAttribute = function(goTable, oldAttribute, operateData, operateTable, cu
     if finalAttribute.x or finalAttribute["+x"] then 
         local addX = finalAttribute.x and (finalAttribute.x - oldAttribute.x) or finalAttribute["+x"]
         local x = oldAttribute.x + addX * rate
-        goTable:setLocalPositionX(x)
+        CS.GameObjUtil.SetLocalPositionX(gameObject, x)
     end
     if finalAttribute.y or finalAttribute["+y"] then 
         local addY = finalAttribute.y and (finalAttribute.y - oldAttribute.y ) or finalAttribute["+y"]
         local y = oldAttribute.y + addY * rate
-        goTable:setLocalPositionY(y)
+        CS.GameObjUtil.SetLocalPositionY(gameObject, y)
     end 
     if finalAttribute.s or finalAttribute["+s"] then 
         local addS = finalAttribute.s and (finalAttribute.s - oldAttribute.s ) or finalAttribute["+s"]
         local s = oldAttribute.s + addS * rate 
-        goTable:setScale(s)
+        CS.GameObjUtil.SetScale(gameObject, s)
     end 
-    -- if finalAttribute.r or finalAttribute["+r"] then 
-    --     local addR = finalAttribute.r and (finalAttribute.r - oldAttribute.r ) or finalAttribute["+r"]
-    --     local r = oldAttribute.r + addR * rate
-    --     node:setRotation(r)
-    -- end 
     if finalAttribute.a or finalAttribute["+a"] then
         local addA = finalAttribute.a and (finalAttribute.a - oldAttribute.a ) or finalAttribute["+a"]
         local a = oldAttribute.a + addA * rate
-        goTable:setOpacity(a)
+        local canvasGroup = gameObject:GetComponentInChildren("CanvasGroup")
+        if not isNil(canvasGroup) then
+            canvasGroup.alpha = a
+        end
     end 
-    -- if finalAttribute.d or finalAttribute["+d"] then 
-    --     local addD = finalAttribute.d and (finalAttribute.d - oldAttribute.d ) or finalAttribute["+d"]
-    --     local d = oldAttribute.d + addD * rate
-    --     node:setRotation(d*180/3.1415)
-    -- end
     if finalAttribute.sx or finalAttribute["+sx"] then 
         local addSx = finalAttribute.sx and (finalAttribute.sx - oldAttribute.sx ) or finalAttribute["+sx"]
         local sx = oldAttribute.sx + addSx * rate
-        goTable:setScaleX(sx)
+        CS.GameObjUtil.SetScaleX(gameObject, sx)
     end 
     if finalAttribute.sy or finalAttribute["+sy"] then 
         local addSy = finalAttribute.sy and (finalAttribute.sy - oldAttribute.sy ) or finalAttribute["+sy"]
         local sy = oldAttribute.sy + addSy * rate
-        goTable:setScaleY(sy)
+        CS.GameObjUtil.SetScaleY(gameObject, sy)
     end 
     if finalAttribute.w then
         local addW = finalAttribute.w and (finalAttribute.w - oldAttribute.w )
         local sw = oldAttribute.w + addW * rate
-        goTable:setSizeDelta(sw, oldAttribute.h)
+        CS.GameObjUtil.SetSizeDelta(gameObject.rectTransform, sw, oldAttribute.h)
     end
-    -- if finalAttribute.cr and finalAttribute.cg and finalAttribute.cb then
-    --     local addR = finalAttribute.cr and (finalAttribute.cr - oldAttribute.cr )
-    --     local addG = finalAttribute.cg and (finalAttribute.cg - oldAttribute.cg )
-    --     local addB = finalAttribute.cb and (finalAttribute.cb - oldAttribute.cb )
-    --     local cr = oldAttribute.cr + addR * rate
-    --     local cg = oldAttribute.cg + addG * rate
-    --     local cb = oldAttribute.cb + addB * rate
-    --     node:setColor(cc.c3b(cr, cg, cb))
-    -- end
     for type, customValue in pairs(operateData.custom) do
         local addCustom = customValue.value - customValue.preValue
         local addValue = customValue.preValue + addCustom * rate

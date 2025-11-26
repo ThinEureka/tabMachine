@@ -57,10 +57,7 @@ function tabSnapshotLogger:dumpTabSnapshot( errorMsg, errorStack, tabStack )
     local filename = CS.UnityEngine.Application.persistentDataPath .. "/err_snapshots/" .. snapshotName 
     print("creating snapshot ", filename)
 
-    local pathDir = CS.System.IO.Path.GetDirectoryName(filename)
-    if not CS.System.IO.Directory.Exists(pathDir) then
-        CS.System.IO.Directory.CreateDirectory(pathDir)
-    end
+    CS.SystemIOUtils.EnsureFileDirectoryExists(filename)
     
     local socket = require("socket")
     local t0 = socket.gettime()

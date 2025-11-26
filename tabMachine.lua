@@ -286,6 +286,7 @@ local context_hasSub = nil
 local context_output = nil
 local context_getOutputs = nil
 local context_abort = nil
+local context_abortAll = nil
 local context_stop = nil
 local context_stopAllSubs = nil
 local context_getDetailedPath = nil
@@ -1784,6 +1785,16 @@ context_abort = function (self, scName)
         --inline optimization
         -- sc:stop()
         context_stopSelf(sc)
+    end
+end
+
+context_abortAll = function (self, scName)
+    local sc = context_getSub(self, scName)
+
+    while sc  ~= nil do
+        sc.__name = "__abort" .. sc.__name
+        context_stopSelf(sc)
+        sc = context_getSub(self, scName)
     end
 end
 
@@ -3903,7 +3914,7 @@ context_tabSuspend = function (self, scName, target)
     return _{
         s1 = function(c)
             local suspends = self.__suspends
-            if suspends == nil or suspends[scName] == nil then
+            if not context_hasSuspend(self, scName) then
                 context_output(c, false)
                 context_stop(c)
                 return
@@ -4169,6 +4180,10 @@ context_meta_concat = function(t1, t2)
     return hostTab
 end
 
+context_meta_mul = function(t, times)
+    return g_t.tabRepeat(t, times)
+end
+
 context.tabName = "context"
 
 
@@ -4198,6 +4213,7 @@ context.hasSub = context_hasSub
 context.output = context_output
 context.getOutputs = context_getOutputs
 context.abort = context_abort
+context.abortAll = context_abortAll
 context.stop = context_stop
 context.stopAllSubs = context_stopAllSubs
 context.isStopped = context_isStopped
@@ -4248,6 +4264,7 @@ context.__shr = context_meta_shr
 context.__bor = context_meta_bor
 context.__band = context_meta_band
 context.__concat = context_meta_concat
+context.__mul = context_meta_mul
 
 --make t nonreuse to be compatible with bindTab 
 
@@ -4310,9 +4327,10 @@ metaBind = {
         return ft
     end,
     
-    __bor = context.__bor,
-    __band = context.__band,
-    __concat = context.__concat,
+    __bor = context_meta_bor,
+    __band = context_meta_band,
+    __concat = context_meta_concat,
+    __mul = context_meta_mul,
 }
 
 g_t_rebind = function(tab, ...)
@@ -4924,17 +4942,21 @@ tabSelect = _{
             c:__addNickName()
         end
 
-        local isDone = true
-        for index, name in ipairs(scNames) do
-            if selectFuture or context_getSub(self, name) ~= nil then
-                isDone = false
-                context_registerLifeTimeListener(self, name, c)
-            end
-        end
-
-        if isDone then
-            c:stop()
-        end
+		if not selectFuture then
+			for index, name in ipairs(scNames) do
+				if context_getSub(self, name) == nil then
+					c:output(index)
+					c:stop()
+					return
+				else
+					context_registerLifeTimeListener(self, name, c)
+				end
+			end
+		else
+			for index, name in ipairs(scNames) do
+				context_registerLifeTimeListener(self, name, c)
+			end
+		end
     end,
 
     event = {
@@ -4986,6 +5008,38 @@ tabSelect = _{
         nickName = nickName .. listName
         nickName = nickName  .. ">"
         c._nickName = nickName
+    end,
+}
+
+g_t.infinite = {}
+_oo = g_t.infinite
+
+-- 循环播放，不传次数则永久
+g_t.tabRepeat = _{
+    s1 = function(c, tab, times)
+        c.tab = #tab
+        c.times = times
+        c.curTimes = 0
+    end,
+    s2 = function(c)
+        c:call(c.tab, "s3", {"isAborted"})
+    end,
+    s4 = function(c)
+        if c.isAborted then
+            c:stop()
+            return
+        end
+        c.curTimes = c.curTimes + 1
+        if c.times == nil or c.times == _oo or c.curTimes < c.times then
+            c:start("s2")
+        else
+            c:stop()
+        end
+    end,
+
+    --public:
+    getCurTimes = function(c)
+        return c.curTimes
     end,
 }
 

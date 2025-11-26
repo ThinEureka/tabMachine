@@ -46,10 +46,7 @@ function tabDebuggerTrace:saveTraceFile()
     local fileName = os.date('trace_%Y-%m-%d-%H-%M-%S')
     local filePath = CS.System.IO.Path.Combine(CS.UnityEngine.Application.persistentDataPath, "tab_trace/" .. fileName .. ".json")
     success = xpcall(function()
-        local pathDir = CS.System.IO.Path.GetDirectoryName(filePath)
-        if not CS.System.IO.Directory.Exists(pathDir) then
-            CS.System.IO.Directory.CreateDirectory(pathDir)
-        end
+        CS.SystemIOUtils.EnsureFileDirectoryExists(filePath)
         local data = {
             traceEvents = self._traceEvents,
         }
