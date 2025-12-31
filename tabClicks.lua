@@ -76,6 +76,8 @@ g_t.click = _{
     end,
 }
 
+-- g_t.clickTextLink 和 g_t.urlClick 实现一致， 然后url会自己创建TMP_TextClickEventHandler
+-- 建议直接使用urlClick
 g_t.clickTextLink = _{
     s1 = function(c, target, monitor) 
         if g_t.debug then

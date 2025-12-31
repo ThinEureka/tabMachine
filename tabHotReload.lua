@@ -9,11 +9,9 @@ local tabHotReload = {}
 
 tabHotReload.enableLog = false
 
-tabHotReload.logs = {
-    -- reload_packages = {},
-    reload_tabs = {},
-    non_reload_tabs = {}
-}
+local raw_pairs = function(x)
+	    return next, x, nil
+	end
 
 tabHotReload.baseExcludes = {
     "_G",
@@ -35,9 +33,18 @@ tabHotReload.baseExcludes = {
     "tabMachine.*",
 
     "luaconfig",
+
+	"CS.*",
 }
 
 function tabHotReload.hotReload(rootContext, extraExcludes, includes)
+
+	tabHotReload.logs = {
+		-- reload_packages = {},
+		reload_tabs = {},
+		non_reload_tabs = {}
+	}
+
     local packages = tabHotReload.getReloadPackages(extraExcludes, includes)
 
     if tabHotReload.enableLog then
@@ -46,9 +53,16 @@ function tabHotReload.hotReload(rootContext, extraExcludes, includes)
 
     local tabMap, rTabMap = tabHotReload.buildTabMap(packages)
     local contextMap = tabHotReload.buildContextMap(rTabMap, rootContext)
-    tabHotReload.reloadPackage(packages)
+    local oldPackakges = tabHotReload.reloadPackage(packages)
     tabMap, rTabMap = tabHotReload.buildTabMap(packages)
     tabHotReload.reloadTabForContexts(contextMap, tabMap)
+
+	for path, oldPack in pairs(oldPackakges) do
+		local newPack = packages[path]
+		for k, v in pairs(newPack) do
+			oldPack[k] = v
+		end
+	end
 end
 
 function tabHotReload.isPackageInList(packPath, list)
@@ -106,7 +120,7 @@ function tabHotReload.buildTabMap(packages)
                 tabMap[path] = table
             end
 
-            for k, v in pairs(table) do
+            for k, v in raw_pairs(table) do
                 local tk = type(k)
                 local tv = type(v)
                 if tv == "table" and  (tk == "number" or tk == "string") and k ~= "super" and k~= "__index" then
@@ -130,7 +144,9 @@ function tabHotReload.buildTabMap(packages)
 end
 
 function tabHotReload.reloadPackage(packages)
+	local oldPackakges = {}
     for path, _ in pairs(packages) do
+		oldPackakges[path] = package.loaded[path]
         package.loaded[path] = nil
     end
 
@@ -139,6 +155,8 @@ function tabHotReload.reloadPackage(packages)
             packages[path] = require(path)
         end)
     end
+
+	return oldPackakges
 end
 
 function tabHotReload.buildContextMap(rTabMap, rootContext)

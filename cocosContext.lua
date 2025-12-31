@@ -548,8 +548,8 @@ g_t.tabCS = _{
         c:output(outPutValue)
         c:stop()
     end,
-    onCSNotify = function(c, msg)
-        c:upwardNotify("onCSNotify", msg)
+    onCSNotify = function(c, ...)
+        c:upwardNotify("onCSNotify", ...)
     end,
     printCSTabError = function(c, ...)
         printError(..., (c and c.getDetailedPath and c:getDetailedPath()), debug.traceback("", 2))

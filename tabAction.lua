@@ -482,46 +482,37 @@ g_t.curve.bezierTwoPoint = function(t, p0, p1, p2, p3)
 end
 
 g_t.bezier = _{
-    s1 = function(c, fun, v1, v2, duration, curve, points)
+    s1 = function(c, fun, v1, v2, duration, bezierCurve, points, curve)
+        if not bezierCurve or type(bezierCurve) ~= "function" then
+            printError("bezierCurve is error")
+            return
+        end
         if g_t.debug then
             c._nickName =  "bezier"
         end
         fun(v1)
-        c.time = 0
-        c.duration = duration
-        c.v1 = v1
+
         c.v2 = v2
         c.fun = fun
-        c.curve = curve
-        c.points = points
-        c.rate = {}
-    end,
-
-    s1_update = function(c, dt)
-        c.time = c.time + dt
-        if c.time > c.duration then
-            c:stop("s1")
-            return
+        local ratePos = {}
+        if not curve then
+            curve = g_t.curve.defaultLine
         end
-
-        local rate = c.time / c.duration
-        c.rate.x = rate
-        c.rate.y = rate
-        c.rate.z = rate
-        local v
-        if c.curve and type(c.curve) == "function" and type(c.points) == "table" then
-            if (#c.points == 1) then
-                v = c.curve(c.rate, c.v1, c.points[1], c.v2)
-            elseif (#c.point == 2) then
-                v = c.curve(c.rate, c.v1, c.points[1], c.points[2], c.v2)
+        local function moveTo(rate)
+            ratePos.x = rate
+            ratePos.y = rate
+            ratePos.z = rate
+            local v
+            if (#points == 1) then
+                v = bezierCurve(ratePos, v1, points[1], v2)
+            elseif (#points == 2) then
+                v = bezierCurve(ratePos, v1, points[1], points[2], v2)
             end
-        else
-            printError("bezier param is error")
+            fun(v)
         end
-        c.fun(v)
+        c:call(g_t.tween, "s2", nil, moveTo, 0, 1, duration, curve)
     end,
-
-    s2 = function(c)
+    s3 = function(c)
         c.fun(c.v2)
     end,
 }
