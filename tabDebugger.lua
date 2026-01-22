@@ -3,10 +3,13 @@
 --https://github.com/ThinEureka/tabMachine
 --created on Jan 8, 2020  
 
-local tabDebugger = class("tabDebugger")
+local tabDebugger = {}
 
-function tabDebugger:ctor(traceback)
-    self._traceback =  traceback
+function tabDebugger.new(traceback)
+    local d = {}
+    setmetatable(d, {__index = tabDebugger})
+    d._traceback =  traceback
+	return d
 end
 
 function tabDebugger:onMachineStart(machine, scName)

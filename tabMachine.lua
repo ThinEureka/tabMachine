@@ -32,9 +32,10 @@ local co_close =  coroutine.close
 local co_running = coroutine.running
 
 
-local tabMachine = class("tabMachine")
+local tabMachine = {} 
 
-local context = class("context")
+local context = {}
+context.__index = context
 
 tabMachine.context = context
 -- local tabProfiler = require("tabMachine.tabProfiler")
@@ -195,29 +196,24 @@ function g_nextLifeId()
     return __nextLifeId
 end
 
-__arrayPool = {}
-local __arrayPool = __arrayPool
+__stack = {}
+local __stack = __stack
+__stackTop = 0
 
 __mapPool = {}
 local __mapPool = __mapPool
 
 __contextPool = {}
 local __contextPool = __contextPool
+__contextPoolSize = 0
 
 __contextRecyclePool = {}
 local __contextRecyclePool = __contextRecyclePool
+__contextRecyclePoolSize = 0
 
 __subContainerPool = {}
 local __subContainerPool = __subContainerPool
-
-__subContainerRecyclePool = {}
-local __subContainerRecyclePool = __subContainerRecyclePool
-
-__contextTreePool = {}
-local __contextTreePool = __contextTreePool
-
-__contextTreeRecyclePool = {}
-local __contextTreeRecyclePool = __contextTreeRecyclePool
+__subContainerPoolSize = 0
 
 g_frameIndex = 1
 -- local g_frameIndex = g_frameIndex
@@ -408,19 +404,20 @@ local function outputValues(env, outputVars, outputValues)
 end
 
 local function createContext(tab, ...)
-    local c = table_remove(__contextPool)
-
-
-    if c == nil then
-        c = {}
+	local c
+	local contextPoolSize = __contextPoolSize
+	if contextPoolSize > 0 then
+		c = __contextPool[contextPoolSize]
         -- c.__lifeState = lifeState.running
         c.__lifeState = 10
-    else
-        -- c.__lifeState = lifeState.running
-        c.__lifeState = 10
-
         -- c._isRecycled = false
-    end
+		
+		__contextPoolSize = contextPoolSize - 1
+	else
+		c = {}
+        -- c.__lifeState = lifeState.running
+        c.__lifeState = 10
+	end
 
     local lifeId = __nextLifeId
     c.__lifeId = lifeId
@@ -469,19 +466,24 @@ local __backwardCacheTable = __backwardCacheTable
 __contextStack = {}
 local __contextStack = __contextStack
 
-function tabMachine:ctor()
-    g_tm = self
-    self.__isRunning = false
-    self.__rootContext = nil
-    self.__outputs = nil
-    self.__tab = nil
-    self.__curContext = nil
-    self.__debugger = nil
-    -- self.__contextStack = {}
-    -- self.__curStackNum = 0
-    -- self.__nextSubCache = {}
-    -- self.__backwardCacheTable = {}
-    self.__commonLabelCache = __commonLabelCache
+function tabMachine.new()
+	local tm = {}
+    g_tm = tm
+    tm.__isRunning = false
+    tm.__rootContext = nil
+    tm.__outputs = nil
+    tm.__tab = nil
+    tm.__curContext = nil
+    tm.__debugger = nil
+    -- tm.__contextStack = {}
+    -- tm.__curStackNum = 0
+    -- tm.__nextSubCache = {}
+    -- tm.__backwardCacheTable = {}
+    tm.__commonLabelCache = __commonLabelCache
+	setmetatable(tm, {__index = tabMachine})
+    tm.__scheduler = tm:createSystemScheduler()
+
+	return tm
 end
 
 function tabMachine:addNextSubCache(sub, num)
@@ -690,6 +692,50 @@ end
 function tabMachine:_onStopped()
     self.__isRunning = false
     self.__rootContext = nil
+end
+
+function tabMachine:update()
+	g_frameIndex = g_frameIndex + 1
+	self:gc()
+end
+
+function tabMachine:gc()
+	local contextRecyclePool = __contextRecyclePool
+	local contextPool = __contextPool
+
+	local contextPoolSize = __contextPoolSize
+	local contextRecyclePoolSize = __contextRecyclePoolSize
+	local newContextPoolSize = contextPoolSize + contextRecyclePoolSize
+
+	for i = 1, newContextPoolSize - #__contextPool do
+		table_insert(contextPool, false) --placeHolder
+	end
+
+	for i = 1, contextRecyclePoolSize do
+		local context = contextRecyclePool[i] 
+
+		-- local subContainer = rawget(context, "__subContexts")
+		-- if subContainer ~= nil then
+		-- table_insert(subContainerPool, subContainer)
+		-- end
+
+		for key, _ in pairs(context) do
+			context[key] = nil
+		end
+
+		setmetatable(context, nil)
+		-- context._isRecycled = true
+		context.__lifeId = 0
+		--
+		--
+		contextPool[contextPoolSize + i] = context
+		-- if g_t.stat then
+		-- g_aliveContextCount = g_aliveContextCount - 1
+		-- end
+	end
+
+	__contextPoolSize = newContextPoolSize
+	__contextRecyclePoolSize = 0
 end
 
 tabMachine.compileTab = tabMachine_compileTab
@@ -1006,16 +1052,21 @@ context_getSubByLifeId = function (self, lifeId)
 end
 
 context_getContextByLifeId = function (self, lifeId)
-    local contextArray = table_remove(__arrayPool)
-    if contextArray == nil then
-        contextArray = {}  
-    end
+	--do not need to maintain __stackTop because no reentry can happen inside
+	--do not need to reset statck because all contexts all recyled
+	local oldTop = __stackTop
+	local top = oldTop + 1
+	if top > #__stack then
+		table_insert(__stack, self)
+	else
+		__stack[top] = self
+	end
 
-    table_insert(contextArray, self)
-    local index = 1
     local target = nil 
-    while index <= #contextArray do
-        target = contextArray[index]
+    local index = oldTop + 1
+    while index <= top do
+        target = __stack[index]
+
         if target.__lifeId == lifeId then
             break
         end
@@ -1024,18 +1075,18 @@ context_getContextByLifeId = function (self, lifeId)
         if subContexts ~= nil then
             for i = #subContexts, 1, -1 do
                 local subContext = subContexts[i]
-                table_insert(contextArray, subContext)
+				top = top + 1
+				if top > #__stack then
+					table_insert(__stack, subContext)
+				else
+					__stack[top] = subContext
+				end
             end
         end
 
         target = nil
         index = index + 1
     end
-
-    while next(contextArray) do
-        table_remove(contextArray)
-    end
-    table_insert(__arrayPool, contextArray)
 
     return target
 end
@@ -1487,10 +1538,13 @@ context_call = function (self, tab, scName, outputVars, ...)
     -- end
     local subContexts = self.__subContexts
     if subContexts == nil then
-        subContexts = table_remove(__subContainerPool)
-        if subContexts == nil then
+		local subContainerPoolSize = __subContainerPoolSize
+		if subContainerPoolSize > 0 then
+			subContexts = __subContainerPool[subContainerPoolSize] 
+			__subContainerPoolSize = subContainerPoolSize - 1
+		else
             subContexts  = {}
-        end
+		end
         self.__subContexts = subContexts
     end
 
@@ -1822,28 +1876,31 @@ context_stopAllSubs = function (self, scName)
         return
     end
 
-    local contextArray = table_remove(__arrayPool)
-    if contextArray == nil then
-        contextArray = {}  
-    end
 
+	local oldTop = __stackTop
+	local top = oldTop
     for index = #subContexts, 1, -1 do
         local subContext = subContexts[index]
-        table_insert(contextArray, subContext)
+
+		top = top + 1
+		if top > #__stack then
+			table_insert(__stack, subContext)
+		else
+			__stack[top] = subContext
+		end
     end
 
-    for _, subContext in ipairs(contextArray) do
+	__stackTop = top
+    for index = oldTop + 1, top do
+		local subContext = __stack[index]
+
         -- if subContext.p == self and subContext.__name == scName and not subContext.__lifeState >= lifeState.quitted then
         if subContext.p == self and (scName == nil or subContext.__name == scName) and subContext.__lifeState < 30 then
             context_stopSelf(subContext)
         end
     end
 
-    while next(contextArray) do
-        table_remove(contextArray)
-    end
-
-    table_insert(__arrayPool, contextArray)
+	__stackTop = oldTop
 end
 
 context_getDetailedPath = function (self)
@@ -1926,10 +1983,13 @@ context_addSubContext = function (self, subContext)
 
     local subContexts = self.__subContexts
     if subContexts == nil then
-        subContexts = table_remove(__subContainerPool)
-        if subContexts == nil then
+		local subContainerPoolSize = __subContainerPoolSize
+		if subContainerPoolSize > 0 then
+			subContexts = __subContainerPool[subContainerPoolSize] 
+			__subContainerPoolSize = subContainerPoolSize - 1
+		else
             subContexts  = {}
-        end
+		end
         self.__subContexts = subContexts
     end
     table_insert(subContexts, subContext)
@@ -2069,25 +2129,25 @@ context_update = function(self, dt)
 end
 
 context_downDistance = function(self, dst)
+	--do not need to maintain __stackTop because no reentry can happen inside
+	--do not need to reset statck because all contexts all recyled
+	
     local dstDistance = -1
 
-    local contextArray = table_remove(__arrayPool)
-    if contextArray == nil then
-        contextArray = {}
-    end
+	local oldTop = __stackTop
+	local top = oldTop 
+	for index = 1, top + 2 - #__stack do
+		table_insert(__stack, false) -- placeHolder
+	end
 
-    local distanceArray = table_remove(__arrayPool)
-    if distanceArray == nil then
-        distanceArray = {}
-    end
+	__stack[top + 1] = self
+	__stack[top + 2] = 0
+	top = top + 2
 
-    table_insert(contextArray, self)
-    table_insert(distanceArray, 0)
-
-    local index = 1
-    while index <= #contextArray do
-        local target = contextArray[index]
-        local distance = distanceArray[index]
+    local index = oldTop
+    while index < top do
+        local target = __stack[index + 1]
+        local distance = __stack[index + 2]
 
         if target == dst then
             dstDistance = distance
@@ -2097,52 +2157,46 @@ context_downDistance = function(self, dst)
         local subContexts = target.__subContexts
         if subContexts ~= nil then
             for _, sub in ipairs(subContexts) do
-                table_insert(contextArray, sub)
-                table_insert(distanceArray, distance + 1)
+				for index = 1, top + 2 - #__stack do
+					table_insert(__stack, false) -- placeHolder
+				end
+
+				__stack[top + 1] = sub
+				__stack[top + 2] = distance + 1
+				top = top + 2
             end
         end
 
-        index = index + 1
+        index = index + 2
     end
-
-    while next(contextArray) do
-        table_remove(contextArray)
-    end
-    table_insert(__arrayPool, contextArray)
-
-    while next(distanceArray) do
-        table_remove(distanceArray)
-    end
-    table_insert(__arrayPool, distanceArray)
 
     return dstDistance
 end
 
 context_upDistance = function(self, dst)
+	--do not need to maintain __stackTop because no reentry can happen inside
+	--do not need to reset statck because all contexts all recyled
     local dstDistance = -1
 
-    local contextArray = table_remove(__arrayPool)
-    if contextArray == nil then
-        contextArray = {}
-    end
+	local oldTop = __stackTop
+	local top = oldTop
+	for index = 1, top + 2 - #__stack do
+		table_insert(__stack, false) -- placeHolder
+	end
 
-    local distanceArray = table_remove(__arrayPool)
-    if distanceArray == nil then
-        distanceArray = {}
-    end
+	__stack[top + 1] = self
+	__stack[top + 2] = 0
+	top = top + 2
 
     local visitMap = table_remove(__mapPool)
     if visitMap == nil then
         visitMap = {}
     end
 
-    table_insert(contextArray, self)
-    table_insert(distanceArray, 0)
-
-    local index = 1
-    while index <= #contextArray do
-        local target = contextArray[index]
-        local distance = distanceArray[index]
+    local index = oldTop 
+    while index < top do
+        local target = __stack[index + 1]
+        local distance = __stack[index + 2]
 
         if target == dst then
             dstDistance = distance
@@ -2156,8 +2210,14 @@ context_upDistance = function(self, dst)
                 if not visitMap[proxy] and
                     -- proxy.__lifeState < lifeState.quitting then
                     proxy.__lifeState < 20 then
-                    table_insert(contextArray, proxy)
-                    table_insert(distanceArray, distance + 1)
+
+					for index = 1, top + 2 - #__stack do
+						table_insert(__stack, false) -- placeHolder
+					end
+					__stack[top + 1] = proxy
+					__stack[top + 2] = distance + 1
+					top = top + 2
+
                     visitMap[proxy] = true
                 end
             end
@@ -2168,12 +2228,17 @@ context_upDistance = function(self, dst)
         if p and not visitMap[p] then
             -- if self is not quitting then self.p isn't quitting too.
             -- and  not p.__isQuitting then
-            table_insert(contextArray, p)
-            table_insert(distanceArray, distance + 1)
+			for index = 1, top + 2 - #__stack do
+				table_insert(__stack, false) -- placeHolder
+			end
+			__stack[top + 1] = p
+			__stack[top + 2] = distance + 1
+			top = top + 2
+
             visitMap[p] = true
         end
 
-        index = index + 1
+        index = index + 2
     end
 
     for key, _ in pairs(visitMap) do
@@ -2181,21 +2246,14 @@ context_upDistance = function(self, dst)
     end
     table_insert(__mapPool, visitMap)
 
-    while next(contextArray) do
-        table_remove(contextArray)
-    end
-    table_insert(__arrayPool, contextArray)
-
-    while next(distanceArray) do
-        table_remove(distanceArray)
-    end
-    table_insert(__arrayPool, distanceArray)
-
     return dstDistance
 end
 
 context_notify = function (self, p1, p2, ...)
     -- if self.__lifeState >= lifeState.quitting then
+	--do not need to maintain __stackTop because no reentry can happen inside
+	--do not need to reset statck because all contexts all recyled
+	
     if self.__lifeState >= 20 then
         return
     end
@@ -2216,30 +2274,26 @@ context_notify = function (self, p1, p2, ...)
         end
     end
 
-    local contextArray = table_remove(__arrayPool)
-    if contextArray == nil then
-        contextArray = {}
-    end
+	local oldTop = __stackTop
+	local top = oldTop
 
-    local distanceArray = nil
-    if range ~= nil then
-        distanceArray = table_remove(__arrayPool)
-        if distanceArray == nil then
-            distanceArray = {}
-        end
-    end
+	for index = 1, top + 2- #__stack do
+		table_insert(__stack, false) -- placeHolder
+	end
+	__stack[top + 1] = self
+	if range then
+		__stack[top + 2] = 0 --distance
+	end
+	top = top + 2
 
-    table_insert(contextArray, self)
-    if range ~= nil then
-        table_insert(distanceArray, 0)
-    end
-
-    local index = 1
     local target = nil
     local fun = nil
 
-    while index <= #contextArray do
-        target = contextArray[index]
+    local index = oldTop 
+    while index < top do
+        target = __stack[index + 1]
+		local distance
+
         local eventEx = target.__eventEx 
         if eventEx ~= nil then
             fun = eventEx[msg]
@@ -2259,9 +2313,8 @@ context_notify = function (self, p1, p2, ...)
         end
 
         local outofRange = false
-        local distance = 0
         if range ~= nil then
-            distance = distanceArray[index]
+			distance = __stack[index + 2]
             if distance >= range then
                 outofRange = true
             end
@@ -2273,29 +2326,20 @@ context_notify = function (self, p1, p2, ...)
                 for _, sub in ipairs(subContexts) do
                     -- if sub.__lifeState < lifeState.quitting then
                     if sub.__lifeState < 20 then
-                        table_insert(contextArray, sub)
-                        if range ~= nil then
-                            table_insert(distanceArray, distance + 1)
-                        end
+						for i = 1, top + 2- #__stack do
+							table_insert(__stack, false) -- placeHolder
+						end
+						__stack[top + 1] = sub
+						if range then
+							__stack[top + 2] = distance + 1
+						end
+						top = top + 2
                     end
                 end
             end
         end
 
-
-        index = index + 1
-    end
-
-    while next(contextArray) do
-        table_remove(contextArray)
-    end
-    table_insert(__arrayPool, contextArray)
-
-    if distanceArray ~= nil then
-        while next(distanceArray) do
-            table_remove(distanceArray)
-        end
-        table_insert(__arrayPool, distanceArray)
+        index = index + 2
     end
 
     if fun ~= nil then
@@ -2308,6 +2352,9 @@ context_notify = function (self, p1, p2, ...)
 end
 
 context_notifyAll = function (self, p1, p2, ...)
+	--do need to maintain __stackTop because reentry can happen inside
+	--do not need to reset statck because all contexts all recyled
+	--
     -- if self.__lifeState >= lifeState.quitting then
     if self.__lifeState >= 20 then
         return
@@ -2330,47 +2377,31 @@ context_notifyAll = function (self, p1, p2, ...)
     end
 
 
-    local funArray = table_remove(__arrayPool)
-    if funArray == nil then
-        funArray = {}
-    end
+	local oldTop = __stackTop
+	local top = oldTop 
 
-    local targetArray = table_remove(__arrayPool)
-    if targetArray == nil then
-        targetArray = {}
-    end
+	for i = 1, top + 4 - #__stack do
+		table_insert(__stack, false) -- placeHolder
+	end
+	__stack[top + 1] = self
+	if range ~= nil then
+		__stack[top + 2] = 0 --distance
+	end
+	__stack[top + 3] = false --placeHolder  ex fun 
+	__stack[top + 4] = false --placeHolder  fun 
+	top = top + 4
 
-    local target = nil
-    local contextArray = table_remove(__arrayPool)
-    if contextArray == nil then
-        contextArray = {}
-    end
-
-    local distanceArray = nil
-    if range ~= nil then
-        distanceArray = table_remove(__arrayPool)
-        if distanceArray == nil then
-            distanceArray = {}
-        end
-    end
-
-    table_insert(contextArray, self)
-    if range ~= nil then
-        table_insert(distanceArray, 0)
-    end
-    local index = 1
     local fun = nil
-
-    while index <= #contextArray do
-        target = contextArray[index]
+    local index = oldTop
+    while index < top do
+        local target = __stack[index + 1]
 
         local eventEx = target.__eventEx 
         if eventEx ~= nil then
             fun = eventEx[msg]
             if fun ~= nil then
                 -- use parent context for ex event
-                table_insert(targetArray, target.p)
-                table_insert(funArray, fun)
+				__stack[index + 3] = fun
             end
         end
 
@@ -2378,15 +2409,14 @@ context_notifyAll = function (self, p1, p2, ...)
         if event ~= nil then
             fun = event[msg]
             if fun ~= nil then
-                table_insert(targetArray, target)
-                table_insert(funArray, fun)
+				__stack[index + 4] = fun
             end
         end
 
         local outofRange = false
         local distance = 0
         if range ~= nil then
-            distance = distanceArray[index]
+            distance = __stack[index + 2]
             if distance >= range then
                 outofRange = true
             end
@@ -2398,56 +2428,64 @@ context_notifyAll = function (self, p1, p2, ...)
                 for _, sub in ipairs(subContexts) do
                     -- if sub.__lifeState < lifeState.quitting then
                     if sub.__lifeState < 20 then
-                        table_insert(contextArray, sub)
-                        if range ~= nil then
-                            table_insert(distanceArray, distance + 1)
-                        end
+						for index = 1, top + 4 - #__stack do
+							table_insert(__stack, false) -- placeHolder
+						end
+						__stack[top + 1] = sub
+						if range ~= nil then
+							__stack[top + 2] = distance + 1
+						end
+						__stack[top + 3] = false --placeHolder  ex fun 
+						__stack[top + 4] = false --placeHolder  fun 
+						top = top + 4
                     end
                 end
             end
         end
 
-        index = index + 1
+        index = index + 4
     end
 
-    while next(contextArray) do
-        table_remove(contextArray)
-    end
-    table_insert(__arrayPool, contextArray)
+	__stackTop = top
 
-    -- local tm = self.tm
-    for i = 1, #targetArray do
-        local c = targetArray[i]
-        local fun = funArray[i]
-        -- if c.__lifeState < lifeState.quitting then
-        if c.__lifeState < 20 then
-            if p2IsMsg then
-                tabMachine_pcall(self, fun, c, ...)
-            else
-                tabMachine_pcall(self, fun, c, p2, ...)
-            end
-        end
-    end
+	index = oldTop
+	while index < top do
+		local target = __stack[index + 1]
+		local exFun = __stack[index + 3] 
+		if exFun then
+			local p = target.p
+			-- if p.__lifeState < lifeState.quitting then
+			if p.__lifeState < 20 then
+				if p2IsMsg then
+					tabMachine_pcall(self, exFun, p, ...)
+				else
+					tabMachine_pcall(self, exFun, p, p2, ...)
+				end
+			end
+		end
 
-    while next(targetArray) do
-        table_remove(targetArray)
-    end
-    table_insert(__arrayPool, targetArray)
+		local fun = __stack[index + 4] 
+		if fun then
+			-- if target.__lifeState < lifeState.quitting then
+			if target.__lifeState < 20 then
+				if p2IsMsg then
+					tabMachine_pcall(self, fun, target, ...)
+				else
+					tabMachine_pcall(self, fun, target, p2, ...)
+				end
+			end
+		end
 
-    if distanceArray ~= nil then
-        while next(distanceArray) do
-            table_remove(distanceArray)
-        end
-        table_insert(__arrayPool, distanceArray)
-    end
+		index = index + 4
+	end
 
-    while next(funArray) do
-        table_remove(funArray)
-    end
-    table_insert(__arrayPool, funArray)
+	__stackTop = oldTop
 end
 
 context_upwardNotify = function (self, p1, p2, ...)
+	--do need to maintain __stackTop because reentry can happen inside
+	--do not need to reset statck because all contexts all recyled
+	--
     -- if self.__lifeState >=  lifeState.quitting then
     if self.__lifeState >= 20 then
         return
@@ -2469,38 +2507,30 @@ context_upwardNotify = function (self, p1, p2, ...)
         end
     end
 
-    --search and visit states 
-    local contextArray = table_remove(__arrayPool)
-    if contextArray == nil then
-        contextArray = {}
-    end
+	local oldTop = __stackTop
+	local top = oldTop
 
-    local distanceArray = nil
-    if range ~= nil then
-        distanceArray = table_remove(__arrayPool)
-        if distanceArray == nil then
-            distanceArray = {}
-        end
-    end
+	for index = 1, top + 2 - #__stack do
+		table_insert(__stack, false) -- placeHolder
+	end
+	__stack[top + 1] = self
+	if range ~= nil then
+		__stack[top + 2] = 0 --distance
+	end
+	top = top + 2
 
     local visitMap = table_remove(__mapPool)
     if visitMap == nil then
         visitMap = {}
     end
 
-    table_insert(contextArray, self)
-    if range ~= nil then
-        table_insert(distanceArray, 0)
-    end
-
     visitMap[self] = true
-    local index = 1
-
 
     local target = nil
     local fun = nil
-    while index <= #contextArray do
-        target = contextArray[index]
+	local index = oldTop
+    while index < top do
+        target = __stack[index + 1]
 
         local event = target.__event
         if event ~= nil then
@@ -2523,7 +2553,7 @@ context_upwardNotify = function (self, p1, p2, ...)
         local outofRange = false
         local distance = 0
         if range ~= nil then
-            distance = distanceArray[index]
+            distance = __stack[index + 2]
             if distance >= range then
                 outofRange = true
             end
@@ -2537,10 +2567,16 @@ context_upwardNotify = function (self, p1, p2, ...)
                     if not visitMap[proxy] and
                         -- proxy.__lifeState < lifeState.quitting then
                         proxy.__lifeState < 20 then
-                        table_insert(contextArray, proxy)
-                        if range ~= nil then
-                            table_insert(distanceArray, distance + 1)
-                        end
+
+						for i = 1, top + 2 - #__stack do
+							table_insert(__stack, false) -- placeHolder
+						end
+						__stack[top + 1] = proxy
+						if range ~= nil then
+							__stack[top + 2] = distance + 1
+						end
+						top = top + 2
+
                         visitMap[proxy] = true
                     end
                 end
@@ -2551,33 +2587,26 @@ context_upwardNotify = function (self, p1, p2, ...)
             if p and not visitMap[p] then
                 -- if self is not quitting then self.p isn't quitting too.
                 -- and  not p.__isQuitting then
-                table_insert(contextArray, p)
-                if range ~= nil then
-                    table_insert(distanceArray, distance + 1)
-                end
+				for i = 1, top + 2 - #__stack do
+					table_insert(__stack, false) -- placeHolder
+				end
+				__stack[top + 1] = p
+				if range ~= nil then
+					__stack[top + 2] = distance + 1
+				end
+				top = top + 2
+
                 visitMap[p] = true
             end
         end
 
-        index = index + 1
+        index = index + 2
     end
 
     for key, _ in pairs(visitMap) do
         visitMap[key] = nil
     end
     table_insert(__mapPool, visitMap)
-
-    while next(contextArray) do
-        table_remove(contextArray)
-    end
-    table_insert(__arrayPool, contextArray)
-
-    if distanceArray ~= nil then
-        while next(distanceArray) do
-            table_remove(distanceArray)
-        end
-        table_insert(__arrayPool, distanceArray)
-    end
 
 
     if fun ~= nil then
@@ -2590,6 +2619,9 @@ context_upwardNotify = function (self, p1, p2, ...)
 end
 
 context_upwardNotifyAll = function (self, p1, p2, ...)
+	--do need to maintain __stackTop because reentry can happen inside
+	--do not need to reset statck because all contexts all recyled
+	
     -- if self.__lifeState >= lifeState.quitting then
     if self.__lifeState >= 20 then
         return
@@ -2611,55 +2643,37 @@ context_upwardNotifyAll = function (self, p1, p2, ...)
         end
     end
 
-    --notify target and fun
-    local funArray = table_remove(__arrayPool)
-    if funArray == nil then
-        funArray = {}
-    end
+	local oldTop = __stackTop
+	local top = oldTop 
 
-    local targetArray = table_remove(__arrayPool)
-    if targetArray == nil then
-        targetArray = {}
-    end
+	for index = 1, top + 4 - #__stack do
+		table_insert(__stack, false) -- placeHolder
+	end
+	__stack[top + 1] = self
+	if range ~= nil then
+		__stack[top + 2] = 0 --distance
+	end
+	__stack[top + 3] = false --placeHolder  fun 
+	__stack[top + 4] = false --placeHolder  fun ex
+	top = top + 4
 
-    --search and visit states 
-    local contextArray = table_remove(__arrayPool)
-    if contextArray == nil then
-        contextArray = {}
-    end
     local visitMap = table_remove(__mapPool)
     if visitMap == nil then
         visitMap = {}
     end
 
-    local distanceArray = nil
-    if range ~= nil then
-        distanceArray = table_remove(__arrayPool)
-        if distanceArray == nil then
-            distanceArray = {}
-        end
-    end
-
-    table_insert(contextArray, self)
-    if range ~= nil then
-        table_insert(distanceArray, 0)
-    end
-
     visitMap[self] = true
-    local index = 1
 
-
-    local target = nil
     local fun = nil
-    while index <= #contextArray do
-        target = contextArray[index]
+    local index = oldTop
+    while index < top do
+        local target = __stack[index + 1]
 
         local event = target.__event
         if event ~= nil then
             fun = event[msg]
             if fun ~= nil then
-                table_insert(targetArray, target)
-                table_insert(funArray, fun)
+				__stack[index + 3] = fun
             end
         end
 
@@ -2668,15 +2682,14 @@ context_upwardNotifyAll = function (self, p1, p2, ...)
             fun = eventEx[msg]
             if fun ~= nil then
                 --use parent context for ex event
-                table_insert(targetArray, target.p)
-                table_insert(funArray, fun)
+				__stack[index + 4] = fun
             end
         end
 
         local outofRange = false
         local distance = 0
         if range ~= nil then
-            distance = distanceArray[index]
+            distance = __stack[index + 2]
             if distance >= range then
                 outofRange = true
             end
@@ -2690,10 +2703,17 @@ context_upwardNotifyAll = function (self, p1, p2, ...)
                     if not visitMap[proxy] and
                         -- proxy.__lifeState < lifeState.quitting then
                         proxy.__lifeState < 20 then
-                        table_insert(contextArray, proxy)
-                        if range ~= nil then
-                            table_insert(distanceArray, distance + 1)
-                        end
+
+						for i = 1, top + 4 - #__stack do
+							table_insert(__stack, false) -- placeHolder
+						end
+						__stack[top + 1] = proxy
+						if range ~= nil then
+							__stack[top + 2] = distance + 1
+						end
+						__stack[top + 3] = false --placeHolder  fun 
+						__stack[top + 4] = false --placeHolder  fun ex
+						top = top + 4
                     end
                 end
                 proxyInfo = proxyInfo.nextInfo
@@ -2703,15 +2723,22 @@ context_upwardNotifyAll = function (self, p1, p2, ...)
             if p and not visitMap[p] then
                 -- if target is not quitting then target.p isn't quitting too.
                 -- and  not p.__isQuitting then
-                table_insert(contextArray, p)
-                if range ~= nil then
-                    table_insert(distanceArray, distance + 1)
-                end
+				for i = 1, top + 4 - #__stack do
+					table_insert(__stack, false) -- placeHolder
+				end
+				__stack[top + 1] = p
+				if range ~= nil then
+					__stack[top + 2] = distance + 1
+				end
+				__stack[top + 3] = false --placeHolder  fun 
+				__stack[top + 4] = false --placeHolder  fun ex
+				top = top + 4
+
                 visitMap[p] = true
             end
         end
 
-        index = index + 1
+        index = index + 4
     end
 
 
@@ -2720,41 +2747,40 @@ context_upwardNotifyAll = function (self, p1, p2, ...)
     end
     table_insert(__mapPool, visitMap)
 
-    while next(contextArray) do
-        table_remove(contextArray)
-    end
-    table_insert(__arrayPool, contextArray)
+	__stackTop = top
 
-    -- local tm = self.tm
-    for i = 1, #targetArray do
-        local c = targetArray[i]
-        local fun = funArray[i]
-        -- if c.__lifeState < lifeState.quitting then
-        if c.__lifeState < 20 then
-            if p2IsMsg then
-                tabMachine_pcall(self, fun, c, ...)
-            else
-                tabMachine_pcall(self, fun, c, p2, ...)
-            end
-        end
-    end
+	index = oldTop
+	while index < top do
+		local target = __stack[index + 1]
+		local fun = __stack[index + 3] 
+		if fun then
+			-- if target.__lifeState < lifeState.quitting then
+			if target.__lifeState < 20 then
+				if p2IsMsg then
+					tabMachine_pcall(self, fun, target, ...)
+				else
+					tabMachine_pcall(self, fun, target, p2, ...)
+				end
+			end
+		end
 
-    while next(targetArray) do
-        table_remove(targetArray)
-    end
-    table_insert(__arrayPool, targetArray)
+		local exFun = __stack[index + 4] 
+		if exFun then
+			local p = target.p
+			-- if p.__lifeState < lifeState.quitting then
+			if p.__lifeState < 20 then
+				if p2IsMsg then
+					tabMachine_pcall(self, exFun, p, ...)
+				else
+					tabMachine_pcall(self, exFun, p, p2, ...)
+				end
+			end
+		end
 
-    if distanceArray ~= nil then
-        while next(distanceArray) do
-            table_remove(distanceArray)
-        end
-        table_insert(__arrayPool, distanceArray)
-    end
+		index = index + 4
+	end
 
-    while next(funArray) do
-        table_remove(funArray)
-    end
-    table_insert(__arrayPool, funArray)
+	__stackTop = oldTop
 end
 
 context_installTab  = function (self, tab)
@@ -2862,18 +2888,21 @@ context_stopSelf = function (self)
     local subContexts = self.__subContexts 
     if subContexts ~= nil then
         if #subContexts ~= 0 then
-            local treeArray = table_remove(__contextTreePool)
-            if treeArray == nil then
-                treeArray  = {}
-            end
-
-            context_collectStopTree(self, treeArray)
-            context_stopTree(treeArray)
-
-            table_insert(__contextTreeRecyclePool, treeArray)
+            local oldTop, top =  context_collectStopTree(self)
+            context_stopTree(oldTop, top)
+			__stackTop = oldTop
         end
 
-        table_insert(__subContainerRecyclePool, subContexts)
+		local subContainerPoolSize = __subContainerPoolSize
+		while next(subContexts) do
+			table_remove(subContexts)
+		end
+		if subContainerPoolSize < #__subContainerPool then
+			__subContainerPool[subContainerPoolSize + 1] = subContexts
+		else
+			table_insert(__subContainerPool, subContexts)
+		end
+		__subContainerPoolSize = subContainerPoolSize + 1
         self.__subContexts = nil
     end
 
@@ -2985,13 +3014,22 @@ context_stopSelf = function (self)
     -- inline optimization
     -- if not self.__isRecycled then
         -- self.__isRecycled = true
-        table_insert(__contextRecyclePool, self)
+		local contextRecyclePoolSize = __contextRecyclePoolSize
+		if contextRecyclePoolSize < #__contextRecyclePool then
+			__contextRecyclePool[contextRecyclePoolSize + 1] = self 
+		else
+			table_insert(__contextRecyclePool, self)
+		end
+		__contextRecyclePoolSize = contextRecyclePoolSize + 1
     -- else
         -- dump(self, "jjjjjjjj 333333333 stop self repeat recycle", 3, printError)
     -- end
 end
 
-context_collectStopTree = function (self, treeArray)
+context_collectStopTree = function (self)
+	local oldTop = __stackTop
+	local top = oldTop
+
     local frontNode = self
     while true do
 
@@ -3007,8 +3045,13 @@ context_collectStopTree = function (self, treeArray)
                         -- frontNode.__lifeState = lifeState.quitting
                         frontNode.__lifeState = 20
                     end
-                    
-                    table_insert(treeArray, frontNode)
+
+					top = top + 1
+					if top > #__stack then
+						table_insert(__stack, frontNode)
+					else
+						__stack[top] = frontNode
+					end
                 end
 
                 frontNode = frontNode.p
@@ -3034,7 +3077,12 @@ context_collectStopTree = function (self, treeArray)
                             frontNode.__lifeState = 20
                         end
 
-                        table_insert(treeArray, frontNode)
+						top = top + 1
+						if top > #__stack then
+							table_insert(__stack, frontNode)
+						else
+							__stack[top] = frontNode
+						end
                     end
 
                     frontNode = frontNode.p
@@ -3050,6 +3098,9 @@ context_collectStopTree = function (self, treeArray)
             end
         end
     end
+
+	__stackTop = top
+	return oldTop, __stackTop
 end
 
 function __getContextPath(context)
@@ -3077,10 +3128,9 @@ function __getContextPath(context)
     return name
 end
 
-context_stopTree = function (treeArray)
-    local len = #treeArray
-    for index = len, 1, -1 do
-        local c = treeArray[index]
+context_stopTree = function (oldTop, top)
+    for index = top, oldTop + 1, -1 do
+        local c = __stack[index]
         -- if c.__lifeState < lifeState.quitted then
         if c.__lifeState < 30 then
             -- c.__lifeState = lifeState.quitted
@@ -3103,7 +3153,8 @@ context_stopTree = function (treeArray)
         end
     end
     
-    for _, c in ipairs (treeArray) do
+    for index = oldTop + 1, top do
+		local c = __stack[index]
         -- if c.__lifeState < lifeState.stopped then
         if c.__lifeState < 40 then
             -- c.__lifeState = lifeState.stopped
@@ -3124,7 +3175,16 @@ context_stopTree = function (treeArray)
             -- c.__isSubStopped = true
             local subContexts = c.__subContexts 
             if subContexts ~= nil then
-                table_insert(__subContainerRecyclePool, subContexts)
+				while next(subContexts) do
+					table_remove(subContexts)
+				end
+				local subContainerPoolSize = __subContainerPoolSize
+				if subContainerPoolSize < #__subContainerPool then
+					__subContainerPool[subContainerPoolSize + 1] = subContexts
+				else
+					table_insert(__subContainerPool, subContexts)
+				end
+				__subContainerPoolSize = subContainerPoolSize + 1
                 c.__subContexts = nil
             end
 
@@ -3179,7 +3239,13 @@ context_stopTree = function (treeArray)
 
             -- if not c.__isRecycled then
                 -- c.__isRecycled = true
-                table_insert(__contextRecyclePool, c)
+				local contextRecyclePoolSize = __contextRecyclePoolSize
+				if contextRecyclePoolSize < #__contextRecyclePool then
+					__contextRecyclePool[contextRecyclePoolSize + 1] = c 
+				else
+					table_insert(__contextRecyclePool, c)
+				end
+				__contextRecyclePoolSize = contextRecyclePoolSize + 1
             -- else
                 -- dump(c, "jjjjjjjj 333333333 collect tree repeat recycle", 3, printError)
             -- end
@@ -3299,22 +3365,30 @@ end
 
 
 context_forEachSub = function (self, callback)
+	--do need to maintain __stackTop because reentry can happen inside
+	--do not need to reset statck because all contexts all recyled
     local subContexts = self.__subContexts
     if subContexts == nil then
         return
     end
 
-    local contextArray = table_remove(__arrayPool)
-    if contextArray == nil then
-        contextArray = {}  
-    end
+	local oldTop = __stackTop
+	local top = oldTop 
 
-    for index = #subContexts, 1, -1 do
+	local count = #subContexts
+	for i = 1, top + count - #__stack do
+		table_insert(__stack, false) --placeHolder
+	end
+
+	for index = 1, count do 
         local subContext = subContexts[index]
-        table_insert(contextArray, subContext)
-    end
+		__stack[top + index] = subContext
+	end
+	top = top + count
 
-    for _, subContext in ipairs(contextArray) do
+	__stackTop = top
+    for i = oldTop + 1, top do
+		local subContext = __stack[i]
         if subContext.p == self then
             local isIterationFinished = callback(subContext)
             if isIterationFinished then
@@ -3323,10 +3397,7 @@ context_forEachSub = function (self, callback)
         end
     end
 
-    while next(contextArray) do
-        table_remove(contextArray)
-    end
-    table_insert(__arrayPool, contextArray)
+	__stackTop = oldTop
 end
 
 --deprecated

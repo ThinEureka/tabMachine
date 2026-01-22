@@ -12,25 +12,21 @@ local cocosContext = require("tabMachine.cocosContext")
 
 -------------------------- cocosTabMachine ----------------------
 
-cocosTabMachine.p_ctor = tabMachine.ctor
 cocosTabMachine.p_createException = tabMachine._createException
-
-function cocosTabMachine:ctor()
-    cocosTabMachine.p_ctor(self)
-    self.__scheduler = self:createSystemScheduler()
-end
 
 function cocosTabMachine:createSystemScheduler()
     return self:createScheduler(true) 
 end
 
-local scheduler = class("scheduler")
-cocosTabMachine.schedulerClass = scheduler
+local scheduler = {}
 
-function scheduler:ctor(isSystem)
-    self._isSystem = isSystem
-    self._timeScale = 1
-    self._timerMgrList = {}
+function scheduler.new(isSystem)
+    local s = {}
+    setmetatable(s, {__index = scheduler})
+    s._isSystem = isSystem
+    s._timeScale = 1
+    s._timerMgrList = {}
+	return s
 end
 
 function scheduler:createTimer(target, callback, interval, timerMgrType)

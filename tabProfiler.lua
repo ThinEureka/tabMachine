@@ -1,5 +1,11 @@
-local tabProfiler = class("tabProfiler")
+local tabProfiler = {}
 local socket = require("socket")
+
+function tabProfiler.new()
+    local p = {}
+    setmetatable(p, {__index = p})
+    return p
+end
 
 function tabProfiler:start() 
     self.isRun = true

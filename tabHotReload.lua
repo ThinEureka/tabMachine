@@ -25,9 +25,10 @@ tabHotReload.baseExcludes = {
     "table",
     "utf8",
 
-    "socket",
+    "socket.*",
     "crypt",
     "lpeg",
+    "cjson",
 
     "framework.*",
     "tabMachine.*",
@@ -35,10 +36,16 @@ tabHotReload.baseExcludes = {
     "luaconfig",
 
 	"CS.*",
+	"config.*",
+	"sproto.*",
+	"libs.sproto.*",
+	"LuaPanda",
+	"cscommon.*",
+    "config.static.*",
+    "languages.i18n.*"
 }
 
-function tabHotReload.hotReload(rootContext, extraExcludes, includes)
-
+function tabHotReload.hotReload(rootContext, extraExcludes, includes, isQuickMode)
 	tabHotReload.logs = {
 		-- reload_packages = {},
 		reload_tabs = {},
@@ -57,7 +64,76 @@ function tabHotReload.hotReload(rootContext, extraExcludes, includes)
     tabMap, rTabMap = tabHotReload.buildTabMap(packages)
     tabHotReload.reloadTabForContexts(contextMap, tabMap)
 
+	if isQuickMode then
+		--quick but dirty 
+		tabHotReload.replaceFields(oldPackakges, packages)
+	else
+		--slower but more rigour
+		tabHotReload.replaceUpValues(oldPackakges, packages)
+	end
+
+	tabHotReload.hotReloadPatch(rootContext)
+end
+
+function tabHotReload.replaceUpValues(oldPackakges, packages)
+	local visited = {}
+	local unvisited = {}
+	local fs = {}
+
+	local index = 1
+	table.insert(unvisited, _G)
+
+	while index <= #unvisited do
+		local value = unvisited[index] 
+		visited[value] = true
+		index = index + 1
+
+		for k, v in raw_pairs(value) do
+			if type(v) == "function" then
+				table.insert(fs, v)
+			elseif type(v) == "table" then
+				if visited[v] == nil then
+					table.insert(unvisited, v)
+				end
+			end
+		end
+	end
+
+	local oldPackToPath = {}
 	for path, oldPack in pairs(oldPackakges) do
+		for k, v in pairs(oldPack) do
+			oldPackToPath[v] = k
+		end
+	end
+
+	for _, f in ipairs(fs) do
+		local i = 1
+		while true do
+			local name, value = debug.getupvalue(f, i)
+			if not name then break end
+			if type(value) == "table" then
+				local path = oldPackToPath[value]
+				if path then
+					local newPack = packages[path]
+					if newPack ~= nil then
+						debug.setupvalue(f, i, newPack)
+					end
+				end
+			end
+			i = i + 1
+		end
+	end
+end
+
+function tabHotReload.replaceFields(oldPackakges, packages)
+	for path, oldPack in pairs(oldPackakges) do
+		for k, v in pairs(oldPack) do
+			oldPack[k] = nil
+		end
+	end
+
+	for path, pack in pairs(packages) do
+		local oldPack = oldPackakges[path]
 		local newPack = packages[path]
 		for k, v in pairs(newPack) do
 			oldPack[k] = v
@@ -293,6 +369,22 @@ function tabHotReload.reloadTabForContext(context, newTab)
             end
         end
     end
+end
+
+function tabHotReload.hotReloadPatch(rootContext)
+	local patchFun = rootContext.__hotReloadPatch
+	if patchFun ~= nil then
+		patchFun(rootContext)
+	end
+
+	local subContexts = rootContext.__subContexts
+	if subContexts == nil then 
+		return
+	end
+
+	for _, subContext in ipairs(subContexts) do
+		tabHotReload.hotReloadPatch(subContext)
+	end
 end
 
 --reload updateFun

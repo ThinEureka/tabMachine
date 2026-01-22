@@ -58,10 +58,13 @@ end
 -- and reasseble them in the main thread to avoid blocking the main thread.
 -- However, the total time can't be saved and you also need to pay for the 
 -- overhead of this mechanism.
-local builderTable = class("builderTable")
+local builderTable = {}
 
-function builderTable:ctor()
-    self._value = {}
+function builderTable.new()
+    local t = {}
+    setmetatable(t, {__index = builderTable})
+    t._value = {}
+    return t
 end
 
 function builderTable:append(key, value)
@@ -81,10 +84,13 @@ local function isCmd(k)
     return k == "table" 
 end
 
-local builderMergeTable = class("builderMergeTable")
+local builderMergeTable = {}
 
-function builderMergeTable:ctor()
-    self._value = {}
+function builderMergeTable.new()
+    local t = {}
+    setmetatable(t, {__index = builderMergeTable})
+    t._value = {}
+    return t
 end
 
 function builderMergeTable:append(key, value)

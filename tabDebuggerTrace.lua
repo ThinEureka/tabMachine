@@ -6,12 +6,15 @@ local Frequency = CS.System.Diagnostics.Stopwatch.Frequency
 local microsecondPerTick = (1000 * 1000) / Frequency
 
 
-local tabDebuggerTrace = class("tabDebuggerTrace")
+local tabDebuggerTrace = {}
 
-function tabDebuggerTrace:ctor()
-    self._ContextStartAsDurationEvents = false
-    self._traceEvents = {}
-    self._stopwatch = CS.System.Diagnostics.Stopwatch.StartNew()
+function tabDebuggerTrace.new()
+    lcoal t = {}
+    setmetatable(t, {__index = t})
+    t._ContextStartAsDurationEvents = false
+    t._traceEvents = {}
+    t._stopwatch = CS.System.Diagnostics.Stopwatch.StartNew()
+	return t
 end
 
 function tabDebuggerTrace:close()

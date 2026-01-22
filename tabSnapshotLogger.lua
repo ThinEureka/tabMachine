@@ -2,7 +2,7 @@
 
 
 _tabSnapshotLoggerInstance = nil
-tabSnapshotLogger = class("tabSnapshotLogger")
+tabSnapshotLogger = {}
 
 
 local function saveErrorInfoToFile(filename, errorMsg)
@@ -24,10 +24,12 @@ function tabSnapshotLogger:getInstance()
     return _tabSnapshotLoggerInstance
 end
 
-function tabSnapshotLogger:ctor()
-    self.reportPool = {}
+function tabSnapshotLogger.new()
+	local l = {}
+	setmetatable(l, {__index = tabSnapshotLogger})
+    l.reportPool = {}
+	return l
 end
-
 
 function tabSnapshotLogger:dumpTabSnapshot( errorMsg, errorStack, tabStack )
     local md5Key = CS.Utils.GetMD5(errorMsg .. errorStack)
