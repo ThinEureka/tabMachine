@@ -23,7 +23,9 @@ tabSimpleServer = _{
         c._address = address
         c._timeout = timeout 
 
+		c._server:setoption("reuseaddr", true)
         c._server:bind(c._address, c._port)
+		--c._server:setoption("reuseport", true)
         c._server:listen()
         c._server:settimeout(c._timeout)
         c._serviceGroup = c:call(tabSimpleServer.tabServiceGroup(tabService, serviceParams), "serviceGroup")
