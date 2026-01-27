@@ -500,8 +500,10 @@ function tabSerialization.serializeTable(tbl)
 	return strRet
 end
 
+local empty = {}
+
 function tabSerialization.deserializeTable(str)
-	local ftables,err = load(str)
+	local ftables,err = load(str, "tabSerialization", "t", empty)
 	if err then return _,err end
 	local tables = ftables()
 	for idx = 1,#tables do
