@@ -30,6 +30,7 @@ tabHotReload.baseExcludes = {
     "lpeg",
     "cjson",
 
+    "util.xvar",
     "framework.*",
     "tabMachine.*",
 
