@@ -9,7 +9,7 @@ local microsecondPerTick = (1000 * 1000) / Frequency
 local tabDebuggerTrace = {}
 
 function tabDebuggerTrace.new()
-    lcoal t = {}
+    local t = {}
     setmetatable(t, {__index = t})
     t._ContextStartAsDurationEvents = false
     t._traceEvents = {}

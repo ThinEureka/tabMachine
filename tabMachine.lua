@@ -332,9 +332,7 @@ local tabSelect = nil
 
 local g_t_rebind = nil
 
-local tabMachine_onUnCaughtException  = nil
 local tabMachine_addContextException  = nil
-local cocosTabMachine_prettyStr = nil
 local tabMachine_throwError = nil
 
 local co_sig_quit = {"co_signal_quit"}
@@ -696,15 +694,19 @@ end
 
 function tabMachine:update()
 	g_frameIndex = g_frameIndex + 1
-	self:gc()
+	self:gc(0)
 end
 
-function tabMachine:gc()
+function tabMachine:getRecyclePoolSize()
+	return __contextRecyclePoolSize
+end
+
+function tabMachine:gc(protectedRecyled)
 	local contextRecyclePool = __contextRecyclePool
 	local contextPool = __contextPool
 
 	local contextPoolSize = __contextPoolSize
-	local contextRecyclePoolSize = __contextRecyclePoolSize
+	local contextRecyclePoolSize = __contextRecyclePoolSize - protectedRecyled
 	local newContextPoolSize = contextPoolSize + contextRecyclePoolSize
 
 	for i = 1, newContextPoolSize - #__contextPool do
@@ -712,7 +714,7 @@ function tabMachine:gc()
 	end
 
 	for i = 1, contextRecyclePoolSize do
-		local context = contextRecyclePool[i] 
+		local context = contextRecyclePool[protectedRecyled + i] 
 
 		-- local subContainer = rawget(context, "__subContexts")
 		-- if subContainer ~= nil then
@@ -735,7 +737,7 @@ function tabMachine:gc()
 	end
 
 	__contextPoolSize = newContextPoolSize
-	__contextRecyclePoolSize = 0
+	__contextRecyclePoolSize = protectedRecyled
 end
 
 tabMachine.compileTab = tabMachine_compileTab
@@ -809,46 +811,8 @@ tabMachine_throwError = function (target, errorMsg, traceback)
     end
 
     if not catched then
-        tabMachine_onUnCaughtException(e)
+        g_tm.onUnCaughtException(e)
     end
-end
-
-tabMachine_onUnCaughtException = function(e)
-    dump(e, "uncaught exception", 100, printError)
-
-    --上报
-    local eMsg = ""
-    local errorMsg = e.errorMsg or "no errorMsg"
-    -- local reportVals = self:getObject("report") and self:getObject("report"):getTreeMsg() or "no reportVals"
-    local reportVals = "no report"
-    local errorTabStatcks = e.errorTabStatcks and cocosTabMachine_prettyStr(e.errorTabStatcks or {}) or "no errorTabStatcks"
-    local luaStackTrace = e.luaStackTrace or "no luaStackTrace"
-
-    local strTop = "==== errorMsg ====\n"
-    eMsg = eMsg .. strTop .. errorMsg
-    strTop = "\n\n==== reportVals ====\n"
-    eMsg = eMsg .. strTop .. reportVals
-    strTop = "\n\n==== errorTabStatcks ====\n"
-    eMsg = eMsg .. strTop .. errorTabStatcks
-    strTop = "\n\n==== luaStackTrace ====\n"
-    eMsg = eMsg .. strTop .. luaStackTrace
-    if fabric then
-        fabric:getInstance():allSet(tostring(errorMsg), eMsg, errorTabStatcks)
-    end
-
-    if g_enableDumpTabSnapshotOnCaughtException then
-        if tabSnapshotLogger then
-            tabSnapshotLogger:getInstance():dumpTabSnapshot(tostring(errorMsg), eMsg, errorTabStatcks)
-        end
-    end
-end
-
-cocosTabMachine_prettyStr = function (arr)
-    local str = ""
-    for _,v in ipairs(arr or {}) do
-        str = str .. v .. "\n"
-    end
-    return str
 end
 
 local __tab_traceback
