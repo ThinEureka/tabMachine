@@ -10,8 +10,8 @@ local tabHotReload = {}
 tabHotReload.enableLog = false
 
 local raw_pairs = function(x)
-	    return next, x, nil
-	end
+        return next, x, nil
+    end
 
 tabHotReload.baseExcludes = {
     "_G",
@@ -36,22 +36,22 @@ tabHotReload.baseExcludes = {
 
     "luaconfig",
 
-	"CS.*",
-	"config.*",
-	"sproto.*",
-	"libs.sproto.*",
-	"LuaPanda",
-	"cscommon.*",
+    "CS.*",
+    "config.*",
+    "sproto.*",
+    "libs.sproto.*",
+    "LuaPanda",
+    "cscommon.*",
     "config.static.*",
     "languages.i18n.*"
 }
 
 function tabHotReload.hotReload(rootContext, extraExcludes, includes, isQuickMode)
-	tabHotReload.logs = {
-		-- reload_packages = {},
-		reload_tabs = {},
-		non_reload_tabs = {}
-	}
+    tabHotReload.logs = {
+        -- reload_packages = {},
+        reload_tabs = {},
+        non_reload_tabs = {}
+    }
 
     local packages = tabHotReload.getReloadPackages(extraExcludes, includes)
 
@@ -65,81 +65,81 @@ function tabHotReload.hotReload(rootContext, extraExcludes, includes, isQuickMod
     tabMap, rTabMap = tabHotReload.buildTabMap(packages)
     tabHotReload.reloadTabForContexts(contextMap, tabMap)
 
-	if isQuickMode then
-		--quick but dirty 
-		tabHotReload.replaceFields(oldPackakges, packages)
-	else
-		--slower but more rigour
-		tabHotReload.replaceUpValues(oldPackakges, packages)
-	end
+    if isQuickMode then
+        --quick but dirty 
+        tabHotReload.replaceFields(oldPackakges, packages)
+    else
+        --slower but more rigour
+        tabHotReload.replaceUpValues(oldPackakges, packages)
+    end
 
-	tabHotReload.hotReloadPatch(rootContext)
+    tabHotReload.hotReloadPatch(rootContext)
 end
 
 function tabHotReload.replaceUpValues(oldPackakges, packages)
-	local visited = {}
-	local unvisited = {}
-	local fs = {}
+    local visited = {}
+    local unvisited = {}
+    local fs = {}
 
-	local index = 1
-	table.insert(unvisited, _G)
+    local index = 1
+    table.insert(unvisited, _G)
 
-	while index <= #unvisited do
-		local value = unvisited[index] 
-		visited[value] = true
-		index = index + 1
+    while index <= #unvisited do
+        local value = unvisited[index] 
+        visited[value] = true
+        index = index + 1
 
-		for k, v in raw_pairs(value) do
-			if type(v) == "function" then
-				table.insert(fs, v)
-			elseif type(v) == "table" then
-				if visited[v] == nil then
-					table.insert(unvisited, v)
-				end
-			end
-		end
-	end
+        for k, v in raw_pairs(value) do
+            if type(v) == "function" then
+                table.insert(fs, v)
+            elseif type(v) == "table" then
+                if visited[v] == nil then
+                    table.insert(unvisited, v)
+                end
+            end
+        end
+    end
 
-	local oldPackToPath = {}
-	for path, oldPack in pairs(oldPackakges) do
-		for k, v in pairs(oldPack) do
-			oldPackToPath[v] = k
-		end
-	end
+    local oldPackToPath = {}
+    for path, oldPack in pairs(oldPackakges) do
+        for k, v in pairs(oldPack) do
+            oldPackToPath[v] = k
+        end
+    end
 
-	for _, f in ipairs(fs) do
-		local i = 1
-		while true do
-			local name, value = debug.getupvalue(f, i)
-			if not name then break end
-			if type(value) == "table" then
-				local path = oldPackToPath[value]
-				if path then
-					local newPack = packages[path]
-					if newPack ~= nil then
-						debug.setupvalue(f, i, newPack)
-					end
-				end
-			end
-			i = i + 1
-		end
-	end
+    for _, f in ipairs(fs) do
+        local i = 1
+        while true do
+            local name, value = debug.getupvalue(f, i)
+            if not name then break end
+            if type(value) == "table" then
+                local path = oldPackToPath[value]
+                if path then
+                    local newPack = packages[path]
+                    if newPack ~= nil then
+                        debug.setupvalue(f, i, newPack)
+                    end
+                end
+            end
+            i = i + 1
+        end
+    end
 end
 
 function tabHotReload.replaceFields(oldPackakges, packages)
-	for path, oldPack in pairs(oldPackakges) do
-		for k, v in pairs(oldPack) do
-			oldPack[k] = nil
-		end
-	end
+    for path, oldPack in pairs(oldPackakges) do
+        for k, v in pairs(oldPack) do
+            oldPack[k] = nil
+        end
+    end
 
-	for path, pack in pairs(packages) do
-		local oldPack = oldPackakges[path]
-		local newPack = packages[path]
-		for k, v in pairs(newPack) do
-			oldPack[k] = v
-		end
-	end
+    for path, pack in pairs(packages) do
+        local oldPack = oldPackakges[path]
+        local newPack = packages[path]
+        for k, v in pairs(newPack) do
+            oldPack[k] = v
+        end
+    end
 end
 
 function tabHotReload.isPackageInList(packPath, list)
@@ -221,9 +221,9 @@ function tabHotReload.buildTabMap(packages)
 end
 
 function tabHotReload.reloadPackage(packages)
-	local oldPackakges = {}
+    local oldPackakges = {}
     for path, _ in pairs(packages) do
-		oldPackakges[path] = package.loaded[path]
+        oldPackakges[path] = package.loaded[path]
         package.loaded[path] = nil
     end
 
@@ -233,7 +233,7 @@ function tabHotReload.reloadPackage(packages)
         end)
     end
 
-	return oldPackakges
+    return oldPackakges
 end
 
 function tabHotReload.buildContextMap(rTabMap, rootContext)
@@ -373,30 +373,30 @@ function tabHotReload.reloadTabForContext(context, newTab)
 end
 
 function tabHotReload.hotReloadPatch(rootContext)
-	local patchFun = rootContext.__hotReloadPatch
-	if patchFun ~= nil then
-		patchFun(rootContext)
-	end
+    local patchFun = rootContext.__hotReloadPatch
+    if patchFun ~= nil then
+        patchFun(rootContext)
+    end
 
-	local subContexts = rootContext.__subContexts
-	if subContexts == nil then 
-		return
-	end
+    local subContexts = rootContext.__subContexts
+    if subContexts == nil then 
+        return
+    end
 
-	for _, subContext in ipairs(subContexts) do
-		tabHotReload.hotReloadPatch(subContext)
-	end
+    for _, subContext in ipairs(subContexts) do
+        tabHotReload.hotReloadPatch(subContext)
+    end
 end
 
 --reload updateFun
 -- function tabHotReload.reloadUpdateFun(context, oldUpdate, newUpdate)
     -- local timerMgr = g_timerMgr
 --
-	-- for k, v in ipairs(timerMgr.timerList) do
+    -- for k, v in ipairs(timerMgr.timerList) do
         -- if v.target == context and v.callBack == oldUpdate then
             -- v.callBack = newUpdate
         -- end
-	-- end
+    -- end
 -- end
 
 

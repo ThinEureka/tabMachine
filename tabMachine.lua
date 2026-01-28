@@ -402,20 +402,20 @@ local function outputValues(env, outputVars, outputValues)
 end
 
 local function createContext(tab, ...)
-	local c
-	local contextPoolSize = __contextPoolSize
-	if contextPoolSize > 0 then
-		c = __contextPool[contextPoolSize]
+    local c
+    local contextPoolSize = __contextPoolSize
+    if contextPoolSize > 0 then
+        c = __contextPool[contextPoolSize]
         -- c.__lifeState = lifeState.running
         c.__lifeState = 10
         -- c._isRecycled = false
-		
-		__contextPoolSize = contextPoolSize - 1
-	else
-		c = {}
+        
+        __contextPoolSize = contextPoolSize - 1
+    else
+        c = {}
         -- c.__lifeState = lifeState.running
         c.__lifeState = 10
-	end
+    end
 
     local lifeId = __nextLifeId
     c.__lifeId = lifeId
@@ -465,7 +465,7 @@ __contextStack = {}
 local __contextStack = __contextStack
 
 function tabMachine.new()
-	local tm = {}
+    local tm = {}
     g_tm = tm
     tm.__isRunning = false
     tm.__rootContext = nil
@@ -478,10 +478,10 @@ function tabMachine.new()
     -- tm.__nextSubCache = {}
     -- tm.__backwardCacheTable = {}
     tm.__commonLabelCache = __commonLabelCache
-	setmetatable(tm, {__index = tabMachine})
+    setmetatable(tm, {__index = tabMachine})
     tm.__scheduler = tm:createSystemScheduler()
 
-	return tm
+    return tm
 end
 
 function tabMachine:addNextSubCache(sub, num)
@@ -693,51 +693,51 @@ function tabMachine:_onStopped()
 end
 
 function tabMachine:update()
-	g_frameIndex = g_frameIndex + 1
-	self:gc(0)
+    g_frameIndex = g_frameIndex + 1
+    self:gc(0)
 end
 
 function tabMachine:getRecyclePoolSize()
-	return __contextRecyclePoolSize
+    return __contextRecyclePoolSize
 end
 
 function tabMachine:gc(protectedRecyled)
-	local contextRecyclePool = __contextRecyclePool
-	local contextPool = __contextPool
+    local contextRecyclePool = __contextRecyclePool
+    local contextPool = __contextPool
 
-	local contextPoolSize = __contextPoolSize
-	local contextRecyclePoolSize = __contextRecyclePoolSize - protectedRecyled
-	local newContextPoolSize = contextPoolSize + contextRecyclePoolSize
+    local contextPoolSize = __contextPoolSize
+    local contextRecyclePoolSize = __contextRecyclePoolSize - protectedRecyled
+    local newContextPoolSize = contextPoolSize + contextRecyclePoolSize
 
-	for i = 1, newContextPoolSize - #__contextPool do
-		table_insert(contextPool, false) --placeHolder
-	end
+    for i = 1, newContextPoolSize - #__contextPool do
+        table_insert(contextPool, false) --placeHolder
+    end
 
-	for i = 1, contextRecyclePoolSize do
-		local context = contextRecyclePool[protectedRecyled + i] 
+    for i = 1, contextRecyclePoolSize do
+        local context = contextRecyclePool[protectedRecyled + i] 
 
-		-- local subContainer = rawget(context, "__subContexts")
-		-- if subContainer ~= nil then
-		-- table_insert(subContainerPool, subContainer)
-		-- end
+        -- local subContainer = rawget(context, "__subContexts")
+        -- if subContainer ~= nil then
+        -- table_insert(subContainerPool, subContainer)
+        -- end
 
-		for key, _ in pairs(context) do
-			context[key] = nil
-		end
+        for key, _ in pairs(context) do
+            context[key] = nil
+        end
 
-		setmetatable(context, nil)
-		-- context._isRecycled = true
-		context.__lifeId = 0
-		--
-		--
-		contextPool[contextPoolSize + i] = context
-		-- if g_t.stat then
-		-- g_aliveContextCount = g_aliveContextCount - 1
-		-- end
-	end
+        setmetatable(context, nil)
+        -- context._isRecycled = true
+        context.__lifeId = 0
+        --
+        --
+        contextPool[contextPoolSize + i] = context
+        -- if g_t.stat then
+        -- g_aliveContextCount = g_aliveContextCount - 1
+        -- end
+    end
 
-	__contextPoolSize = newContextPoolSize
-	__contextRecyclePoolSize = protectedRecyled
+    __contextPoolSize = newContextPoolSize
+    __contextRecyclePoolSize = protectedRecyled
 end
 
 tabMachine.compileTab = tabMachine_compileTab
@@ -1016,15 +1016,15 @@ context_getSubByLifeId = function (self, lifeId)
 end
 
 context_getContextByLifeId = function (self, lifeId)
-	--do not need to maintain __stackTop because no reentry can happen inside
-	--do not need to reset statck because all contexts all recyled
-	local oldTop = __stackTop
-	local top = oldTop + 1
-	if top > #__stack then
-		table_insert(__stack, self)
-	else
-		__stack[top] = self
-	end
+    --do not need to maintain __stackTop because no reentry can happen inside
+    --do not need to reset statck because all contexts all recyled
+    local oldTop = __stackTop
+    local top = oldTop + 1
+    if top > #__stack then
+        table_insert(__stack, self)
+    else
+        __stack[top] = self
+    end
 
     local target = nil 
     local index = oldTop + 1
@@ -1039,12 +1039,12 @@ context_getContextByLifeId = function (self, lifeId)
         if subContexts ~= nil then
             for i = #subContexts, 1, -1 do
                 local subContext = subContexts[i]
-				top = top + 1
-				if top > #__stack then
-					table_insert(__stack, subContext)
-				else
-					__stack[top] = subContext
-				end
+                top = top + 1
+                if top > #__stack then
+                    table_insert(__stack, subContext)
+                else
+                    __stack[top] = subContext
+                end
             end
         end
 
@@ -1502,13 +1502,13 @@ context_call = function (self, tab, scName, outputVars, ...)
     -- end
     local subContexts = self.__subContexts
     if subContexts == nil then
-		local subContainerPoolSize = __subContainerPoolSize
-		if subContainerPoolSize > 0 then
-			subContexts = __subContainerPool[subContainerPoolSize] 
-			__subContainerPoolSize = subContainerPoolSize - 1
-		else
+        local subContainerPoolSize = __subContainerPoolSize
+        if subContainerPoolSize > 0 then
+            subContexts = __subContainerPool[subContainerPoolSize] 
+            __subContainerPoolSize = subContainerPoolSize - 1
+        else
             subContexts  = {}
-		end
+        end
         self.__subContexts = subContexts
     end
 
@@ -1841,22 +1841,22 @@ context_stopAllSubs = function (self, scName)
     end
 
 
-	local oldTop = __stackTop
-	local top = oldTop
+    local oldTop = __stackTop
+    local top = oldTop
     for index = #subContexts, 1, -1 do
         local subContext = subContexts[index]
 
-		top = top + 1
-		if top > #__stack then
-			table_insert(__stack, subContext)
-		else
-			__stack[top] = subContext
-		end
+        top = top + 1
+        if top > #__stack then
+            table_insert(__stack, subContext)
+        else
+            __stack[top] = subContext
+        end
     end
 
-	__stackTop = top
+    __stackTop = top
     for index = oldTop + 1, top do
-		local subContext = __stack[index]
+        local subContext = __stack[index]
 
         -- if subContext.p == self and subContext.__name == scName and not subContext.__lifeState >= lifeState.quitted then
         if subContext.p == self and (scName == nil or subContext.__name == scName) and subContext.__lifeState < 30 then
@@ -1864,7 +1864,7 @@ context_stopAllSubs = function (self, scName)
         end
     end
 
-	__stackTop = oldTop
+    __stackTop = oldTop
 end
 
 context_getDetailedPath = function (self)
@@ -1947,13 +1947,13 @@ context_addSubContext = function (self, subContext)
 
     local subContexts = self.__subContexts
     if subContexts == nil then
-		local subContainerPoolSize = __subContainerPoolSize
-		if subContainerPoolSize > 0 then
-			subContexts = __subContainerPool[subContainerPoolSize] 
-			__subContainerPoolSize = subContainerPoolSize - 1
-		else
+        local subContainerPoolSize = __subContainerPoolSize
+        if subContainerPoolSize > 0 then
+            subContexts = __subContainerPool[subContainerPoolSize] 
+            __subContainerPoolSize = subContainerPoolSize - 1
+        else
             subContexts  = {}
-		end
+        end
         self.__subContexts = subContexts
     end
     table_insert(subContexts, subContext)
@@ -2093,20 +2093,20 @@ context_update = function(self, dt)
 end
 
 context_downDistance = function(self, dst)
-	--do not need to maintain __stackTop because no reentry can happen inside
-	--do not need to reset statck because all contexts all recyled
-	
+    --do not need to maintain __stackTop because no reentry can happen inside
+    --do not need to reset statck because all contexts all recyled
+    
     local dstDistance = -1
 
-	local oldTop = __stackTop
-	local top = oldTop 
-	for index = 1, top + 2 - #__stack do
-		table_insert(__stack, false) -- placeHolder
-	end
+    local oldTop = __stackTop
+    local top = oldTop 
+    for index = 1, top + 2 - #__stack do
+        table_insert(__stack, false) -- placeHolder
+    end
 
-	__stack[top + 1] = self
-	__stack[top + 2] = 0
-	top = top + 2
+    __stack[top + 1] = self
+    __stack[top + 2] = 0
+    top = top + 2
 
     local index = oldTop
     while index < top do
@@ -2121,13 +2121,13 @@ context_downDistance = function(self, dst)
         local subContexts = target.__subContexts
         if subContexts ~= nil then
             for _, sub in ipairs(subContexts) do
-				for index = 1, top + 2 - #__stack do
-					table_insert(__stack, false) -- placeHolder
-				end
+                for index = 1, top + 2 - #__stack do
+                    table_insert(__stack, false) -- placeHolder
+                end
 
-				__stack[top + 1] = sub
-				__stack[top + 2] = distance + 1
-				top = top + 2
+                __stack[top + 1] = sub
+                __stack[top + 2] = distance + 1
+                top = top + 2
             end
         end
 
@@ -2138,19 +2138,19 @@ context_downDistance = function(self, dst)
 end
 
 context_upDistance = function(self, dst)
-	--do not need to maintain __stackTop because no reentry can happen inside
-	--do not need to reset statck because all contexts all recyled
+    --do not need to maintain __stackTop because no reentry can happen inside
+    --do not need to reset statck because all contexts all recyled
     local dstDistance = -1
 
-	local oldTop = __stackTop
-	local top = oldTop
-	for index = 1, top + 2 - #__stack do
-		table_insert(__stack, false) -- placeHolder
-	end
+    local oldTop = __stackTop
+    local top = oldTop
+    for index = 1, top + 2 - #__stack do
+        table_insert(__stack, false) -- placeHolder
+    end
 
-	__stack[top + 1] = self
-	__stack[top + 2] = 0
-	top = top + 2
+    __stack[top + 1] = self
+    __stack[top + 2] = 0
+    top = top + 2
 
     local visitMap = table_remove(__mapPool)
     if visitMap == nil then
@@ -2175,12 +2175,12 @@ context_upDistance = function(self, dst)
                     -- proxy.__lifeState < lifeState.quitting then
                     proxy.__lifeState < 20 then
 
-					for index = 1, top + 2 - #__stack do
-						table_insert(__stack, false) -- placeHolder
-					end
-					__stack[top + 1] = proxy
-					__stack[top + 2] = distance + 1
-					top = top + 2
+                    for index = 1, top + 2 - #__stack do
+                        table_insert(__stack, false) -- placeHolder
+                    end
+                    __stack[top + 1] = proxy
+                    __stack[top + 2] = distance + 1
+                    top = top + 2
 
                     visitMap[proxy] = true
                 end
@@ -2192,12 +2192,12 @@ context_upDistance = function(self, dst)
         if p and not visitMap[p] then
             -- if self is not quitting then self.p isn't quitting too.
             -- and  not p.__isQuitting then
-			for index = 1, top + 2 - #__stack do
-				table_insert(__stack, false) -- placeHolder
-			end
-			__stack[top + 1] = p
-			__stack[top + 2] = distance + 1
-			top = top + 2
+            for index = 1, top + 2 - #__stack do
+                table_insert(__stack, false) -- placeHolder
+            end
+            __stack[top + 1] = p
+            __stack[top + 2] = distance + 1
+            top = top + 2
 
             visitMap[p] = true
         end
@@ -2215,9 +2215,9 @@ end
 
 context_notify = function (self, p1, p2, ...)
     -- if self.__lifeState >= lifeState.quitting then
-	--do not need to maintain __stackTop because no reentry can happen inside
-	--do not need to reset statck because all contexts all recyled
-	
+    --do not need to maintain __stackTop because no reentry can happen inside
+    --do not need to reset statck because all contexts all recyled
+    
     if self.__lifeState >= 20 then
         return
     end
@@ -2238,17 +2238,17 @@ context_notify = function (self, p1, p2, ...)
         end
     end
 
-	local oldTop = __stackTop
-	local top = oldTop
+    local oldTop = __stackTop
+    local top = oldTop
 
-	for index = 1, top + 2- #__stack do
-		table_insert(__stack, false) -- placeHolder
-	end
-	__stack[top + 1] = self
-	if range then
-		__stack[top + 2] = 0 --distance
-	end
-	top = top + 2
+    for index = 1, top + 2- #__stack do
+        table_insert(__stack, false) -- placeHolder
+    end
+    __stack[top + 1] = self
+    if range then
+        __stack[top + 2] = 0 --distance
+    end
+    top = top + 2
 
     local target = nil
     local fun = nil
@@ -2256,7 +2256,7 @@ context_notify = function (self, p1, p2, ...)
     local index = oldTop 
     while index < top do
         target = __stack[index + 1]
-		local distance
+        local distance
 
         local eventEx = target.__eventEx 
         if eventEx ~= nil then
@@ -2278,7 +2278,7 @@ context_notify = function (self, p1, p2, ...)
 
         local outofRange = false
         if range ~= nil then
-			distance = __stack[index + 2]
+            distance = __stack[index + 2]
             if distance >= range then
                 outofRange = true
             end
@@ -2290,14 +2290,14 @@ context_notify = function (self, p1, p2, ...)
                 for _, sub in ipairs(subContexts) do
                     -- if sub.__lifeState < lifeState.quitting then
                     if sub.__lifeState < 20 then
-						for i = 1, top + 2- #__stack do
-							table_insert(__stack, false) -- placeHolder
-						end
-						__stack[top + 1] = sub
-						if range then
-							__stack[top + 2] = distance + 1
-						end
-						top = top + 2
+                        for i = 1, top + 2- #__stack do
+                            table_insert(__stack, false) -- placeHolder
+                        end
+                        __stack[top + 1] = sub
+                        if range then
+                            __stack[top + 2] = distance + 1
+                        end
+                        top = top + 2
                     end
                 end
             end
@@ -2316,9 +2316,9 @@ context_notify = function (self, p1, p2, ...)
 end
 
 context_notifyAll = function (self, p1, p2, ...)
-	--do need to maintain __stackTop because reentry can happen inside
-	--do not need to reset statck because all contexts all recyled
-	--
+    --do need to maintain __stackTop because reentry can happen inside
+    --do not need to reset statck because all contexts all recyled
+    --
     -- if self.__lifeState >= lifeState.quitting then
     if self.__lifeState >= 20 then
         return
@@ -2341,19 +2341,19 @@ context_notifyAll = function (self, p1, p2, ...)
     end
 
 
-	local oldTop = __stackTop
-	local top = oldTop 
+    local oldTop = __stackTop
+    local top = oldTop 
 
-	for i = 1, top + 4 - #__stack do
-		table_insert(__stack, false) -- placeHolder
-	end
-	__stack[top + 1] = self
-	if range ~= nil then
-		__stack[top + 2] = 0 --distance
-	end
-	__stack[top + 3] = false --placeHolder  ex fun 
-	__stack[top + 4] = false --placeHolder  fun 
-	top = top + 4
+    for i = 1, top + 4 - #__stack do
+        table_insert(__stack, false) -- placeHolder
+    end
+    __stack[top + 1] = self
+    if range ~= nil then
+        __stack[top + 2] = 0 --distance
+    end
+    __stack[top + 3] = false --placeHolder  ex fun 
+    __stack[top + 4] = false --placeHolder  fun 
+    top = top + 4
 
     local fun = nil
     local index = oldTop
@@ -2365,7 +2365,7 @@ context_notifyAll = function (self, p1, p2, ...)
             fun = eventEx[msg]
             if fun ~= nil then
                 -- use parent context for ex event
-				__stack[index + 3] = fun
+                __stack[index + 3] = fun
             end
         end
 
@@ -2373,7 +2373,7 @@ context_notifyAll = function (self, p1, p2, ...)
         if event ~= nil then
             fun = event[msg]
             if fun ~= nil then
-				__stack[index + 4] = fun
+                __stack[index + 4] = fun
             end
         end
 
@@ -2392,16 +2392,16 @@ context_notifyAll = function (self, p1, p2, ...)
                 for _, sub in ipairs(subContexts) do
                     -- if sub.__lifeState < lifeState.quitting then
                     if sub.__lifeState < 20 then
-						for index = 1, top + 4 - #__stack do
-							table_insert(__stack, false) -- placeHolder
-						end
-						__stack[top + 1] = sub
-						if range ~= nil then
-							__stack[top + 2] = distance + 1
-						end
-						__stack[top + 3] = false --placeHolder  ex fun 
-						__stack[top + 4] = false --placeHolder  fun 
-						top = top + 4
+                        for index = 1, top + 4 - #__stack do
+                            table_insert(__stack, false) -- placeHolder
+                        end
+                        __stack[top + 1] = sub
+                        if range ~= nil then
+                            __stack[top + 2] = distance + 1
+                        end
+                        __stack[top + 3] = false --placeHolder  ex fun 
+                        __stack[top + 4] = false --placeHolder  fun 
+                        top = top + 4
                     end
                 end
             end
@@ -2410,46 +2410,46 @@ context_notifyAll = function (self, p1, p2, ...)
         index = index + 4
     end
 
-	__stackTop = top
+    __stackTop = top
 
-	index = oldTop
-	while index < top do
-		local target = __stack[index + 1]
-		local exFun = __stack[index + 3] 
-		if exFun then
-			local p = target.p
-			-- if p.__lifeState < lifeState.quitting then
-			if p.__lifeState < 20 then
-				if p2IsMsg then
-					tabMachine_pcall(self, exFun, p, ...)
-				else
-					tabMachine_pcall(self, exFun, p, p2, ...)
-				end
-			end
-		end
+    index = oldTop
+    while index < top do
+        local target = __stack[index + 1]
+        local exFun = __stack[index + 3] 
+        if exFun then
+            local p = target.p
+            -- if p.__lifeState < lifeState.quitting then
+            if p.__lifeState < 20 then
+                if p2IsMsg then
+                    tabMachine_pcall(self, exFun, p, ...)
+                else
+                    tabMachine_pcall(self, exFun, p, p2, ...)
+                end
+            end
+        end
 
-		local fun = __stack[index + 4] 
-		if fun then
-			-- if target.__lifeState < lifeState.quitting then
-			if target.__lifeState < 20 then
-				if p2IsMsg then
-					tabMachine_pcall(self, fun, target, ...)
-				else
-					tabMachine_pcall(self, fun, target, p2, ...)
-				end
-			end
-		end
+        local fun = __stack[index + 4] 
+        if fun then
+            -- if target.__lifeState < lifeState.quitting then
+            if target.__lifeState < 20 then
+                if p2IsMsg then
+                    tabMachine_pcall(self, fun, target, ...)
+                else
+                    tabMachine_pcall(self, fun, target, p2, ...)
+                end
+            end
+        end
 
-		index = index + 4
-	end
+        index = index + 4
+    end
 
-	__stackTop = oldTop
+    __stackTop = oldTop
 end
 
 context_upwardNotify = function (self, p1, p2, ...)
-	--do need to maintain __stackTop because reentry can happen inside
-	--do not need to reset statck because all contexts all recyled
-	--
+    --do need to maintain __stackTop because reentry can happen inside
+    --do not need to reset statck because all contexts all recyled
+    --
     -- if self.__lifeState >=  lifeState.quitting then
     if self.__lifeState >= 20 then
         return
@@ -2471,17 +2471,17 @@ context_upwardNotify = function (self, p1, p2, ...)
         end
     end
 
-	local oldTop = __stackTop
-	local top = oldTop
+    local oldTop = __stackTop
+    local top = oldTop
 
-	for index = 1, top + 2 - #__stack do
-		table_insert(__stack, false) -- placeHolder
-	end
-	__stack[top + 1] = self
-	if range ~= nil then
-		__stack[top + 2] = 0 --distance
-	end
-	top = top + 2
+    for index = 1, top + 2 - #__stack do
+        table_insert(__stack, false) -- placeHolder
+    end
+    __stack[top + 1] = self
+    if range ~= nil then
+        __stack[top + 2] = 0 --distance
+    end
+    top = top + 2
 
     local visitMap = table_remove(__mapPool)
     if visitMap == nil then
@@ -2492,7 +2492,7 @@ context_upwardNotify = function (self, p1, p2, ...)
 
     local target = nil
     local fun = nil
-	local index = oldTop
+    local index = oldTop
     while index < top do
         target = __stack[index + 1]
 
@@ -2532,14 +2532,14 @@ context_upwardNotify = function (self, p1, p2, ...)
                         -- proxy.__lifeState < lifeState.quitting then
                         proxy.__lifeState < 20 then
 
-						for i = 1, top + 2 - #__stack do
-							table_insert(__stack, false) -- placeHolder
-						end
-						__stack[top + 1] = proxy
-						if range ~= nil then
-							__stack[top + 2] = distance + 1
-						end
-						top = top + 2
+                        for i = 1, top + 2 - #__stack do
+                            table_insert(__stack, false) -- placeHolder
+                        end
+                        __stack[top + 1] = proxy
+                        if range ~= nil then
+                            __stack[top + 2] = distance + 1
+                        end
+                        top = top + 2
 
                         visitMap[proxy] = true
                     end
@@ -2551,14 +2551,14 @@ context_upwardNotify = function (self, p1, p2, ...)
             if p and not visitMap[p] then
                 -- if self is not quitting then self.p isn't quitting too.
                 -- and  not p.__isQuitting then
-				for i = 1, top + 2 - #__stack do
-					table_insert(__stack, false) -- placeHolder
-				end
-				__stack[top + 1] = p
-				if range ~= nil then
-					__stack[top + 2] = distance + 1
-				end
-				top = top + 2
+                for i = 1, top + 2 - #__stack do
+                    table_insert(__stack, false) -- placeHolder
+                end
+                __stack[top + 1] = p
+                if range ~= nil then
+                    __stack[top + 2] = distance + 1
+                end
+                top = top + 2
 
                 visitMap[p] = true
             end
@@ -2583,9 +2583,9 @@ context_upwardNotify = function (self, p1, p2, ...)
 end
 
 context_upwardNotifyAll = function (self, p1, p2, ...)
-	--do need to maintain __stackTop because reentry can happen inside
-	--do not need to reset statck because all contexts all recyled
-	
+    --do need to maintain __stackTop because reentry can happen inside
+    --do not need to reset statck because all contexts all recyled
+    
     -- if self.__lifeState >= lifeState.quitting then
     if self.__lifeState >= 20 then
         return
@@ -2607,19 +2607,19 @@ context_upwardNotifyAll = function (self, p1, p2, ...)
         end
     end
 
-	local oldTop = __stackTop
-	local top = oldTop 
+    local oldTop = __stackTop
+    local top = oldTop 
 
-	for index = 1, top + 4 - #__stack do
-		table_insert(__stack, false) -- placeHolder
-	end
-	__stack[top + 1] = self
-	if range ~= nil then
-		__stack[top + 2] = 0 --distance
-	end
-	__stack[top + 3] = false --placeHolder  fun 
-	__stack[top + 4] = false --placeHolder  fun ex
-	top = top + 4
+    for index = 1, top + 4 - #__stack do
+        table_insert(__stack, false) -- placeHolder
+    end
+    __stack[top + 1] = self
+    if range ~= nil then
+        __stack[top + 2] = 0 --distance
+    end
+    __stack[top + 3] = false --placeHolder  fun 
+    __stack[top + 4] = false --placeHolder  fun ex
+    top = top + 4
 
     local visitMap = table_remove(__mapPool)
     if visitMap == nil then
@@ -2637,7 +2637,7 @@ context_upwardNotifyAll = function (self, p1, p2, ...)
         if event ~= nil then
             fun = event[msg]
             if fun ~= nil then
-				__stack[index + 3] = fun
+                __stack[index + 3] = fun
             end
         end
 
@@ -2646,7 +2646,7 @@ context_upwardNotifyAll = function (self, p1, p2, ...)
             fun = eventEx[msg]
             if fun ~= nil then
                 --use parent context for ex event
-				__stack[index + 4] = fun
+                __stack[index + 4] = fun
             end
         end
 
@@ -2668,16 +2668,16 @@ context_upwardNotifyAll = function (self, p1, p2, ...)
                         -- proxy.__lifeState < lifeState.quitting then
                         proxy.__lifeState < 20 then
 
-						for i = 1, top + 4 - #__stack do
-							table_insert(__stack, false) -- placeHolder
-						end
-						__stack[top + 1] = proxy
-						if range ~= nil then
-							__stack[top + 2] = distance + 1
-						end
-						__stack[top + 3] = false --placeHolder  fun 
-						__stack[top + 4] = false --placeHolder  fun ex
-						top = top + 4
+                        for i = 1, top + 4 - #__stack do
+                            table_insert(__stack, false) -- placeHolder
+                        end
+                        __stack[top + 1] = proxy
+                        if range ~= nil then
+                            __stack[top + 2] = distance + 1
+                        end
+                        __stack[top + 3] = false --placeHolder  fun 
+                        __stack[top + 4] = false --placeHolder  fun ex
+                        top = top + 4
                     end
                 end
                 proxyInfo = proxyInfo.nextInfo
@@ -2687,16 +2687,16 @@ context_upwardNotifyAll = function (self, p1, p2, ...)
             if p and not visitMap[p] then
                 -- if target is not quitting then target.p isn't quitting too.
                 -- and  not p.__isQuitting then
-				for i = 1, top + 4 - #__stack do
-					table_insert(__stack, false) -- placeHolder
-				end
-				__stack[top + 1] = p
-				if range ~= nil then
-					__stack[top + 2] = distance + 1
-				end
-				__stack[top + 3] = false --placeHolder  fun 
-				__stack[top + 4] = false --placeHolder  fun ex
-				top = top + 4
+                for i = 1, top + 4 - #__stack do
+                    table_insert(__stack, false) -- placeHolder
+                end
+                __stack[top + 1] = p
+                if range ~= nil then
+                    __stack[top + 2] = distance + 1
+                end
+                __stack[top + 3] = false --placeHolder  fun 
+                __stack[top + 4] = false --placeHolder  fun ex
+                top = top + 4
 
                 visitMap[p] = true
             end
@@ -2711,40 +2711,40 @@ context_upwardNotifyAll = function (self, p1, p2, ...)
     end
     table_insert(__mapPool, visitMap)
 
-	__stackTop = top
+    __stackTop = top
 
-	index = oldTop
-	while index < top do
-		local target = __stack[index + 1]
-		local fun = __stack[index + 3] 
-		if fun then
-			-- if target.__lifeState < lifeState.quitting then
-			if target.__lifeState < 20 then
-				if p2IsMsg then
-					tabMachine_pcall(self, fun, target, ...)
-				else
-					tabMachine_pcall(self, fun, target, p2, ...)
-				end
-			end
-		end
+    index = oldTop
+    while index < top do
+        local target = __stack[index + 1]
+        local fun = __stack[index + 3] 
+        if fun then
+            -- if target.__lifeState < lifeState.quitting then
+            if target.__lifeState < 20 then
+                if p2IsMsg then
+                    tabMachine_pcall(self, fun, target, ...)
+                else
+                    tabMachine_pcall(self, fun, target, p2, ...)
+                end
+            end
+        end
 
-		local exFun = __stack[index + 4] 
-		if exFun then
-			local p = target.p
-			-- if p.__lifeState < lifeState.quitting then
-			if p.__lifeState < 20 then
-				if p2IsMsg then
-					tabMachine_pcall(self, exFun, p, ...)
-				else
-					tabMachine_pcall(self, exFun, p, p2, ...)
-				end
-			end
-		end
+        local exFun = __stack[index + 4] 
+        if exFun then
+            local p = target.p
+            -- if p.__lifeState < lifeState.quitting then
+            if p.__lifeState < 20 then
+                if p2IsMsg then
+                    tabMachine_pcall(self, exFun, p, ...)
+                else
+                    tabMachine_pcall(self, exFun, p, p2, ...)
+                end
+            end
+        end
 
-		index = index + 4
-	end
+        index = index + 4
+    end
 
-	__stackTop = oldTop
+    __stackTop = oldTop
 end
 
 context_installTab  = function (self, tab)
@@ -2854,19 +2854,19 @@ context_stopSelf = function (self)
         if #subContexts ~= 0 then
             local oldTop, top =  context_collectStopTree(self)
             context_stopTree(oldTop, top)
-			__stackTop = oldTop
+            __stackTop = oldTop
         end
 
-		local subContainerPoolSize = __subContainerPoolSize
-		while next(subContexts) do
-			table_remove(subContexts)
-		end
-		if subContainerPoolSize < #__subContainerPool then
-			__subContainerPool[subContainerPoolSize + 1] = subContexts
-		else
-			table_insert(__subContainerPool, subContexts)
-		end
-		__subContainerPoolSize = subContainerPoolSize + 1
+        local subContainerPoolSize = __subContainerPoolSize
+        while next(subContexts) do
+            table_remove(subContexts)
+        end
+        if subContainerPoolSize < #__subContainerPool then
+            __subContainerPool[subContainerPoolSize + 1] = subContexts
+        else
+            table_insert(__subContainerPool, subContexts)
+        end
+        __subContainerPoolSize = subContainerPoolSize + 1
         self.__subContexts = nil
     end
 
@@ -2978,21 +2978,21 @@ context_stopSelf = function (self)
     -- inline optimization
     -- if not self.__isRecycled then
         -- self.__isRecycled = true
-		local contextRecyclePoolSize = __contextRecyclePoolSize
-		if contextRecyclePoolSize < #__contextRecyclePool then
-			__contextRecyclePool[contextRecyclePoolSize + 1] = self 
-		else
-			table_insert(__contextRecyclePool, self)
-		end
-		__contextRecyclePoolSize = contextRecyclePoolSize + 1
+        local contextRecyclePoolSize = __contextRecyclePoolSize
+        if contextRecyclePoolSize < #__contextRecyclePool then
+            __contextRecyclePool[contextRecyclePoolSize + 1] = self 
+        else
+            table_insert(__contextRecyclePool, self)
+        end
+        __contextRecyclePoolSize = contextRecyclePoolSize + 1
     -- else
         -- dump(self, "jjjjjjjj 333333333 stop self repeat recycle", 3, printError)
     -- end
 end
 
 context_collectStopTree = function (self)
-	local oldTop = __stackTop
-	local top = oldTop
+    local oldTop = __stackTop
+    local top = oldTop
 
     local frontNode = self
     while true do
@@ -3010,12 +3010,12 @@ context_collectStopTree = function (self)
                         frontNode.__lifeState = 20
                     end
 
-					top = top + 1
-					if top > #__stack then
-						table_insert(__stack, frontNode)
-					else
-						__stack[top] = frontNode
-					end
+                    top = top + 1
+                    if top > #__stack then
+                        table_insert(__stack, frontNode)
+                    else
+                        __stack[top] = frontNode
+                    end
                 end
 
                 frontNode = frontNode.p
@@ -3041,12 +3041,12 @@ context_collectStopTree = function (self)
                             frontNode.__lifeState = 20
                         end
 
-						top = top + 1
-						if top > #__stack then
-							table_insert(__stack, frontNode)
-						else
-							__stack[top] = frontNode
-						end
+                        top = top + 1
+                        if top > #__stack then
+                            table_insert(__stack, frontNode)
+                        else
+                            __stack[top] = frontNode
+                        end
                     end
 
                     frontNode = frontNode.p
@@ -3063,8 +3063,8 @@ context_collectStopTree = function (self)
         end
     end
 
-	__stackTop = top
-	return oldTop, __stackTop
+    __stackTop = top
+    return oldTop, __stackTop
 end
 
 function __getContextPath(context)
@@ -3118,7 +3118,7 @@ context_stopTree = function (oldTop, top)
     end
     
     for index = oldTop + 1, top do
-		local c = __stack[index]
+        local c = __stack[index]
         -- if c.__lifeState < lifeState.stopped then
         if c.__lifeState < 40 then
             -- c.__lifeState = lifeState.stopped
@@ -3139,16 +3139,16 @@ context_stopTree = function (oldTop, top)
             -- c.__isSubStopped = true
             local subContexts = c.__subContexts 
             if subContexts ~= nil then
-				while next(subContexts) do
-					table_remove(subContexts)
-				end
-				local subContainerPoolSize = __subContainerPoolSize
-				if subContainerPoolSize < #__subContainerPool then
-					__subContainerPool[subContainerPoolSize + 1] = subContexts
-				else
-					table_insert(__subContainerPool, subContexts)
-				end
-				__subContainerPoolSize = subContainerPoolSize + 1
+                while next(subContexts) do
+                    table_remove(subContexts)
+                end
+                local subContainerPoolSize = __subContainerPoolSize
+                if subContainerPoolSize < #__subContainerPool then
+                    __subContainerPool[subContainerPoolSize + 1] = subContexts
+                else
+                    table_insert(__subContainerPool, subContexts)
+                end
+                __subContainerPoolSize = subContainerPoolSize + 1
                 c.__subContexts = nil
             end
 
@@ -3203,13 +3203,13 @@ context_stopTree = function (oldTop, top)
 
             -- if not c.__isRecycled then
                 -- c.__isRecycled = true
-				local contextRecyclePoolSize = __contextRecyclePoolSize
-				if contextRecyclePoolSize < #__contextRecyclePool then
-					__contextRecyclePool[contextRecyclePoolSize + 1] = c 
-				else
-					table_insert(__contextRecyclePool, c)
-				end
-				__contextRecyclePoolSize = contextRecyclePoolSize + 1
+                local contextRecyclePoolSize = __contextRecyclePoolSize
+                if contextRecyclePoolSize < #__contextRecyclePool then
+                    __contextRecyclePool[contextRecyclePoolSize + 1] = c 
+                else
+                    table_insert(__contextRecyclePool, c)
+                end
+                __contextRecyclePoolSize = contextRecyclePoolSize + 1
             -- else
                 -- dump(c, "jjjjjjjj 333333333 collect tree repeat recycle", 3, printError)
             -- end
@@ -3329,30 +3329,30 @@ end
 
 
 context_forEachSub = function (self, callback)
-	--do need to maintain __stackTop because reentry can happen inside
-	--do not need to reset statck because all contexts all recyled
+    --do need to maintain __stackTop because reentry can happen inside
+    --do not need to reset statck because all contexts all recyled
     local subContexts = self.__subContexts
     if subContexts == nil then
         return
     end
 
-	local oldTop = __stackTop
-	local top = oldTop 
+    local oldTop = __stackTop
+    local top = oldTop 
 
-	local count = #subContexts
-	for i = 1, top + count - #__stack do
-		table_insert(__stack, false) --placeHolder
-	end
+    local count = #subContexts
+    for i = 1, top + count - #__stack do
+        table_insert(__stack, false) --placeHolder
+    end
 
-	for index = 1, count do 
+    for index = 1, count do 
         local subContext = subContexts[index]
-		__stack[top + index] = subContext
-	end
-	top = top + count
+        __stack[top + index] = subContext
+    end
+    top = top + count
 
-	__stackTop = top
+    __stackTop = top
     for i = oldTop + 1, top do
-		local subContext = __stack[i]
+        local subContext = __stack[i]
         if subContext.p == self then
             local isIterationFinished = callback(subContext)
             if isIterationFinished then
@@ -3361,7 +3361,7 @@ context_forEachSub = function (self, callback)
         end
     end
 
-	__stackTop = oldTop
+    __stackTop = oldTop
 end
 
 --deprecated
@@ -4977,21 +4977,21 @@ tabSelect = _{
             c:__addNickName()
         end
 
-		if not selectFuture then
-			for index, name in ipairs(scNames) do
-				if context_getSub(self, name) == nil then
-					c:output(index)
-					c:stop()
-					return
-				else
-					context_registerLifeTimeListener(self, name, c)
-				end
-			end
-		else
-			for index, name in ipairs(scNames) do
-				context_registerLifeTimeListener(self, name, c)
-			end
-		end
+        if not selectFuture then
+            for index, name in ipairs(scNames) do
+                if context_getSub(self, name) == nil then
+                    c:output(index)
+                    c:stop()
+                    return
+                else
+                    context_registerLifeTimeListener(self, name, c)
+                end
+            end
+        else
+            for index, name in ipairs(scNames) do
+                context_registerLifeTimeListener(self, name, c)
+            end
+        end
     end,
 
     event = {

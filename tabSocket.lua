@@ -250,7 +250,7 @@ tabSocket.tabConnectted = _{
     end,
 
     s1_update = function(c)
-        local body, status, partical = c:_("tcp"):receive("*a")	-- read the package body
+        local body, status, partical = c:_("tcp"):receive("*a") -- read the package body
         if partical and partical:len() > 0 then
             local buffer = c:_("buffer")
             table.insert(buffer, partical)

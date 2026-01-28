@@ -25,10 +25,10 @@ function tabSnapshotLogger:getInstance()
 end
 
 function tabSnapshotLogger.new()
-	local l = {}
-	setmetatable(l, {__index = tabSnapshotLogger})
+    local l = {}
+    setmetatable(l, {__index = tabSnapshotLogger})
     l.reportPool = {}
-	return l
+    return l
 end
 
 function tabSnapshotLogger:dumpTabSnapshot( errorMsg, errorStack, tabStack )

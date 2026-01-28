@@ -14,7 +14,7 @@ function tabDebuggerTrace.new()
     t._ContextStartAsDurationEvents = false
     t._traceEvents = {}
     t._stopwatch = CS.System.Diagnostics.Stopwatch.StartNew()
-	return t
+    return t
 end
 
 function tabDebuggerTrace:close()

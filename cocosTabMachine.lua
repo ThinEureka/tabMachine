@@ -26,7 +26,7 @@ function scheduler.new(isSystem)
     s._isSystem = isSystem
     s._timeScale = 1
     s._timerMgrList = {}
-	return s
+    return s
 end
 
 function scheduler:createTimer(target, callback, interval, timerMgrType)

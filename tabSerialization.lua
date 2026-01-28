@@ -291,7 +291,7 @@ function tabSerialization.saveSnapshotToFile(snapshot, filename)
                 file:write(  charS..exportstring( v )..","..charE )
             elseif stype == "number" then
                 file:write(  charS..tostring( v )..","..charE )
-			elseif stype == "boolean" then
+            elseif stype == "boolean" then
                 file:write(  charS ..(v and "true" or "false") ..","..charE )
             end
         end
@@ -328,8 +328,8 @@ function tabSerialization.saveSnapshotToFile(snapshot, filename)
                         file:write( str..exportstring( v )..","..charE )
                     elseif stype == "number" then
                         file:write( str..tostring( v )..","..charE )
-					elseif stype == "boolean" then
-						file:write( str ..(v and "true" or "false") ..","..charE )
+                    elseif stype == "boolean" then
+                        file:write( str ..(v and "true" or "false") ..","..charE )
                     end
                 end
             end
@@ -424,104 +424,104 @@ tabSerialization.tabRecordTabClip = _{
 }
 
 function tabSerialization.serializeTable(tbl)
-	local strRet = ""
-	local charS,charE = "   ","\n"
+    local strRet = ""
+    local charS,charE = "   ","\n"
 
-	-- initiate variables for save procedure
-	local tables,lookup = { tbl },{ [tbl] = 1 }
-	strRet =  "return {"..charE
+    -- initiate variables for save procedure
+    local tables,lookup = { tbl },{ [tbl] = 1 }
+    strRet =  "return {"..charE
 
-	for idx,t in ipairs( tables ) do
-		--strRet = strRet .. "-- Table: {"..idx.."}"..charE
-		strRet = strRet .. "{"..charE
-		local thandled = {}
+    for idx,t in ipairs( tables ) do
+        --strRet = strRet .. "-- Table: {"..idx.."}"..charE
+        strRet = strRet .. "{"..charE
+        local thandled = {}
 
-		for i,v in ipairs( t ) do
-			thandled[i] = true
-			local stype = type( v )
-			-- only handle value
-			if stype == "table" then
-				if not lookup[v] then
-					table.insert( tables, v )
-					lookup[v] = #tables
-				end
-				strRet = strRet .. charS.."{"..lookup[v].."},"..charE
-			elseif stype == "string" then
-				strRet = strRet ..  charS..exportstring( v )..","..charE
-			elseif stype == "number" then
-				strRet = strRet ..  charS..string.format("%0.17g", v)..","..charE
-			elseif stype == "boolean" then
-				strRet = strRet ..  charS..(v and "true" or "false") ..","..charE
-			end
-		end
+        for i,v in ipairs( t ) do
+            thandled[i] = true
+            local stype = type( v )
+            -- only handle value
+            if stype == "table" then
+                if not lookup[v] then
+                    table.insert( tables, v )
+                    lookup[v] = #tables
+                end
+                strRet = strRet .. charS.."{"..lookup[v].."},"..charE
+            elseif stype == "string" then
+                strRet = strRet ..  charS..exportstring( v )..","..charE
+            elseif stype == "number" then
+                strRet = strRet ..  charS..string.format("%0.17g", v)..","..charE
+            elseif stype == "boolean" then
+                strRet = strRet ..  charS..(v and "true" or "false") ..","..charE
+            end
+        end
 
-		for i,v in pairs( t ) do
-			-- escape handled values
-			if (not thandled[i]) then
+        for i,v in pairs( t ) do
+            -- escape handled values
+            if (not thandled[i]) then
 
-				local str = ""
-				local stype = type( i )
-				-- handle index
-				if stype == "table" then
-					if not lookup[i] then
-						table.insert( tables,i )
-						lookup[i] = #tables
-					end
-					str = charS.."[{"..lookup[i].."}]="
-				elseif stype == "string" then
-					str = charS.."["..exportstring( i ).."]="
-				elseif stype == "number" then
-					str = charS.."["..tostring( i ).."]="
-				end
+                local str = ""
+                local stype = type( i )
+                -- handle index
+                if stype == "table" then
+                    if not lookup[i] then
+                        table.insert( tables,i )
+                        lookup[i] = #tables
+                    end
+                    str = charS.."[{"..lookup[i].."}]="
+                elseif stype == "string" then
+                    str = charS.."["..exportstring( i ).."]="
+                elseif stype == "number" then
+                    str = charS.."["..tostring( i ).."]="
+                end
 
-				if str ~= "" then
-					stype = type( v )
-					-- handle value
-					if stype == "table" then
-						if not lookup[v] then
-							table.insert( tables,v )
-							lookup[v] = #tables
-						end
-						strRet = strRet .. str.."{"..lookup[v].."},"..charE
-					elseif stype == "string" then
-						strRet = strRet .. str..exportstring( v )..","..charE
-					elseif stype == "number" then
-						strRet = strRet .. str..string.format("%0.17g", v)..","..charE
-					elseif stype == "boolean" then
-						strRet = strRet .. str..(v and "true" or "false") ..",".. charE
-					end
-				end
-			end
-		end
-		strRet = strRet .. "},"..charE
-	end
-	strRet = strRet .. "}"
+                if str ~= "" then
+                    stype = type( v )
+                    -- handle value
+                    if stype == "table" then
+                        if not lookup[v] then
+                            table.insert( tables,v )
+                            lookup[v] = #tables
+                        end
+                        strRet = strRet .. str.."{"..lookup[v].."},"..charE
+                    elseif stype == "string" then
+                        strRet = strRet .. str..exportstring( v )..","..charE
+                    elseif stype == "number" then
+                        strRet = strRet .. str..string.format("%0.17g", v)..","..charE
+                    elseif stype == "boolean" then
+                        strRet = strRet .. str..(v and "true" or "false") ..",".. charE
+                    end
+                end
+            end
+        end
+        strRet = strRet .. "},"..charE
+    end
+    strRet = strRet .. "}"
 
-	return strRet
+    return strRet
 end
 
 local empty = {}
 
 function tabSerialization.deserializeTable(str)
-	local ftables,err = load(str, "tabSerialization", "t", empty)
-	if err then return _,err end
-	local tables = ftables()
-	for idx = 1,#tables do
-		local tolinki = {}
-		for i,v in pairs( tables[idx] ) do
-			if type( v ) == "table" then
-				tables[idx][i] = tables[v[1]]
-			end
-			if type( i ) == "table" and tables[i[1]] then
-				table.insert( tolinki,{ i,tables[i[1]] } )
-			end
-		end
-		-- link indices
-		for _,v in ipairs( tolinki ) do
-			tables[idx][v[2]],tables[idx][v[1]] =  tables[idx][v[1]],nil
-		end
-	end
-	return tables[1]
+    local ftables,err = load(str, "tabSerialization", "t", empty)
+    if err then return _,err end
+    local tables = ftables()
+    for idx = 1,#tables do
+        local tolinki = {}
+        for i,v in pairs( tables[idx] ) do
+            if type( v ) == "table" then
+                tables[idx][i] = tables[v[1]]
+            end
+            if type( i ) == "table" and tables[i[1]] then
+                table.insert( tolinki,{ i,tables[i[1]] } )
+            end
+        end
+        -- link indices
+        for _,v in ipairs( tolinki ) do
+            tables[idx][v[2]],tables[idx][v[1]] =  tables[idx][v[1]],nil
+        end
+    end
+    return tables[1]
 end
 
 return tabSerialization
