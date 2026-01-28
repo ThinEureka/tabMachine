@@ -163,10 +163,9 @@ function cocosContext:releaseAsyncOperationHandle(handle)
         local v = self.asyncOperationHandlePool[i]
         if handle==v.handle and v.releaseFunc then
             v.releaseFunc(v.handle)
-            index = k
+            index = i
             break
         end
-
     end
 
     if index then
