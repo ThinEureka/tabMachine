@@ -29,7 +29,7 @@ tabSimpleService = _{
     end,
 
     s4 = function(c)
-        -- for current implementation we only provide once service per tab lifetime and 
+        -- for current implementation we only provide once service per tab lifetime and
         -- further optimization will be done only when necessarcy
         -- c:stop("pullMsgs")
         c:stop()

@@ -2,7 +2,7 @@
 --04nycs@gmail.com
 --
 --https://github.com/ThinEureka/tabMachine
---created on Oct 21, 2023 
+--created on Oct 21, 2023
 --
 
 local tabHotReload = {}
@@ -66,7 +66,7 @@ function tabHotReload.hotReload(rootContext, extraExcludes, includes, isQuickMod
     tabHotReload.reloadTabForContexts(contextMap, tabMap)
 
     if isQuickMode then
-        --quick but dirty 
+        --quick but dirty
         tabHotReload.replaceFields(oldPackakges, packages)
     else
         --slower but more rigour
@@ -85,7 +85,7 @@ function tabHotReload.replaceUpValues(oldPackakges, packages)
     table.insert(unvisited, _G)
 
     while index <= #unvisited do
-        local value = unvisited[index] 
+        local value = unvisited[index]
         visited[value] = true
         index = index + 1
 
@@ -150,7 +150,7 @@ function tabHotReload.isPackageInList(packPath, list)
                 return true
             end
         else
-            local index, endIndex = packPath:find(path, 1)  
+            local index, endIndex = packPath:find(path, 1)
             if index == 1 and endIndex == #packPath then
                 return true
             end
@@ -241,7 +241,7 @@ function tabHotReload.buildContextMap(rTabMap, rootContext)
     local function addContext(c)
         local tab = c.__tab
         if tab ~= nil then
-            local tabPath = rTabMap[tab] 
+            local tabPath = rTabMap[tab]
             if tabPath ~= nil then
                 contextMap[c] = tabPath
             else
@@ -282,7 +282,7 @@ function tabHotReload.reloadTabForContexts(contextMap, tabMap)
             if tabHotReload.enableLog then
                 local log = {
                     context_path = context:getDetailedPath(),
-                    tab_path = tabPath 
+                    tab_path = tabPath
                 }
                 table.insert(tabHotReload.logs.reload_tabs, log)
             end
@@ -327,7 +327,7 @@ function tabHotReload.reloadTabForContext(context, newTab)
     if context.__subContexts ~= nil then
         for _, subContext in ipairs(context.__subContexts) do
             if subContext.__tab == nil then
-                local subUpdateFunEx 
+                local subUpdateFunEx
                 local subUpdateIntevalEx
                 local subUpdateTimerMgrEx
                 local eventEx
@@ -337,7 +337,7 @@ function tabHotReload.reloadTabForContext(context, newTab)
                 local commonLabels = tm.__commonLabelCache[subContext.__name]
                 if commonLabels then
                     subUpdateFunEx = selfTab[commonLabels.update]
-                    local dynamics = context.__dynamics 
+                    local dynamics = context.__dynamics
                     if dynamics ~= nil then
                         local dynamicLabels = dynamics[scName]
                         if dynamicLabels ~= nil then
@@ -379,7 +379,7 @@ function tabHotReload.hotReloadPatch(rootContext)
     end
 
     local subContexts = rootContext.__subContexts
-    if subContexts == nil then 
+    if subContexts == nil then
         return
     end
 

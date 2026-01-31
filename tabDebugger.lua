@@ -1,7 +1,7 @@
 --author cs
 --email 04nycs@gmail.com
 --https://github.com/ThinEureka/tabMachine
---created on Jan 8, 2020  
+--created on Jan 8, 2020
 
 local tabDebugger = {}
 
@@ -13,7 +13,7 @@ function tabDebugger.new(traceback)
 end
 
 function tabDebugger:onMachineStart(machine, scName)
-    local msg = g_frameIndex .. " tab start machine"  
+    local msg = g_frameIndex .. " tab start machine"
     if self._traceback then
         msg = msg .. "\n" .. debug.traceback()
     end

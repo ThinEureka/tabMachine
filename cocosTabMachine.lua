@@ -2,7 +2,7 @@
 --author cs
 --email 04nycs@gmail.com
 --https://github.com/ThinEureka/tabMachine
---created on July 13, 2019 
+--created on July 13, 2019
 
 local tabMachine = require("tabMachine.tabMachine")
 
@@ -15,7 +15,7 @@ local cocosContext = require("tabMachine.cocosContext")
 cocosTabMachine.p_createException = tabMachine._createException
 
 function cocosTabMachine:createSystemScheduler()
-    return self:createScheduler(true) 
+    return self:createScheduler(true)
 end
 
 local scheduler = {}
@@ -30,12 +30,12 @@ function scheduler.new(isSystem)
 end
 
 function scheduler:createTimer(target, callback, interval, timerMgrType)
-    if timerMgrType == nil then 
+    if timerMgrType == nil then
         timerMgrType = 1 --g_t.updateTimerMgr_normal
     end
 
     local timerMgr = self._timerMgrList[timerMgrType]
-    if not timerMgr then 
+    if not timerMgr then
         timerMgr = require("framework.updater.timerMgr").new()
         timerMgr:setTimeScale(self._timeScale)
         self._timerMgrList[timerMgrType] = timerMgr
@@ -45,7 +45,7 @@ function scheduler:createTimer(target, callback, interval, timerMgrType)
 end
 
 function scheduler:destroyTimer(handler, timerMgrType)
-    if timerMgrType == nil then 
+    if timerMgrType == nil then
         timerMgrType = 1 --g_t.updateTimerMgr_normal
     end
     local timerMgrList = self._timerMgrList
@@ -57,33 +57,33 @@ function scheduler:destroyTimer(handler, timerMgrType)
 end
 
 function scheduler:pause()
-    if self._isSystem then 
+    if self._isSystem then
         return
     end
     local timerMgrList = self._timerMgrList
     if timerMgrList == nil then
         return
     end
-    for k,v in pairs(timerMgrList) do 
+    for k,v in pairs(timerMgrList) do
         v:pause()
     end
 end
 
 function scheduler:resume()
-    if self._isSystem then 
+    if self._isSystem then
         return
     end
     local timerMgrList = self._timerMgrList
     if timerMgrList == nil then
         return
     end
-    for k,v in pairs(timerMgrList) do 
+    for k,v in pairs(timerMgrList) do
         v:resume()
     end
 end
 
 function scheduler:setTimeScale(timeScale)
-    if self._isSystem then 
+    if self._isSystem then
         return
     end
     self._timeScale = timeScale
@@ -92,7 +92,7 @@ function scheduler:setTimeScale(timeScale)
         return
     end
 
-    for k,v in pairs(timerMgrList) do 
+    for k,v in pairs(timerMgrList) do
         v:setTimeScale(timeScale)
     end
 end
@@ -106,7 +106,7 @@ function scheduler:isPaused()
 end
 
 function scheduler:dispose()
-    if self._isSystem then 
+    if self._isSystem then
         return
     end
 
@@ -114,7 +114,7 @@ function scheduler:dispose()
     if timerMgrList == nil then
         return
     end
-    for k,v in pairs(timerMgrList) do 
+    for k,v in pairs(timerMgrList) do
         updateFunctionRemoveTimerMgr(v, k)
     end
     self._timerMgrList = nil

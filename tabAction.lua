@@ -110,7 +110,7 @@ g_t.waitForNormalizedTime = _{
     end,
     s1_update = function(c)
         local animatorStatusInfo = c.animator:GetCurrentAnimatorStateInfo(0)
-        if animatorStatusInfo:IsName(c.statusName) then 
+        if animatorStatusInfo:IsName(c.statusName) then
             c:stop("s1")
         end
     end,
@@ -130,7 +130,7 @@ g_t.waitForLastFrame = _{
     end,
 
     s1_update = function(c)
-        if not c.animation.isPlaying then 
+        if not c.animation.isPlaying then
             c:stop()
         end
     end,
@@ -187,7 +187,7 @@ g_t.playSpineAnimation = _{
     s1 = function(c, spine, animationName)
         c.spine = spine
         spine:registerSpineEventHandler(function (data)
-            if data.type == spEventTypeString.SP_ANIMATION_COMPLETE 
+            if data.type == spEventTypeString.SP_ANIMATION_COMPLETE
                 and animationName == data.animation then
                 c:stop()
             end
@@ -218,7 +218,7 @@ end
 
 g_t.curve.circleEaseInOut = function(k)
     local value = k*2
-    if value < 1 then 
+    if value < 1 then
         return -0.5*(math.sqrt(1 - value * value) - 1)
     end
     value = value - 2
@@ -237,9 +237,9 @@ end
 
 g_t.curve.quadEaseInOut = function(k)
     local value = k * 2
-    if value < 1 then 
+    if value < 1 then
         return 0.5 * value * value
-    end 
+    end
     value = value - 1
     return -0.5*(value*(value-2)-1)
 end
@@ -256,7 +256,7 @@ end
 
 g_t.curve.cubicEaseInOut = function(k)
     local value = k * 2
-    if value < 1 then 
+    if value < 1 then
         return 0.5 * value * value * value
     end
     value = value - 2
@@ -298,7 +298,7 @@ end
 
 g_t.curve.quintEaseInOut = function (k)
     k = k * 2
-    if k < 1 then 
+    if k < 1 then
         return 0.5 * k * k * k * k * k
     end
     k= k - 2
@@ -306,7 +306,7 @@ g_t.curve.quintEaseInOut = function (k)
 end
 
 g_t.curve.easeInQuart = function(k)
-    return k * k * k * k 
+    return k * k * k * k
 end
 
 g_t.curve.easeOutQuart = function(k)
@@ -314,8 +314,8 @@ g_t.curve.easeOutQuart = function(k)
 end
 
 g_t.curve.easeInOutQuart = function(k)
-    if k < 0.5 then 
-        return 8 * k * k * k * k 
+    if k < 0.5 then
+        return 8 * k * k * k * k
     end
     return 1 - (-2 * k + 2)^ 4 / 2
 end
@@ -337,8 +337,8 @@ g_t.curve.easeInOutBack = function(k)
     local k2 = k1 * 1.525;
 
     k = k * 2
-    if k < 1 then 
-        return 0.5 * (k * k  * ((k2 + 1) * k - k2)) 
+    if k < 1 then
+        return 0.5 * (k * k  * ((k2 + 1) * k - k2))
     end
     k = k - 2
     return 0.5 * (k * k  * ((k2 + 1) * k + k2) + 2)
@@ -347,9 +347,9 @@ end
 g_t.curve.easeInElastic = function(k)
     local k1 = 2 / 3 * math.pi
 
-    if k == 0  then 
-        return 0 
-    elseif k == 1 then 
+    if k == 0  then
+        return 0
+    elseif k == 1 then
         return 1
     end
     return -1 * math_pow(2, 10 * k - 10) * math.sin((k * 10 - 10.75) * k1)
@@ -358,7 +358,7 @@ end
 g_t.curve.easeOutElastic = function(k)
     local k1 =  2 / 3 * math.pi
     if k == 0 then
-        return 0 
+        return 0
     elseif k == 1 then
         return 1
     end
@@ -366,15 +366,15 @@ g_t.curve.easeOutElastic = function(k)
 end
 
 g_t.curve.easeInOutElastic = function(k)
-    local k1 = 4 / 9 * math.pi 
-    if k == 0 then 
-        return 0 
-    elseif k == 1 then 
+    local k1 = 4 / 9 * math.pi
+    if k == 0 then
+        return 0
+    elseif k == 1 then
         return 1
     end
     k = k * 20
-    if k < 10 then 
-        return - 0.5 * (math_pow(2, k - 10) * math.sin((k - 11.125) * k1)) 
+    if k < 10 then
+        return - 0.5 * (math_pow(2, k - 10) * math.sin((k - 11.125) * k1))
     end
     return 0.5 * math_pow(2, -k + 10) * math.sin((k - 11.125) * k1)+ 1
 end
@@ -390,7 +390,7 @@ g_t.curve.easeOutBounce = function(k)
     elseif (k < 2.5 / k2) then
         local k2 = k - 2.25/k2
         return k1 * k2 * k2 + 0.9375
-    else 
+    else
         local k3 = k - 2.625/k2
         return k1 * k3 * k3 + 0.984375
     end
@@ -402,7 +402,7 @@ end
 
 g_t.curve.easeInOutBounce = function(k)
     k = k * 2
-    if k < 1 then 
+    if k < 1 then
         return 0.5 - 0.5 * g_t.curve.easeOutBounce(1 -  k)
     else
         return 0.5 + 0.5 * g_t.curve.easeOutBounce(k - 1)
@@ -654,7 +654,7 @@ local setNodeAttribute
 --eParams = {e1=function() ,e2 = function()}
 --g_t.timeline(node, "t=0|t=4,x=200,y=200,sx=0,a=1,r=90,e=e1|t=8,+x=300,+y=300,sx=1,a=255,r=0,e=e2", eParams)
 --timeStr参数说明t为时间节点，x,y,+x,+y为位置参数，s,sx,sy,+s,+sx,+sy为缩放参数，r,+r为角度旋转参数，d,+d为弧度旋转参数
---a,+a为透明参数，e为回调函数或者tab 
+--a,+a为透明参数，e为回调函数或者tab
 
 -- {x y +x +y lx, ly +lx, +ly 未位置参数， s,sx,sy,+s,+sx,+sy}
 g_t.timeline = _{
@@ -669,7 +669,7 @@ g_t.timeline = _{
     end,
     s2 = function(c)
         c.curData = table.remove(c.lineData, 1)
-        if c.curData then 
+        if c.curData then
             c:start("s4")
         end
     end,
@@ -679,14 +679,14 @@ g_t.timeline = _{
     s4_update = function(c, dt)
         c.time = c.time + dt
         setNodeAttribute(c.gameObject, c.nodeAttribute, c.curData, c.operateTable, c.time)
-        if c.time >= c.curData.animation.t then 
-            if c.curData.animation.f then 
-                if type(c.curData.animation.f) == "function" then 
+        if c.time >= c.curData.animation.t then
+            if c.curData.animation.f then
+                if type(c.curData.animation.f) == "function" then
                     c.curData.animation.f(c, c.gameObject)
-                elseif type(c.curData.animation.f) == "table" then 
+                elseif type(c.curData.animation.f) == "table" then
                     c:call(c.curData.animation.f(c.gameObject), "f")
-                end 
-            end 
+                end
+            end
             c:stop("s4")
         end
     end,
@@ -699,18 +699,18 @@ parseTimeLineData = function(operateTable)
     local count = 1
     local list = {}
     local custom = {}
-    local preValue = 0 
+    local preValue = 0
     for index, v in ipairs(operateTable) do
-        if not v.curve then 
+        if not v.curve then
             list[count] = {
                 animation = v,
             }
             custom = {}
             for type, value in pairs(v) do
-                if operateTable[type] then 
+                if operateTable[type] then
                     preValue = 0
-                    for i = math.max(index - 1, 1), 1, -1 do 
-                        if operateTable[i][type] then 
+                    for i = math.max(index - 1, 1), 1, -1 do
+                        if operateTable[i][type] then
                             preValue = operateTable[i][type]
                             break
                         end
@@ -719,8 +719,8 @@ parseTimeLineData = function(operateTable)
                 end
             end
             list[count].custom = custom
-            if operateTable[index + 1] and operateTable[index + 1].curve then 
-                list[count].curve = operateTable[index + 1].curve 
+            if operateTable[index + 1] and operateTable[index + 1].curve then
+                list[count].curve = operateTable[index + 1].curve
             end
             count = count + 1
         end
@@ -733,27 +733,27 @@ end
 
 getNodeAttribute = function (gameObject, curData, operateTable, custom)
     local data = {}
-    if curData.x or curData["+x"] then 
+    if curData.x or curData["+x"] then
         data.x = CS.GameObjUtil.GetLocalPositionX(gameObject)
-    end 
-    if curData.y or curData["+y"] then 
+    end
+    if curData.y or curData["+y"] then
         data.y = CS.GameObjUtil.GetLocalPositionY(gameObject)
     end
-    if curData.s or curData["+s"] then 
+    if curData.s or curData["+s"] then
         data.s = CS.GameObjUtil.GetScale(gameObject)
     end
-    if curData.a or curData["+a"] then 
+    if curData.a or curData["+a"] then
         local canvasGroup = gameObject:GetComponentInChildren("CanvasGroup")
         local alpha = 1
         if not isNil(canvasGroup) then
             alpha = canvasGroup.alpha
         end
         data.a = alpha
-    end 
-    if curData.sx or curData["+sx"] then 
+    end
+    if curData.sx or curData["+sx"] then
         data.sx = CS.GameObjUtil.GetScaleX(gameObject)
     end
-    if curData.sy or curData["+sy"] then 
+    if curData.sy or curData["+sy"] then
         data.sy = CS.GameObjUtil.GetScaleY(gameObject)
     end
     if curData.w then
@@ -778,27 +778,27 @@ end
 setNodeAttribute = function(gameObject, oldAttribute, operateData, operateTable, curTime)
     local rate = 1
     local finalAttribute = operateData.animation
-    if finalAttribute.t > 0 then 
+    if finalAttribute.t > 0 then
         rate = (operateData.timeInterval - math.max(finalAttribute.t - curTime,0)) / operateData.timeInterval
         if operateData and operateData.curve then
             rate = operateData.curve(rate)
         end
     end
-    if finalAttribute.x or finalAttribute["+x"] then 
+    if finalAttribute.x or finalAttribute["+x"] then
         local addX = finalAttribute.x and (finalAttribute.x - oldAttribute.x) or finalAttribute["+x"]
         local x = oldAttribute.x + addX * rate
         CS.GameObjUtil.SetLocalPositionX(gameObject, x)
     end
-    if finalAttribute.y or finalAttribute["+y"] then 
+    if finalAttribute.y or finalAttribute["+y"] then
         local addY = finalAttribute.y and (finalAttribute.y - oldAttribute.y ) or finalAttribute["+y"]
         local y = oldAttribute.y + addY * rate
         CS.GameObjUtil.SetLocalPositionY(gameObject, y)
-    end 
-    if finalAttribute.s or finalAttribute["+s"] then 
+    end
+    if finalAttribute.s or finalAttribute["+s"] then
         local addS = finalAttribute.s and (finalAttribute.s - oldAttribute.s ) or finalAttribute["+s"]
-        local s = oldAttribute.s + addS * rate 
+        local s = oldAttribute.s + addS * rate
         CS.GameObjUtil.SetScale(gameObject, s)
-    end 
+    end
     if finalAttribute.a or finalAttribute["+a"] then
         local addA = finalAttribute.a and (finalAttribute.a - oldAttribute.a ) or finalAttribute["+a"]
         local a = oldAttribute.a + addA * rate
@@ -806,17 +806,17 @@ setNodeAttribute = function(gameObject, oldAttribute, operateData, operateTable,
         if not isNil(canvasGroup) then
             canvasGroup.alpha = a
         end
-    end 
-    if finalAttribute.sx or finalAttribute["+sx"] then 
+    end
+    if finalAttribute.sx or finalAttribute["+sx"] then
         local addSx = finalAttribute.sx and (finalAttribute.sx - oldAttribute.sx ) or finalAttribute["+sx"]
         local sx = oldAttribute.sx + addSx * rate
         CS.GameObjUtil.SetScaleX(gameObject, sx)
-    end 
-    if finalAttribute.sy or finalAttribute["+sy"] then 
+    end
+    if finalAttribute.sy or finalAttribute["+sy"] then
         local addSy = finalAttribute.sy and (finalAttribute.sy - oldAttribute.sy ) or finalAttribute["+sy"]
         local sy = oldAttribute.sy + addSy * rate
         CS.GameObjUtil.SetScaleY(gameObject, sy)
-    end 
+    end
     if finalAttribute.w then
         local addW = finalAttribute.w and (finalAttribute.w - oldAttribute.w )
         local sw = oldAttribute.w + addW * rate
@@ -875,13 +875,13 @@ function g_t.catmullRom(node, duration, points, needAutoRotation)
             if (time == 1) then
                 p = #points
                 lt = 1
-            else 
+            else
                 p = math.floor(time / c.deltaT)
                 lt = (time - c.deltaT * p) / c.deltaT
                 p = p + 1
             end
-    
-            -- Interpolate    
+
+            -- Interpolate
             local pp0 = c:_getControlPointAtIndex(p - 1)
             local pp1 = c:_getControlPointAtIndex(p + 0)
             local pp2 = c:_getControlPointAtIndex(p + 1)
@@ -922,12 +922,12 @@ function g_t.catmullRom(node, duration, points, needAutoRotation)
             -- Formula: s(-ttt + 2tt - t)P1 + s(-ttt + tt)P2 + (2ttt - 3tt + 1)P2 + s(ttt - 2tt + t)P3 + (-2ttt + 3tt)P3 + s(ttt - tt)P4
             --
             local s = (1 - 0.5) / 2
-            
+
             local b1 = s * ((-t3 + (2 * t2)) - t)                      -- s(-t3 + 2 t2 - t)P1
             local b2 = s * (-t3 + t2) + (2 * t3 - 3 * t2 + 1)          -- s(-t3 + t2)P2 + (2 t3 - 3 t2 + 1)P2
             local b3 = s * (t3 - 2 * t2 + t) + (-2 * t3 + 3 * t2)      -- s(t3 - 2 t2 + t)P3 + (-2 t3 + 3 t2)P3
             local b4 = s * (t3 - t2)                                   -- s(t3 - t2)P4
-            
+
             local x = (p0.x * b1 + p1.x * b2 + p2.x * b3 + p3.x * b4)
             local y = (p0.y * b1 + p1.y * b2 + p2.y * b3 + p3.y * b4)
             return cc.p(x,y)

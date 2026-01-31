@@ -25,7 +25,7 @@ g_t.httpGetJson = _{
 
     final = function(c)
         if not c.requestEnd then
-            CS.Utils.StopRequest(c.requestId)  
+            CS.Utils.StopRequest(c.requestId)
         end
     end,
 
@@ -205,7 +205,7 @@ g_t.httpSafeDownload = _{
                 end
             end
 
-            if c.md5 ~= nil then 
+            if c.md5 ~= nil then
                 local md5 = c:getFileMd5(c.tmpPath)
                 if md5 ~= c.md5 then
                     c:deleteFile(c.tmpPath)

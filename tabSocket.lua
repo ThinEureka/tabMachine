@@ -3,7 +3,7 @@
 --author cs
 --email 04nycs@gmail.com
 --https://github.com/ThinEureka/tabMachine
---created on Jan 11, 2021 
+--created on Jan 11, 2021
 
 local socket = require "socket"
 
@@ -16,13 +16,13 @@ local STATUS_ALREADY_IN_PROGRESS = "Operation already in progress"
 local STATUS_TIMEOUT = "timeout"
 
 --------------------------------------------------------------------------------
--- main flow 
+-- main flow
 -- private:
 tabSocket = _{
     tabName = "tabSocket",
 
     STATE = {
-        DISCONNECTED = 1, 
+        DISCONNECTED = 1,
         CONNECTING = 2,
         CONNECTED = 3,
     },
@@ -79,7 +79,7 @@ tabSocket = _{
         end
     end,
 
-    -- inner 
+    -- inner
     inner = {
         tabSocket = function(c)
             return c
@@ -175,7 +175,7 @@ tabSocket.tabConnectting = _{
         local ipV6 = tabSocket.getIpV6Address(ip)
         if c:_("isUsingIpV6") and ipV6 ~= nil then
             c.ip = ipV6
-            c.tcp = socket.tcp6() 
+            c.tcp = socket.tcp6()
         else
             c.ip = ip
             c.tcp = socket.tcp()
@@ -328,14 +328,14 @@ tabSocket.tabConnectted = _{
 --------------------------------------------------------------------------------
 --public:
 
---read a segment of which the boundary is determined by funDecode 
+--read a segment of which the boundary is determined by funDecode
 tabSocket.tabReadOneSegment = _{
     tabName =  "tabSocket#tabReadOneSegment",
 
     s1 = function(c, self, funDecode, updateInterval, timeout, disconnectWhenTimeout)
         c.buffer = self:_("buffer")
         c.tabSocket = self
-        
+
         c.funDecode = funDecode
         c.disconnectWhenTimeout = disconnectWhenTimeout
 
@@ -413,7 +413,7 @@ tabSocket.tabReadOneSegment = _{
     end,
 }
 
---pull msgs repeatly 
+--pull msgs repeatly
 tabSocket.tabPullSegments = _{
     tabName =  "tabSocket#tabPullSegments",
 

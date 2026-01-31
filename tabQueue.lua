@@ -355,8 +355,8 @@ end
 
 function tabQueue:getTaskCount(tabType)
     local count = 0
-    for k, data in pairs(self._queue) do 
-        if data.tab.tabType == tabType then 
+    for k, data in pairs(self._queue) do
+        if data.tab.tabType == tabType then
             count = count + 1
         end
     end

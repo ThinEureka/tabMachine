@@ -11,7 +11,7 @@ local function saveErrorInfoToFile(filename, errorMsg)
 
 
     file:write(errorMsg)
-    
+
     local fileSize = file:seek()
     file:close()
     return fileSize
@@ -54,13 +54,13 @@ function tabSnapshotLogger:dumpTabSnapshot( errorMsg, errorStack, tabStack )
 
     local tabSerialization = require("tabMachine.tabSerialization")
     local rootContext = g_root
-    
+
     local snapshotName = md5Key .. os.date('_%Y-%m-%d-%H-%M-%S_') .. g_frameIndex
-    local filename = CS.UnityEngine.Application.persistentDataPath .. "/err_snapshots/" .. snapshotName 
+    local filename = CS.UnityEngine.Application.persistentDataPath .. "/err_snapshots/" .. snapshotName
     print("creating snapshot ", filename)
 
     CS.SystemIOUtils.EnsureFileDirectoryExists(filename)
-    
+
     local socket = require("socket")
     local t0 = socket.gettime()
     local detailControl = {

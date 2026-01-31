@@ -1,14 +1,14 @@
 --author cs
 --email 04nycs@gmail.com
 --https://github.com/ThinEureka/tabMachine
---created on August 23, 2019 
+--created on August 23, 2019
 
 g_t.mouse_click_event = _{
     s1 = function(c, target, callBack)
         if g_t.debug then
             c._nickName = "click<" .. (target.name or "")  .. ">"
         end
-        if type(target) == "table" then 
+        if type(target) == "table" then
             c.target = target:com(ct.custom_MouseEvent)
         else
             c.target = target
@@ -28,7 +28,7 @@ g_t.mouse_click_event = _{
 }
 
 g_t.click = _{
-    s1 = function(c, target, soundId, monitor) 
+    s1 = function(c, target, soundId, monitor)
         if monitor ~= nil then
             c.monitorRef = g_t.aliveRef(monitor)
         end
@@ -37,7 +37,7 @@ g_t.click = _{
             c._nickName = "click<" .. (target.name or "")  .. ">"
         end
 
-        if type(target) == "table" then 
+        if type(target) == "table" then
             c.target = target:com(ct.button)
         else
             c.target = target
@@ -79,7 +79,7 @@ g_t.click = _{
 -- g_t.clickTextLink 和 g_t.urlClick 实现一致， 然后url会自己创建TMP_TextClickEventHandler
 -- 建议直接使用urlClick
 g_t.clickTextLink = _{
-    s1 = function(c, target, monitor) 
+    s1 = function(c, target, monitor)
         if g_t.debug then
             c._nickName = "click<" .. tostring(target.name) .. ">"
         end
@@ -120,7 +120,7 @@ g_t.clickTextLink = _{
 }
 
 g_t.toggle = _{
-    s1 = function(c, target, soundId, monitor) 
+    s1 = function(c, target, soundId, monitor)
         if g_t.debug then
             c._nickName = "toggle<" .. (target.name or "")  .. ">"
         end
@@ -129,7 +129,7 @@ g_t.toggle = _{
             c.monitorRef = g_t.aliveRef(monitor)
         end
 
-        if type(target) == "table" then 
+        if type(target) == "table" then
             c.target = target:com(ct.toggle)
         else
             c.target = target
@@ -175,7 +175,7 @@ g_t.toggle = _{
 }
 
 g_t.bookmarkPageClick = _{
-    s1 = function(c, target, monitor) 
+    s1 = function(c, target, monitor)
         c.target = target
         if monitor ~= nil then
             c.monitorRef = g_t.aliveRef(monitor)
@@ -239,8 +239,8 @@ g_t.UISwitchClick = _{
 }
 
 g_t.toggleGroup = _{
-    s1 = function(c, target, soundId, monitor) 
-        if type(target) == "table" then 
+    s1 = function(c, target, soundId, monitor)
+        if type(target) == "table" then
             c.target = target:com(ct.custom_toggles)
         else
             c.target = target
@@ -287,7 +287,7 @@ g_t.toggleGroup = _{
 
 g_t.urlClick = _{
     s1 = function(c, target, monitor)
-        if type(target) == "table" then 
+        if type(target) == "table" then
             c.target = target:com(ct.text)
         else
             c.target = target
@@ -327,7 +327,7 @@ g_t.urlClick = _{
 
 
 g_t.dropdownClick = _{
-    s1 = function(c, target, monitor) 
+    s1 = function(c, target, monitor)
         if monitor ~= nil then
             c.monitorRef = g_t.aliveRef(monitor)
         end
@@ -336,7 +336,7 @@ g_t.dropdownClick = _{
             c._nickName = "dropdownClick<" .. (target.name or "")  .. ">"
         end
 
-        if type(target) == "table" then 
+        if type(target) == "table" then
             c.target = target.coms[ct.custom_toggles]
         else
             c.target = target

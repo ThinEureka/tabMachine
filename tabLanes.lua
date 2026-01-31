@@ -4,14 +4,14 @@
 --multi-theading support with luaLanes(https://lualanes.github.io/lanes)
 --your project should integrate luaLanes to use following code
 --to use asyncRequireWithShareData, you also need to interate conf(https://github.com/cloudwu/lua-conf)
---created on Aug 26, 2021 
+--created on Aug 26, 2021
 
--- With conf, you can share data between 2 lua states reducing the 
+-- With conf, you can share data between 2 lua states reducing the
 -- overhead of cloning data.
 g_t.asyncRequireWithShareData = function (modules)
     return _{
     s1 = function(c)
-        c._nickName = "asyncRequireWithShareData" .. #modules  
+        c._nickName = "asyncRequireWithShareData" .. #modules
         local lanes = require("lanes")
         local linda = lanes.linda()
         c.linda = linda
@@ -56,7 +56,7 @@ end
 
 -- Without conf, you need to disassemble big tables in the working thread
 -- and reasseble them in the main thread to avoid blocking the main thread.
--- However, the total time can't be saved and you also need to pay for the 
+-- However, the total time can't be saved and you also need to pay for the
 -- overhead of this mechanism.
 local builderTable = {}
 
@@ -81,7 +81,7 @@ local function isEndCmd(k)
 end
 
 local function isCmd(k)
-    return k == "table" 
+    return k == "table"
 end
 
 local builderMergeTable = {}
@@ -118,7 +118,7 @@ g_t.tabReceiveStreamedTable = function (linda, frameTimeout)
             local k, v = linda:receive(0, "m")
             local p2 = socket.gettime()
 
-            if v == nil then 
+            if v == nil then
                 return
             end
 
@@ -301,7 +301,7 @@ g_t.asyncRequireBigFiles = function (modules, depth, maxLines)
                 sendNum = (sendNum + 1) % 10
                 for k, v in pairs(t) do
                     if type(v) == "table" then
-                        if curDepth + 1 >= depth then 
+                        if curDepth + 1 >= depth then
                             sendMergeTable(v, k)
                         else
                             sendTable(v, k, curDepth + 1)

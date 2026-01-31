@@ -1,7 +1,7 @@
 --author cs
 --email 04nycs@gmail.com
 --https://github.com/ThinEureka/tabMachine
---created on July 11, 2019 
+--created on July 11, 2019
 
 
 local tabMachine = require("tabMachine.tabMachine")
@@ -9,7 +9,7 @@ local socket = require("socket")
 
 local cocosContext = tabMachine.context
 cocosContext.isTabClass = true
-local context_stopSelf  = cocosContext._stopSelf 
+local context_stopSelf  = cocosContext._stopSelf
 -- cocosContext.reuse = true
 
 --inline optimization
@@ -77,18 +77,18 @@ function cocosContext:registerButtonClick(target, fun, monitor)
         return
     end
 
-    if self.btnClickList == nil then 
+    if self.btnClickList == nil then
         self.btnClickList = {}
     end
     self.__needDispose = true
     local button
-    if type(target) == "table" then 
+    if type(target) == "table" then
         button = target:com(ct.button)
     else
         button = target
     end
 
-    if self.btnClickList[button] then 
+    if self.btnClickList[button] then
         return
     end
 
@@ -97,7 +97,7 @@ function cocosContext:registerButtonClick(target, fun, monitor)
         pc = self
     end
 
-    local monitorRef = nil 
+    local monitorRef = nil
     if monitor ~= nil then
         monitorRef = g_t.aliveRef(monitor)
     end
@@ -123,14 +123,14 @@ end
 
 function cocosContext:unregisterAllButtonClick(target)
     local button
-    if type(target) == "table" then 
+    if type(target) == "table" then
         button = target:com(ct.button)
     else
         button = target
     end
-    
+
     button.onClick:RemoveAllListeners()
-    if self.btnClickList and self.btnClickList[button] then 
+    if self.btnClickList and self.btnClickList[button] then
         self.btnClickList[button] = nil
     end
 end
@@ -195,8 +195,8 @@ function cocosContext:dispose()
         g_msgMgr:removeMsgByTarget(self)
     end
 
-    if self.btnClickList then 
-        for target, action in pairs(self.btnClickList) do 
+    if self.btnClickList then
+        for target, action in pairs(self.btnClickList) do
             tabMachine_pcall(self, removeBtnListener, target, action)
         end
         self.btnClickList = nil
@@ -1006,7 +1006,7 @@ function g_t.isInstructionTag(name)
     if  lastByte >= 48 and lastByte <= 57 then
         return true
     end
-    
+
     local splitPos = -1
     local labels = tabMachine.labels
     for _, labelLen in ipairs(tabMachine.labelLens) do
@@ -1020,7 +1020,7 @@ function g_t.isInstructionTag(name)
             break
         end
 
-        --make sure splitPos is also correct for last iteration 
+        --make sure splitPos is also correct for last iteration
         splitPos = -1
     end
 
@@ -1066,7 +1066,7 @@ g_t.tabMonitor = _{
 
     tabWaitIdle = _{
         s1 = function(c, target)
-            c.target = target 
+            c.target = target
         end,
 
         update = function(c)

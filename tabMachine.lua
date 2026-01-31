@@ -28,11 +28,11 @@ local co_yield = coroutine.yield
 local co_create = coroutine.create
 local co_resume = coroutine.resume
 local co_status = coroutine.status
-local co_close =  coroutine.close 
+local co_close =  coroutine.close
 local co_running = coroutine.running
 
 
-local tabMachine = {} 
+local tabMachine = {}
 
 local context = {}
 context.__index = context
@@ -49,7 +49,7 @@ tabMachine.event_proxy_attached = "proxy_attached"
 tabMachine.labels = {
     update = true,
     updateInterval = true,
-    updateTimerMgr = true, 
+    updateTimerMgr = true,
     event = true,
     catch = true,
     iquit  = true,
@@ -64,7 +64,7 @@ local lifeState = {
     quitting = 20,
     quittted = 30,
     stopped = 40,
-    
+
     -- recycled = 50, --current not used
     -- clear = 60,    --current not used
 }
@@ -171,7 +171,7 @@ for label, _ in pairs(tabMachine.labels) do
     else
         local index = 1
         while index <= #tabMachine.labelLens do
-            local oldLen = tabMachine.labelLens[index] 
+            local oldLen = tabMachine.labelLens[index]
             if len == oldLen then
                 break
             elseif len < oldLen then
@@ -214,6 +214,11 @@ __contextRecyclePoolSize = 0
 __subContainerPool = {}
 local __subContainerPool = __subContainerPool
 __subContainerPoolSize = 0
+
+__frameJobPool = {}
+local __frameJobPool = __frameJobPool
+__frameJobSize = 0
+local __frameJobIndex = 0
 
 g_frameIndex = 1
 -- local g_frameIndex = g_frameIndex
@@ -318,6 +323,8 @@ local context_tabSuspend = nil
 local context_hasInner = nil
 local context_getInner = nil
 local context_safeInner = nil
+local context_submitFrameJob = nil
+local context_cancelFrameJob = nil
 
 local context_meta_call = nil
 local context_meta_len = nil
@@ -343,7 +350,7 @@ local __co_pools = __co_pools
 local __co_traceback
 local __co_on_error = function(err)
     __co_traceback = debug.traceback("", 2)
-    return err 
+    return err
 end
 
 local __co_fun = function()
@@ -391,11 +398,11 @@ end
 ----------------- util functions ---------------------
 local function outputValues(env, outputVars, outputValues)
     for i, var in ipairs(outputVars) do
-        if var ~= nil then 
+        if var ~= nil then
             if outputValues == nil then
                 env[var] = nil
             else
-                env[var] = outputValues[i] 
+                env[var] = outputValues[i]
             end
         end
     end
@@ -409,7 +416,7 @@ local function createContext(tab, ...)
         -- c.__lifeState = lifeState.running
         c.__lifeState = 10
         -- c._isRecycled = false
-        
+
         __contextPoolSize = contextPoolSize - 1
     else
         c = {}
@@ -538,14 +545,14 @@ tabMachine_compileTab  = function (tab)
                             num = 0
                         end
 
-                        num = num + (code - 48) * power 
+                        num = num + (code - 48) * power
                         power = power * 10
                     end
                 end
 
                 if num ~= nil then
                     local base = tag:sub(1, splitPos)
-                    if base ~= nil then 
+                    if base ~= nil then
                         if nextSubCacheTable == nil then
                             nextSubCacheTable = __nextSubCache
                         end
@@ -559,7 +566,7 @@ tabMachine_compileTab  = function (tab)
         end
 
         rawset(targetTab, "__isNextSubCached", true)
-        targetTab = targetTab.super 
+        targetTab = targetTab.super
     end
 
     local commonLabelCache = nil
@@ -585,7 +592,7 @@ tabMachine_compileTab  = function (tab)
                     break
                 end
 
-                --make sure splitPos is also correct for last iteration 
+                --make sure splitPos is also correct for last iteration
                 splitPos = 0
             end
 
@@ -644,7 +651,7 @@ function tabMachine:setScheduler(scheduler)
 end
 
 function tabMachine:start(...)
-    local debugger = __anyDebuggerEanbled and self.__debugger or nil 
+    local debugger = __anyDebuggerEanbled and self.__debugger or nil
     if debugger then
         debugger:onMachineStart(self)
     end
@@ -714,7 +721,7 @@ function tabMachine:gc(protectedRecyled)
     end
 
     for i = 1, contextRecyclePoolSize do
-        local context = contextRecyclePool[protectedRecyled + i] 
+        local context = contextRecyclePool[protectedRecyled + i]
 
         -- local subContainer = rawget(context, "__subContexts")
         -- if subContainer ~= nil then
@@ -738,6 +745,29 @@ function tabMachine:gc(protectedRecyled)
 
     __contextPoolSize = newContextPoolSize
     __contextRecyclePoolSize = protectedRecyled
+end
+
+function tabMachine:processFrameJob()
+    __frameJobIndex = 1
+    while __frameJobIndex <= __frameJobSize do
+        local c = __frameJobPool[__frameJobIndex]
+
+        --c can be false
+        if c then
+            c.__frameJobIndex = 0
+            __frameJobPool[__frameJobIndex] = false
+
+            --c.__lifeState < lifeState.quitting
+            if c.__lifeState < 20 then
+                local f = c.frameJob
+                tabMachine_pcall(c, f, c)
+            end
+        end
+        __frameJobIndex = __frameJobIndex + 1
+    end
+
+    __frameJobIndex = 0
+    __frameJobSize = 0
 end
 
 tabMachine.compileTab = tabMachine_compileTab
@@ -861,7 +891,7 @@ function tabMachine:_addContextException(e, context)
 end
 
 function tabMachine:_onUnCaughtException(e)
-    -- the subclass can override this function to 
+    -- the subclass can override this function to
     -- provide default handling of e
 end
 
@@ -970,7 +1000,7 @@ function context:_getPath()
         path = generateContextPath(self)
     end
 
-    self.__path = path 
+    self.__path = path
 
     RegisterToInversionTree(self, path)
 
@@ -1026,7 +1056,7 @@ context_getContextByLifeId = function (self, lifeId)
         __stack[top] = self
     end
 
-    local target = nil 
+    local target = nil
     local index = oldTop + 1
     while index <= top do
         target = __stack[index]
@@ -1113,7 +1143,7 @@ context_start = function (self, scName, ...)
         debugger:onContextStart(self, scName)
     end
 
-    local subUpdateFunEx 
+    local subUpdateFunEx
     local subUpdateIntevalEx
     local subUpdateTimerMgrEx
     local eventEx
@@ -1190,7 +1220,7 @@ context_start = function (self, scName, ...)
             subContext.__updateFunEx = subUpdateFunEx
             subEnterCount = nil
 
-            local dynamics = self.__dynamics 
+            local dynamics = self.__dynamics
             if dynamics ~= nil then
                 local dynamicLabels = dynamics[scName]
                 if dynamicLabels ~= nil then
@@ -1208,7 +1238,7 @@ context_start = function (self, scName, ...)
 
             subUpdateTimerMgrEx = selfTab[commonLabels.updateTimerMgr]
 
-            if subUpdateTimerMgrEx ~= nil then 
+            if subUpdateTimerMgrEx ~= nil then
                 subContext.__updateTimerMgrEx = subUpdateTimerMgrEx
             end
         end
@@ -1243,7 +1273,7 @@ context_start = function (self, scName, ...)
         -- self:_createTickAndUpdateTimers()
         if subUpdateFunEx ~= nil then
             local timer = scheduler:createTimer(subContext, context_update, subUpdateIntevalEx, subUpdateTimerMgrEx)
-            subContext.__updateTimer = timer 
+            subContext.__updateTimer = timer
         end
 
         if self.__mapHeadListener then
@@ -1267,7 +1297,7 @@ context_start = function (self, scName, ...)
         if enterCount <= 0 then
             local subContexts = self.__subContexts
             if (subContexts == nil or next(subContexts) == nil) and self.__updateFun == nil
-                and self.__event == nil 
+                and self.__event == nil
                 and self.__suspends == nil then
                 context_stopSelf(self)
                 return
@@ -1356,7 +1386,7 @@ context_call = function (self, tab, scName, outputVars, ...)
         -- return
     -- end
 
-    local wrappedTab = tab.__wrappedTab 
+    local wrappedTab = tab.__wrappedTab
     local wrappedParams = nil
     if wrappedTab ~= nil then
         wrappedParams = tab.__wrappedParams
@@ -1386,9 +1416,9 @@ context_call = function (self, tab, scName, outputVars, ...)
     -- context_installTab(subContext, tabToInstall)
     local subEnterCount = 0
     local needTimer = false
-    
 
-    if tabToInstall ~= nil then 
+
+    if tabToInstall ~= nil then
         subContext.__tab = tabToInstall
 
         local iquitFun = tabToInstall.iquit
@@ -1484,7 +1514,7 @@ context_call = function (self, tab, scName, outputVars, ...)
     end
 
     if subEnterCount then
-        subContext.__enterCount = 0 
+        subContext.__enterCount = 0
     end
 
     if wrappedTab == nil then
@@ -1504,7 +1534,7 @@ context_call = function (self, tab, scName, outputVars, ...)
     if subContexts == nil then
         local subContainerPoolSize = __subContainerPoolSize
         if subContainerPoolSize > 0 then
-            subContexts = __subContainerPool[subContainerPoolSize] 
+            subContexts = __subContainerPool[subContainerPoolSize]
             __subContainerPoolSize = subContainerPoolSize - 1
         else
             subContexts  = {}
@@ -1527,7 +1557,7 @@ context_call = function (self, tab, scName, outputVars, ...)
     if needTimer then
         local timer = scheduler:createTimer(subContext, context_update,
         subContext.__updateIntervalEx or subContext.__updateInterval, subContext.__updateTimerMgrEx or subContext.__updateTimerMgr)
-        subContext.__updateTimer = timer 
+        subContext.__updateTimer = timer
     end
 
     if self.__mapHeadListener then
@@ -1582,7 +1612,7 @@ context_call = function (self, tab, scName, outputVars, ...)
     -- end
     --
     --inline optimization
-    -- if not subContext:isStopped() then 
+    -- if not subContext:isStopped() then
     -- if subContext.__lifeState < lifeState.quitting then
     -- if subContext.__lifeState < 20 then
         -- return subContext
@@ -1595,7 +1625,7 @@ end
 context_co_call = function (self, tab,  ...)
     local co = self.__co
     assert(co ~= nil and co_running() == co)
-    local sc = context_call(self, tab, "__co", nil, ...) 
+    local sc = context_call(self, tab, "__co", nil, ...)
     -- if sc.__lifeState >= lifeState.stopped then
     if sc.__lifeState >= 40  then
         -- self.__lifeState >= lifeState.quitting
@@ -1639,7 +1669,7 @@ context_throw = function (self, e)
     local c = self
     -- local pc = c.__pc
     local pc = c
-    if pc ~= nil and 
+    if pc ~= nil and
         pc ~= self and
         pc.p ==  self then
         c = pc
@@ -1735,7 +1765,7 @@ context_unregisterLifeTimeListener = function (self, name, listenningContext)
     end
 
     local headListener = mapHeadListener[name]
-    local listenter = headListener   
+    local listenter = headListener
 
     while listenter ~= nil do
         if listenter.context == listenningContext then
@@ -1885,7 +1915,7 @@ context_getDetailedPath = function (self)
         if c._nickName then
             partName = partName .. "[" .. c._nickName .. "]"
         end
-        
+
         if c.__co then
             local co = c.__co
             local str = debug.traceback(co)
@@ -1931,12 +1961,12 @@ end
 
 context_isQuitted = function(self)
     -- return self.__lifeState >= lifeState.quitted
-    return self.__lifeState >= 30 
+    return self.__lifeState >= 30
 end
 
 context_isQuitting = function(self)
     -- return self.__lifeState >= lifeState.quitting
-    return self.__lifeState >= 20 
+    return self.__lifeState >= 20
 end
 
 context_addSubContext = function (self, subContext)
@@ -1949,7 +1979,7 @@ context_addSubContext = function (self, subContext)
     if subContexts == nil then
         local subContainerPoolSize = __subContainerPoolSize
         if subContainerPoolSize > 0 then
-            subContexts = __subContainerPool[subContainerPoolSize] 
+            subContexts = __subContainerPool[subContainerPoolSize]
             __subContainerPoolSize = subContainerPoolSize - 1
         else
             subContexts  = {}
@@ -1973,7 +2003,7 @@ context_removeSubContext = function (self, subContext)
         return
     end
 
-    for i = #subContexts, 1, -1 do 
+    for i = #subContexts, 1, -1 do
         if subContexts[i] == subContext then
             table_remove(subContexts, i)
             -- self.__childOpId = self.__childOpId + 1
@@ -2041,7 +2071,7 @@ context_update = function(self, dt)
 
     -- local tm = nil
     local updateFun = self.__updateFun
-    if updateFun then 
+    if updateFun then
         --inline optimization
         -- if self.__isFastMode then
         --     self.__updateFun(self, dt)
@@ -2095,11 +2125,11 @@ end
 context_downDistance = function(self, dst)
     --do not need to maintain __stackTop because no reentry can happen inside
     --do not need to reset statck because all contexts all recyled
-    
+
     local dstDistance = -1
 
     local oldTop = __stackTop
-    local top = oldTop 
+    local top = oldTop
     for index = 1, top + 2 - #__stack do
         table_insert(__stack, false) -- placeHolder
     end
@@ -2157,7 +2187,7 @@ context_upDistance = function(self, dst)
         visitMap = {}
     end
 
-    local index = oldTop 
+    local index = oldTop
     while index < top do
         local target = __stack[index + 1]
         local distance = __stack[index + 2]
@@ -2217,7 +2247,7 @@ context_notify = function (self, p1, p2, ...)
     -- if self.__lifeState >= lifeState.quitting then
     --do not need to maintain __stackTop because no reentry can happen inside
     --do not need to reset statck because all contexts all recyled
-    
+
     if self.__lifeState >= 20 then
         return
     end
@@ -2253,12 +2283,12 @@ context_notify = function (self, p1, p2, ...)
     local target = nil
     local fun = nil
 
-    local index = oldTop 
+    local index = oldTop
     while index < top do
         target = __stack[index + 1]
         local distance
 
-        local eventEx = target.__eventEx 
+        local eventEx = target.__eventEx
         if eventEx ~= nil then
             fun = eventEx[msg]
             if fun ~= nil then
@@ -2342,7 +2372,7 @@ context_notifyAll = function (self, p1, p2, ...)
 
 
     local oldTop = __stackTop
-    local top = oldTop 
+    local top = oldTop
 
     for i = 1, top + 4 - #__stack do
         table_insert(__stack, false) -- placeHolder
@@ -2351,8 +2381,8 @@ context_notifyAll = function (self, p1, p2, ...)
     if range ~= nil then
         __stack[top + 2] = 0 --distance
     end
-    __stack[top + 3] = false --placeHolder  ex fun 
-    __stack[top + 4] = false --placeHolder  fun 
+    __stack[top + 3] = false --placeHolder  ex fun
+    __stack[top + 4] = false --placeHolder  fun
     top = top + 4
 
     local fun = nil
@@ -2360,7 +2390,7 @@ context_notifyAll = function (self, p1, p2, ...)
     while index < top do
         local target = __stack[index + 1]
 
-        local eventEx = target.__eventEx 
+        local eventEx = target.__eventEx
         if eventEx ~= nil then
             fun = eventEx[msg]
             if fun ~= nil then
@@ -2399,8 +2429,8 @@ context_notifyAll = function (self, p1, p2, ...)
                         if range ~= nil then
                             __stack[top + 2] = distance + 1
                         end
-                        __stack[top + 3] = false --placeHolder  ex fun 
-                        __stack[top + 4] = false --placeHolder  fun 
+                        __stack[top + 3] = false --placeHolder  ex fun
+                        __stack[top + 4] = false --placeHolder  fun
                         top = top + 4
                     end
                 end
@@ -2415,7 +2445,7 @@ context_notifyAll = function (self, p1, p2, ...)
     index = oldTop
     while index < top do
         local target = __stack[index + 1]
-        local exFun = __stack[index + 3] 
+        local exFun = __stack[index + 3]
         if exFun then
             local p = target.p
             -- if p.__lifeState < lifeState.quitting then
@@ -2428,7 +2458,7 @@ context_notifyAll = function (self, p1, p2, ...)
             end
         end
 
-        local fun = __stack[index + 4] 
+        local fun = __stack[index + 4]
         if fun then
             -- if target.__lifeState < lifeState.quitting then
             if target.__lifeState < 20 then
@@ -2504,7 +2534,7 @@ context_upwardNotify = function (self, p1, p2, ...)
             end
         end
 
-        local eventEx = target.__eventEx 
+        local eventEx = target.__eventEx
         if eventEx ~= nil then
             fun = eventEx[msg]
             if fun ~= nil then
@@ -2585,7 +2615,7 @@ end
 context_upwardNotifyAll = function (self, p1, p2, ...)
     --do need to maintain __stackTop because reentry can happen inside
     --do not need to reset statck because all contexts all recyled
-    
+
     -- if self.__lifeState >= lifeState.quitting then
     if self.__lifeState >= 20 then
         return
@@ -2608,7 +2638,7 @@ context_upwardNotifyAll = function (self, p1, p2, ...)
     end
 
     local oldTop = __stackTop
-    local top = oldTop 
+    local top = oldTop
 
     for index = 1, top + 4 - #__stack do
         table_insert(__stack, false) -- placeHolder
@@ -2617,7 +2647,7 @@ context_upwardNotifyAll = function (self, p1, p2, ...)
     if range ~= nil then
         __stack[top + 2] = 0 --distance
     end
-    __stack[top + 3] = false --placeHolder  fun 
+    __stack[top + 3] = false --placeHolder  fun
     __stack[top + 4] = false --placeHolder  fun ex
     top = top + 4
 
@@ -2641,7 +2671,7 @@ context_upwardNotifyAll = function (self, p1, p2, ...)
             end
         end
 
-        local eventEx = target.__eventEx 
+        local eventEx = target.__eventEx
         if eventEx ~= nil then
             fun = eventEx[msg]
             if fun ~= nil then
@@ -2675,7 +2705,7 @@ context_upwardNotifyAll = function (self, p1, p2, ...)
                         if range ~= nil then
                             __stack[top + 2] = distance + 1
                         end
-                        __stack[top + 3] = false --placeHolder  fun 
+                        __stack[top + 3] = false --placeHolder  fun
                         __stack[top + 4] = false --placeHolder  fun ex
                         top = top + 4
                     end
@@ -2694,7 +2724,7 @@ context_upwardNotifyAll = function (self, p1, p2, ...)
                 if range ~= nil then
                     __stack[top + 2] = distance + 1
                 end
-                __stack[top + 3] = false --placeHolder  fun 
+                __stack[top + 3] = false --placeHolder  fun
                 __stack[top + 4] = false --placeHolder  fun ex
                 top = top + 4
 
@@ -2716,7 +2746,7 @@ context_upwardNotifyAll = function (self, p1, p2, ...)
     index = oldTop
     while index < top do
         local target = __stack[index + 1]
-        local fun = __stack[index + 3] 
+        local fun = __stack[index + 3]
         if fun then
             -- if target.__lifeState < lifeState.quitting then
             if target.__lifeState < 20 then
@@ -2728,7 +2758,7 @@ context_upwardNotifyAll = function (self, p1, p2, ...)
             end
         end
 
-        local exFun = __stack[index + 4] 
+        local exFun = __stack[index + 4]
         if exFun then
             local p = target.p
             -- if p.__lifeState < lifeState.quitting then
@@ -2837,7 +2867,7 @@ context_stopSelf = function (self)
 
     --inline optimization
     -- self:_stopUpdateTickNotify()
-    
+
     -- self.__isUpdateTickNotifyStopped = true
 
     local updateTimer = self.__updateTimer
@@ -2846,10 +2876,15 @@ context_stopSelf = function (self)
         self.__updateTimer = nil
     end
 
+    local frameJobIndex = self.__frameJobIndex
+    if frameJobIndex ~= nil and frameJobIndex ~= 0 then
+        self:cancelFrameJob()
+    end
+
     -- self.__isSubStopped = true
 
     -- we use the same flag that indicating timer clearing
-    local subContexts = self.__subContexts 
+    local subContexts = self.__subContexts
     if subContexts ~= nil then
         if #subContexts ~= 0 then
             local oldTop, top =  context_collectStopTree(self)
@@ -2912,7 +2947,7 @@ context_stopSelf = function (self)
     -- end
     -- end
     -- end
-    
+
     if self.__needDispose then
         self:dispose()
     end
@@ -2980,7 +3015,7 @@ context_stopSelf = function (self)
         -- self.__isRecycled = true
         local contextRecyclePoolSize = __contextRecyclePoolSize
         if contextRecyclePoolSize < #__contextRecyclePool then
-            __contextRecyclePool[contextRecyclePoolSize + 1] = self 
+            __contextRecyclePool[contextRecyclePoolSize + 1] = self
         else
             table_insert(__contextRecyclePool, self)
         end
@@ -3020,7 +3055,7 @@ context_collectStopTree = function (self)
 
                 frontNode = frontNode.p
             else
-                visitIndex = #subContexts 
+                visitIndex = #subContexts
                 frontNode.__visitIndex = visitIndex
                 local childNode = subContexts[visitIndex]
                 if childNode.p == frontNode then
@@ -3110,13 +3145,13 @@ context_stopTree = function (oldTop, top)
             end
 
             local quitFunEx = c.__quitFunEx
-            local p = c.p 
+            local p = c.p
             if quitFunEx ~= nil and p then
                 tabMachine_pcall(c, quitFunEx, p)
             end
         end
     end
-    
+
     for index = oldTop + 1, top do
         local c = __stack[index]
         -- if c.__lifeState < lifeState.stopped then
@@ -3136,8 +3171,13 @@ context_stopTree = function (oldTop, top)
                 c.__updateTimer = nil
             end
 
+            local frameJobIndex = c.__frameJobIndex
+            if frameJobIndex ~= nil and frameJobIndex ~= 0 then
+                c:cancelFrameJob()
+            end
+
             -- c.__isSubStopped = true
-            local subContexts = c.__subContexts 
+            local subContexts = c.__subContexts
             if subContexts ~= nil then
                 while next(subContexts) do
                     table_remove(subContexts)
@@ -3205,7 +3245,7 @@ context_stopTree = function (oldTop, top)
                 -- c.__isRecycled = true
                 local contextRecyclePoolSize = __contextRecyclePoolSize
                 if contextRecyclePoolSize < #__contextRecyclePool then
-                    __contextRecyclePool[contextRecyclePoolSize + 1] = c 
+                    __contextRecyclePool[contextRecyclePoolSize + 1] = c
                 else
                     table_insert(__contextRecyclePool, c)
                 end
@@ -3244,7 +3284,7 @@ end
 
 context_stopUpdateTickNotify = function (self)
     if self.__isUpdateTickNotifyStopped then
-        return 
+        return
     end
 
     -- self.__pc = subContext
@@ -3258,7 +3298,7 @@ end
 
 context_createTickAndUpdateTimers = function (self)
     if self.__isUpdateTickNotifyStopped then
-        return 
+        return
     end
 
     if self.__updateFun ~= nil or
@@ -3337,14 +3377,14 @@ context_forEachSub = function (self, callback)
     end
 
     local oldTop = __stackTop
-    local top = oldTop 
+    local top = oldTop
 
     local count = #subContexts
     for i = 1, top + count - #__stack do
         table_insert(__stack, false) --placeHolder
     end
 
-    for index = 1, count do 
+    for index = 1, count do
         local subContext = subContexts[index]
         __stack[top + index] = subContext
     end
@@ -3390,7 +3430,7 @@ context_detach = function (self)
     end
 end
 
---inline 
+--inline
 context_notifyStop = function(self)
     -- if self.__isNotifyStopped then
     --     return
@@ -3423,7 +3463,7 @@ context_notifyStop = function(self)
         --expand checkStop
         local subContexts = p.__subContexts
         if (subContexts == nil or next(subContexts) == nil) and p.__updateFun == nil
-            and p.__enterCount 
+            and p.__enterCount
             and p.__enterCount <= 0 and p.__suspends == nil then
             context_stopSelf(p)
         end
@@ -3448,9 +3488,9 @@ context_notifyLifeTimeEvent = function (self, eventType, scName, target)
         if not listenter.detached then
             local c = listenter.context
             -- if c.__lifeState < lifeState.quitting then
-            if c.__lifeState < 20 then 
+            if c.__lifeState < 20 then
                 local fun = nil
-                local event = c.__event 
+                local event = c.__event
                 if event ~= nil then
                     fun = event[eventType]
                     if fun ~= nil then
@@ -3458,7 +3498,7 @@ context_notifyLifeTimeEvent = function (self, eventType, scName, target)
                     end
                 end
 
-                local eventEx = c.__eventEx 
+                local eventEx = c.__eventEx
                 if eventEx ~= nil then
                     fun = eventEx[eventType]
                     if fun ~= nil then
@@ -3509,7 +3549,7 @@ context_decEnterCount = function(self)
         if enterCount <= 0 then
             local subContexts = self.__subContexts
             if (subContexts == nil or next(subContexts) == nil) and self.__updateFun == nil
-                and self.__event == nil 
+                and self.__event == nil
                 and self.__suspends == nil then
                 context_stopSelf(self)
                 return
@@ -3536,7 +3576,7 @@ context_throwException = function(self, exception)
     end
 
     if not isCatched then
-        local catchFun = self.__catchFun 
+        local catchFun = self.__catchFun
         if catchFun ~= nil then
             isCatched = catchFun(self, exception)
         end
@@ -3652,7 +3692,7 @@ context_removeProxy = function(self, proxy)
 
     local proxyInfo = self.__headProxyInfo
     while proxyInfo ~= nil do
-        if proxyInfo.proxy == proxy then 
+        if proxyInfo.proxy == proxy then
             proxyInfo.detached = true
 
             if proxyInfo.prevInfo ~= nil then
@@ -3697,7 +3737,7 @@ context_setBreakPoint = function (self, scName)
     local breakPoints = self.__breakPoints
     if breakPoints == nil then
         breakPoints = {}
-        self.__breakPoints = breakPoints 
+        self.__breakPoints = breakPoints
     end
 
     local breakPoint = breakPoints[scName]
@@ -3830,7 +3870,7 @@ end
 context_needToBreak = function(self, scName)
     local mode = self.__runMode
     if mode == runMode.breakAtNextSub then
-        local breakPass = self.__breakPass 
+        local breakPass = self.__breakPass
         if breakPass and breakPass[scName] then
             return false
         end
@@ -3846,7 +3886,7 @@ context_needToBreak = function(self, scName)
                 return false
             end
 
-            local breakPass = self.__breakPass 
+            local breakPass = self.__breakPass
             if breakPass and breakPass[scName] then
                 return false
             end
@@ -4013,6 +4053,32 @@ context_safeInner = function(self, name, ...)
         end
         target = target.p
     end
+end
+
+context_submitFrameJob = function(self)
+    local frameJobIndex = self.__frameJobIndex
+    if frameJobIndex == nil or frameJobIndex <= __frameJobIndex then
+        frameJobIndex = __frameJobSize + 1
+    else
+        return
+    end
+
+    if frameJobIndex <= #__frameJobPool then
+        __frameJobPool[frameJobIndex] = self
+    else
+        table_insert(__frameJobPool, self)
+    end
+    self.__frameJobIndex = frameJobIndex
+    __frameJobSize = frameJobIndex
+end
+
+context_cancelFrameJob = function(self)
+    local frameJobIndex = self.__frameJobIndex
+    if frameJobIndex == nil or frameJobIndex <= __frameJobIndex then
+        return
+    end
+    self.__frameJobIndex = 0
+    __frameJobPool[frameJobIndex] = false
 end
 
 -- tab operator supports
@@ -4227,7 +4293,7 @@ context.tabName = "context"
 tabMachine._pcall = tabMachine_pcall
 
 context.getLifeId = context_getLifeId
-context.getSub = context_getSub 
+context.getSub = context_getSub
 context.getSubByLifeId = context_getSubByLifeId
 context.getContextByLifeId = context_getContextByLifeId
 context.hasAnySub = context_hasAnySub
@@ -4283,6 +4349,8 @@ context.getDetailedPath = context_getDetailedPath
 context.hasInner = context_hasInner
 context._ = context_getInner
 context._safe = context_safeInner
+context.submitFrameJob = context_submitFrameJob
+context.cancelFrameJob = context_cancelFrameJob
 
 context._b = function(self, ...)
     return context_getInner(self, "b", ...)
@@ -4301,7 +4369,7 @@ context.__band = context_meta_band
 context.__concat = context_meta_concat
 context.__mul = context_meta_mul
 
---make t nonreuse to be compatible with bindTab 
+--make t nonreuse to be compatible with bindTab
 
 local metaWrappedParams = {
     __len = function(t)
@@ -4332,7 +4400,7 @@ metaBind = {
         setmetatable(ft, metaBind)
 
         local wrappedTab = t.__wrappedTab
-        ft.__wrappedTab = wrappedTab 
+        ft.__wrappedTab = wrappedTab
 
         local wrappedParams = t.__wrappedParams
         if wrappedParams == nil then
@@ -4351,7 +4419,7 @@ metaBind = {
         t.__bindFrameIndex = 0
         __bindTabPool[t] = t
 
-        if wrappedTab.tabName == "__select"or 
+        if wrappedTab.tabName == "__select"or
             wrappedTab.tabName == "__join" then
             local tabs = wrappedParams[1]
             for index, tab in ipairs(tabs) do
@@ -4361,7 +4429,7 @@ metaBind = {
 
         return ft
     end,
-    
+
     __bor = context_meta_bor,
     __band = context_meta_band,
     __concat = context_meta_concat,
@@ -4370,7 +4438,7 @@ metaBind = {
 
 g_t_rebind = function(tab, ...)
     local bindTab = next(__bindTabPool)
-    local wrappedParams = nil 
+    local wrappedParams = nil
 
     if bindTab == nil then
         bindTab = {}
@@ -4458,7 +4526,7 @@ function g_t.getTabCodeLocation(tab)
     end
 
     if fun == nil then
-        local inner = rawget(tab, "inner") 
+        local inner = rawget(tab, "inner")
         if inner ~= nil then
             for k, v in pairs(inner) do
                 if type(v) == "function" then
@@ -4537,11 +4605,11 @@ function g_t.precompile(tab)
         local file, line = g_t.getTabCodeLocation(tab)
         local location = nil
         if file ~= nil and line ~= nil then
-            location = file .. " " .. line 
+            location = file .. " " .. line
         else
             location = "unkown tab"
         end
-        
+
         local info = __tabCompilationStat[location]
         if info == nil then
             info = {}
@@ -4556,7 +4624,7 @@ function g_t.precompile(tab)
     local rawget = rawget
     local superTab = rawget(tab, "super")
     if superTab == nil then
-        superTab = context 
+        superTab = context
         tab.super = context
     else
         if rawget(superTab, "__call") == nil then
@@ -4575,7 +4643,7 @@ function g_t.precompile(tab)
         inner.__index = inner
 
         if superTab ~= nil then
-            local p_inner = superTab.inner 
+            local p_inner = superTab.inner
             if p_inner ~= nil then
                 setmetatable(inner, p_inner)
             end
@@ -4638,7 +4706,7 @@ function g_t.join(...)
     return g_t.joinWithArray(tabs)
 end
 
-g_t.joinWithArray = _{ 
+g_t.joinWithArray = _{
     tabName = "__join",
 
     s1 = function(c, tabs)
@@ -4668,11 +4736,11 @@ g_t.selectWithArray = _{
         c.prefix = "__select_sub"
         c.prefixLen = string.len(c.prefix)
         c.tabs = tabs
-        for k,tab in ipairs(c.tabs) do 
+        for k,tab in ipairs(c.tabs) do
             local name = c.prefix .. k
             c:registerLifeTimeListener(name, c)
             c:call(tab, name, g_t.anyOutputVars)
-        end 
+        end
     end,
 
     event = {
@@ -4695,7 +4763,7 @@ g_t.delay = _{
     s1 = function(c, totalTime)
         if g_t.debug then
             if totalTime == nil then
-                c._nickName = "delay" 
+                c._nickName = "delay"
             else
                 c._nickName = "delay<" ..totalTime .. ">"
             end
@@ -4831,7 +4899,7 @@ context.tabProxy = _{
                 c.host = host
                 -- if host.__lifeState >= lifeState.quitting then
                 if host.__lifeState >= 20 then
-                    if host.__outputValues then 
+                    if host.__outputValues then
                         c:output(table_unpack(host.__outputValues))
                     end
                     c:stop()
@@ -4857,7 +4925,7 @@ context.tabProxy = _{
             local self = c.self
             context_registerLifeTimeListener(self, c.scName, context_getSub(c,"t1"))
         end,
-        
+
         t1_event = {
             [tabMachine.event_context_enter] = function(c, p, name, target)
                 c.host = target
@@ -4872,7 +4940,7 @@ context.tabProxy = _{
         event = g_t.empty_event,
 
         final = function(c)
-            if c.host ~= nil then 
+            if c.host ~= nil then
                 context_removeProxy(c.host, c)
                 -- if c.stopHostWhenStop and c.host.__lifeState < lifeState.quitting then
                 if c.stopHostWhenStop and c.host.__lifeState < 20 then
@@ -4950,7 +5018,7 @@ tabJoin = _{
     },
 
     __addNickName = function(c)
-        local nickName = "join<" 
+        local nickName = "join<"
         local listName = table_concat(c.scNames, ",")
         nickName = nickName .. listName
         nickName = nickName  .. ">"
@@ -5027,7 +5095,7 @@ tabSelect = _{
                     end
                 end
 
-                if target.__outputValues ~= nil then 
+                if target.__outputValues ~= nil then
                     context_output(c, stoppedIndex, table_unpack(target.__outputValues))
                 else
                     context_output(c, stoppedIndex)
@@ -5038,7 +5106,7 @@ tabSelect = _{
     },
 
     __addNickName = function(c)
-        local nickName = "select<" 
+        local nickName = "select<"
         local listName = table_concat(c.scNames, ",")
         nickName = nickName .. listName
         nickName = nickName  .. ">"

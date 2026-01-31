@@ -84,7 +84,7 @@ function tabSerialization.createSnapshot(rootContext, detailControl)
         end
         addressToImage[address] = image
 
-        return address, image 
+        return address, image
     end
 
     --create image of contexts first
@@ -162,7 +162,7 @@ function tabSerialization.createSnapshot(rootContext, detailControl)
         end
     end
 
-    local snapshot = rootImage 
+    local snapshot = rootImage
     return snapshot
 end
 
@@ -184,7 +184,7 @@ function tabSerialization.statTreeSize(context)
 end
 
 function tabSerialization.createTabTreeFromSnapshot(snapshot)
-    do 
+    do
         return snapshot
     end
     -- local addressToTable = {}
@@ -418,7 +418,7 @@ tabSerialization.tabRecordTabClip = _{
         end
     end,
 
-    final = function(c) 
+    final = function(c)
         c:output(c.clip)
     end,
 }

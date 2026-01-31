@@ -1,7 +1,7 @@
 --author cs
 --email 04nycs@gmail.com
 --https://github.com/ThinEureka/tabMachine
---created on Oct 18 2022 
+--created on Oct 18 2022
 
 local socket = require "socket"
 
@@ -21,7 +21,7 @@ tabSimpleServer = _{
         c._server = c._isUsingIpV6 and socket.tcp6() or socket.tcp()
         c._port = port
         c._address = address
-        c._timeout = timeout 
+        c._timeout = timeout
 
         c._server:setoption("reuseaddr", true)
         c._server:bind(c._address, c._port)
@@ -86,7 +86,7 @@ tabSimpleServer.tabServiceGroup = _{
 
     event = {
         [tabMachine.event_context_stop] = function(c, p, name, target)
-            if name == "service" then 
+            if name == "service" then
                 c:upwardNotify("tabSimpleServer.serviceStopped", target)
             end
         end
