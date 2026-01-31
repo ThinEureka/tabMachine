@@ -92,6 +92,8 @@ tabMachine.tabKeywords = {
 
     p = true,
     inner = true,
+    frameJob = true,
+    __frameJobIndex = true,
 
     co = true,
     __co = true,
@@ -160,8 +162,9 @@ tabMachine.tabKeywords = {
     __needDispose = true,
 
     _hasMsg = true,
-}
 
+    __visitId = true,
+}
 
 
 for label, _ in pairs(tabMachine.labels) do
@@ -200,8 +203,7 @@ __stack = {}
 local __stack = __stack
 __stackTop = 0
 
-__mapPool = {}
-local __mapPool = __mapPool
+local __nextVisitId = 1
 
 __contextPool = {}
 local __contextPool = __contextPool
@@ -2182,10 +2184,8 @@ context_upDistance = function(self, dst)
     __stack[top + 2] = 0
     top = top + 2
 
-    local visitMap = table_remove(__mapPool)
-    if visitMap == nil then
-        visitMap = {}
-    end
+    local visitId = __nextVisitId
+    __nextVisitId = visitId + 1
 
     local index = oldTop
     while index < top do
@@ -2201,7 +2201,7 @@ context_upDistance = function(self, dst)
         while proxyInfo ~= nil do
             if not proxyInfo.detached then
                 local proxy = proxyInfo.proxy
-                if not visitMap[proxy] and
+                if proxy.__visitId ~= visitId and
                     -- proxy.__lifeState < lifeState.quitting then
                     proxy.__lifeState < 20 then
 
@@ -2212,14 +2212,14 @@ context_upDistance = function(self, dst)
                     __stack[top + 2] = distance + 1
                     top = top + 2
 
-                    visitMap[proxy] = true
+                    proxy.__visitId = visitId
                 end
             end
             proxyInfo = proxyInfo.nextInfo
         end
 
         local p = target.p
-        if p and not visitMap[p] then
+        if p and p.__visitId ~= visitId then
             -- if self is not quitting then self.p isn't quitting too.
             -- and  not p.__isQuitting then
             for index = 1, top + 2 - #__stack do
@@ -2229,16 +2229,11 @@ context_upDistance = function(self, dst)
             __stack[top + 2] = distance + 1
             top = top + 2
 
-            visitMap[p] = true
+            p.__visitId = visitId
         end
 
         index = index + 2
     end
-
-    for key, _ in pairs(visitMap) do
-        visitMap[key] = nil
-    end
-    table_insert(__mapPool, visitMap)
 
     return dstDistance
 end
@@ -2513,12 +2508,10 @@ context_upwardNotify = function (self, p1, p2, ...)
     end
     top = top + 2
 
-    local visitMap = table_remove(__mapPool)
-    if visitMap == nil then
-        visitMap = {}
-    end
+    local visitId = __nextVisitId
+    __nextVisitId = visitId + 1
 
-    visitMap[self] = true
+    self.__visitId = visitId
 
     local target = nil
     local fun = nil
@@ -2558,7 +2551,7 @@ context_upwardNotify = function (self, p1, p2, ...)
             while proxyInfo ~= nil do
                 if not proxyInfo.detached then
                     local proxy = proxyInfo.proxy
-                    if not visitMap[proxy] and
+                    if proxy.__visitId ~= visitId  and
                         -- proxy.__lifeState < lifeState.quitting then
                         proxy.__lifeState < 20 then
 
@@ -2571,14 +2564,14 @@ context_upwardNotify = function (self, p1, p2, ...)
                         end
                         top = top + 2
 
-                        visitMap[proxy] = true
+                        proxy.__visitId = visitId
                     end
                 end
                 proxyInfo = proxyInfo.nextInfo
             end
 
             local p = target.p
-            if p and not visitMap[p] then
+            if p and p.__visitId ~= visitId then
                 -- if self is not quitting then self.p isn't quitting too.
                 -- and  not p.__isQuitting then
                 for i = 1, top + 2 - #__stack do
@@ -2590,18 +2583,12 @@ context_upwardNotify = function (self, p1, p2, ...)
                 end
                 top = top + 2
 
-                visitMap[p] = true
+                p.__visitId = visitId
             end
         end
 
         index = index + 2
     end
-
-    for key, _ in pairs(visitMap) do
-        visitMap[key] = nil
-    end
-    table_insert(__mapPool, visitMap)
-
 
     if fun ~= nil then
         if p2IsMsg then
@@ -2651,12 +2638,9 @@ context_upwardNotifyAll = function (self, p1, p2, ...)
     __stack[top + 4] = false --placeHolder  fun ex
     top = top + 4
 
-    local visitMap = table_remove(__mapPool)
-    if visitMap == nil then
-        visitMap = {}
-    end
-
-    visitMap[self] = true
+    local visitId = __nextVisitId
+    __nextVisitId = visitId + 1
+    self.__visitId = visitId
 
     local fun = nil
     local index = oldTop
@@ -2694,7 +2678,7 @@ context_upwardNotifyAll = function (self, p1, p2, ...)
             while proxyInfo ~= nil do
                 if not proxyInfo.detached then
                     local proxy = proxyInfo.proxy
-                    if not visitMap[proxy] and
+                    if proxy.__visitId ~= visitId and
                         -- proxy.__lifeState < lifeState.quitting then
                         proxy.__lifeState < 20 then
 
@@ -2708,13 +2692,15 @@ context_upwardNotifyAll = function (self, p1, p2, ...)
                         __stack[top + 3] = false --placeHolder  fun
                         __stack[top + 4] = false --placeHolder  fun ex
                         top = top + 4
+
+                        proxy.__visitId = visitId
                     end
                 end
                 proxyInfo = proxyInfo.nextInfo
             end
 
             local p = target.p
-            if p and not visitMap[p] then
+            if p and p.__visitId ~= visitId then
                 -- if target is not quitting then target.p isn't quitting too.
                 -- and  not p.__isQuitting then
                 for i = 1, top + 4 - #__stack do
@@ -2728,18 +2714,12 @@ context_upwardNotifyAll = function (self, p1, p2, ...)
                 __stack[top + 4] = false --placeHolder  fun ex
                 top = top + 4
 
-                visitMap[p] = true
+                p.__visitId = visitId
             end
         end
 
         index = index + 4
     end
-
-
-    for key, _ in pairs(visitMap) do
-        visitMap[key] = nil
-    end
-    table_insert(__mapPool, visitMap)
 
     __stackTop = top
 
