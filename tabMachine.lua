@@ -4,6 +4,8 @@
 --https://github.com/ThinEureka/tabMachine
 --created on July 11, 2019
 local socket = require("socket")
+local tabStruct = require "tabMachine.tabStruct"
+local rTable = tabStruct.rTable
 
 local table = table
 local table_insert = table.insert
@@ -327,6 +329,7 @@ local context_getInner = nil
 local context_safeInner = nil
 local context_submitFrameJob = nil
 local context_cancelFrameJob = nil
+local context_R = nil
 
 local context_meta_call = nil
 local context_meta_len = nil
@@ -335,6 +338,7 @@ local context_meta_shr = nil
 local context_meta_bor = nil
 local context_meta_band = nil
 local context_meta_concat = nil
+
 
 local tabJoin = nil
 local tabSelect = nil
@@ -704,6 +708,7 @@ end
 function tabMachine:update()
     g_frameIndex = g_frameIndex + 1
     self:gc(0)
+    tabStruct.gc()
 end
 
 function tabMachine:getRecyclePoolSize()
@@ -729,6 +734,10 @@ function tabMachine:gc(protectedRecyled)
         -- if subContainer ~= nil then
         -- table_insert(subContainerPool, subContainer)
         -- end
+        local r = context.r
+        if r ~= nil then
+            rTable.checkin(r)
+        end
 
         for key, _ in pairs(context) do
             context[key] = nil
@@ -1581,7 +1590,8 @@ context_call = function (self, tab, scName, outputVars, ...)
         context_start(subContext, "s1", table_unpack(wrappedParams))
     end
 
-    if not subContext.__isStopped and subContext.__coFun ~= nil then
+    -- if self.__lifeState < lifeState.stopped then
+    if subContext.__lifeState < 40 and subContext.__coFun ~= nil then
         local co = co_checkout()
         subContext.__co = co
         if wrappedTab == nil then
@@ -2907,7 +2917,6 @@ context_stopSelf = function (self)
     end
     self.__mapHeadListener = nil
 
-
     -- local subContexts = self.__subContexts
     -- if  subContexts ~= nil then
     -- local index = #subContexts
@@ -4061,6 +4070,11 @@ context_cancelFrameJob = function(self)
     __frameJobPool[frameJobIndex] = false
 end
 
+context_R = function(self)
+    assert(not self.r)
+    self.r = rTable.checkout()
+end
+
 -- tab operator supports
 context_meta_len = function(t)
     return t
@@ -4331,6 +4345,7 @@ context._ = context_getInner
 context._safe = context_safeInner
 context.submitFrameJob = context_submitFrameJob
 context.cancelFrameJob = context_cancelFrameJob
+context.R = context_R
 
 context._b = function(self, ...)
     return context_getInner(self, "b", ...)
@@ -5125,6 +5140,8 @@ g_t.tabRepeat = _{
         return c.curTimes
     end,
 }
+
+g_t.r = tabStruct.checkout
 
 return tabMachine
 
