@@ -16,7 +16,7 @@ tabSimpleService = _{
         c._port = port
         c._socket = socket
         c._serviceId = serviceId
-        c._tabCmdHandler = c:call(serviceParams.cmdHandler(serviceParams.debugCmd), "cmdHandler")
+        c._tabCmdHandler = c:call(serviceParams.cmdHandler(serviceParams.handlerParams), "cmdHandler")
     end,
 
     s2 = function(c)
@@ -91,6 +91,10 @@ end
 
 function tabSimpleService:getServiceId()
     return self._serviceId
+end
+
+function tabSimpleService:getCmdHandler()
+    return self._tabCmdHandler
 end
 
 return tabSimpleService

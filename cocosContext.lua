@@ -529,6 +529,8 @@ end
 
 
 g_t.tabCS = _{
+    tabName = "tabCS",
+
     s1 = function(c, csTab, reuse)
         c.csTab = csTab
         if reuse then

@@ -184,24 +184,17 @@ g_t.waitForAct = _{
 }
 
 g_t.playSpineAnimation = _{
-    s1 = function(c, spine, animationName)
-        c.spine = spine
-        spine:registerSpineEventHandler(function (data)
-            if data.type == spEventTypeString.SP_ANIMATION_COMPLETE
-                and animationName == data.animation then
-                c:stop()
-            end
-        end,spEventType.SP_ANIMATION_COMPLETE)
-        spine:setAnimation(0, animationName, false)
-    end,
-
-    final = function(c)
-        local spine = c.spine
-        if not tolua.isnull(spine) then
-            spine:unregisterSpineEventHandler(sp.EventType.ANIMATION_COMPLETE)
+    s1 = function(c, spineAni, animationName, isLoop)
+        c.spineAni = spineAni
+        local hasAnim, duration = CS.SpineUtils.GetAnimationDuration(c.spineAni, animationName)
+        if not hasAnim then
+            c:stop()
+            return
         end
+        c.spineAni.AnimationState:SetAnimation(0, animationName, isLoop)
+
+        c:call(g_t.delay(duration), "s2")
     end,
-    event = g_t.empty_event,
 }
 local math_pow = math.pow or function(x, y) return x^y end
 

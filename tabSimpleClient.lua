@@ -11,7 +11,7 @@ tabSimpleClient = _{
     s1 = function(c, params)
         c._nickName = "client"
         c._tabSocket = c:call(tabSocket, "socket", nil, 15)
-        c._tabCmdHandler = c:call(params.cmdHandler(params.debugCmd), "cmdHandler")
+        c._tabCmdHandler = c:call(params.cmdHandler(params.handlerParams), "cmdHandler")
     end,
 
     s2 = function(c)

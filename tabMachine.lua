@@ -917,105 +917,19 @@ local runMode = {
     breakAtNextSub = 2,
 }
 
-local context_name_stack = {}
-local path_concat_table = {}
-
-local function table_array_clear(t)
-    local n = #t
-    for i = 1, n do
-        t[i] = nil
-    end
-end
-
-local pathInversionTreeCache = {}
-
-local function findPathInInversionTree(ctx)
-    local node = pathInversionTreeCache
-
-    local c = ctx
-    while c do
-        local childNode = node[c.__name]
-        if not childNode then
-            return nil
-        end
-
-        node = childNode
-
-        c = c.p
-    end
-
-    assert(type(node.__PATH__) == "string")
-
-    return node.__PATH__
-end
-
-local function RegisterToInversionTree(ctx, path)
-    local node = pathInversionTreeCache
-
-    local c = ctx
-    while c do
-        local name = c.__name
-        local childNode = node[c.__name]
-        if not childNode then
-            childNode = {}
-            node[name] = childNode
-        end
-
-        node = childNode
-
-        c = c.p
-    end
-
-    node.__PATH__ = path
-
-    node = path
-end
-
-local function generateContextPath(ctx)
-    table_array_clear(context_name_stack)
-
-    local index = 1
-    local c = ctx
-    while c do
-        context_name_stack[index] = c.__name
-        index = index + 1
-
-        c = c.p
-    end
-
-    table_array_clear(path_concat_table)
-
-    index = 1
-    for i = #context_name_stack, 1, -1 do
-        if index > 1 then
-            path_concat_table[index] = "."
-            path_concat_table[index + 1] = context_name_stack[i]
-            index = index + 2
-        else
-            path_concat_table[index] = context_name_stack[i]
-            index = index + 1
-        end
-    end
-
-    return table_concat(path_concat_table)
-end
-
 function context:_getPath()
     local path = self.__path
     if path then
         return path
     end
 
-    local path = findPathInInversionTree(self)
-    if not path then
-        path = generateContextPath(self)
+    local t = {}
+    local c = self
+    while c do
+        table_insert(t, c.__name)
+        c = c.p
     end
-
-    self.__path = path
-
-    RegisterToInversionTree(self, path)
-
-    return path
+    return table_concat(t, ".")
 end
 
 context.getPath = context._getPath
@@ -4045,7 +3959,13 @@ context_safeInner = function(self, name, ...)
 end
 
 context_submitFrameJob = function(self)
+    -- lifeState.quitting = 20
+    if self.__lifeState >= 20 then
+        return
+    end
+
     local frameJobIndex = self.__frameJobIndex
+
     if frameJobIndex == nil or frameJobIndex <= __frameJobIndex then
         frameJobIndex = __frameJobSize + 1
     else
@@ -4278,9 +4198,6 @@ end
 context_meta_mul = function(t, times)
     return g_t.tabRepeat(t, times)
 end
-
-context.tabName = "context"
-
 
 --public:
 --
@@ -4551,7 +4468,7 @@ function g_t.getTabCodeLocation(tab)
 
     if fun ~= nil then
         local info = debug.getinfo(fun)
-        local file  = info.source
+        local file  = info.short_src
         local line = info.linedefined
         return file, line
     end
@@ -4587,7 +4504,7 @@ function g_t.getContextCodeLocation(c)
 
     if fun ~= nil then
         local info = debug.getinfo(fun)
-        file  = info.source
+        file  = info.short_src
         line = info.linedefined
 
         return file, line
@@ -4844,6 +4761,7 @@ context_meta_call = g_t_rebind
 context.__call = context_meta_call
 
 context.tabProxy = _{
+        tabName = "tabProxy",
         s1 = function(c, self, scName, stopHostWhenStop, proxyFuture, proxyEvent)
             if g_t.debug then
                 if scName then

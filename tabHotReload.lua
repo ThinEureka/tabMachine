@@ -43,7 +43,12 @@ tabHotReload.baseExcludes = {
     "LuaPanda",
     "cscommon.*",
     "config.static.*",
-    "languages.i18n.*"
+    "languages.i18n.*",
+    "gameFlow.itemTree",
+    "gameFlow.timeMaster",
+    "gameFlow.debugMgr.debugModules.tabTreeDebugModule.tabTreeClient",
+    "gameFlow.propTree",
+    "gameFlow.contextTree",
 }
 
 function tabHotReload.hotReload(rootContext, extraExcludes, includes, isQuickMode)
